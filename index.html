@@ -2,22 +2,907 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Execute &gt; Excuses</title>
-<meta http-equiv="refresh" content="0; url=https://claude.ai/artifact/3fvozkezmcveX9svPoxJAY">
-<script>location.replace("https://claude.ai/artifact/3fvozkezmcveX9svPoxJAY");</script>
+<meta name="description" content="Daily and weekly accountability for men: time with God, building, training, stretching and learning.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0f1114">
+<meta name="apple-mobile-web-app-title" content="Execute">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Barlow:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
 <style>
-  :root { color-scheme: light dark; }
-  body { margin: 0; min-height: 100vh; display: grid; place-items: center; font: 16px/1.5 system-ui, sans-serif; background: #f6f4ef; color: #1b1b1b; }
-  @media (prefers-color-scheme: dark) { body { background: #121212; color: #eee; } a { color: #9cc4ff; } }
-  main { padding: 16px; text-align: center; }
+/* Layout: one phone-width column (wider on desktop), game HUD on top, fixed bottom tab bar, bottom sheets for logging. Dark-first "forge" look. */
+:root {
+  --bg: #0f1114; --surface: #171a1f; --surface-2: #1f232a; --line: #2b3038; --fg: #edeff2; --muted: #8c94a1;
+  --accent: #f2a93b; --accent-ink: #1a1205; --accent-soft: rgba(242,169,59,.14);
+  --spirit: #f2c14e; --build: #5aa9e6; --body: #ef6a4c; --stretch: #4fc3a1; --learn: #b08cf2;
+  --good: #4fc38a; --bad: #e5534b; --shadow: 0 10px 30px rgba(0,0,0,.35);
+  --display: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --body-font: "Barlow", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) {
+  --bg: #eceef1; --surface: #ffffff; --surface-2: #f4f5f7; --line: #d6dae0; --fg: #14171c; --muted: #5b6370;
+  --accent: #b46f0c; --accent-ink: #ffffff; --accent-soft: rgba(180,111,12,.12);
+  --spirit: #a97c06; --build: #1f6fb2; --body: #c6402a; --stretch: #17876a; --learn: #7246c9;
+  --good: #1d8a54; --bad: #c4362f; --shadow: 0 10px 30px rgba(20,23,28,.10); color-scheme: light;
+} }
+:root[data-theme="light"] {
+  --bg: #eceef1; --surface: #ffffff; --surface-2: #f4f5f7; --line: #d6dae0; --fg: #14171c; --muted: #5b6370;
+  --accent: #b46f0c; --accent-ink: #ffffff; --accent-soft: rgba(180,111,12,.12);
+  --spirit: #a97c06; --build: #1f6fb2; --body: #c6402a; --stretch: #17876a; --learn: #7246c9;
+  --good: #1d8a54; --bad: #c4362f; --shadow: 0 10px 30px rgba(20,23,28,.10); color-scheme: light;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); -webkit-text-size-adjust: 100%; }
+[hidden] { display: none !important; }
+img { max-width: 100%; }
+html, body { background: var(--bg); }
+body { margin: 0; color: var(--fg); font: 16px/1.5 var(--body-font); -webkit-font-smoothing: antialiased; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--bg); }
+button, input, textarea, select { font: inherit; color: inherit; }
+input, textarea, select { font-size: 16px; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.app { max-width: 620px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 14px calc(96px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 14px; }
+.app.wide { max-width: 1040px; }
+h1, h2, h3 { font-family: var(--display); text-transform: uppercase; letter-spacing: .02em; line-height: 1; margin: 0; text-wrap: balance; }
+h1 { font-size: 34px; font-weight: 900; }
+h2 { font-size: 22px; font-weight: 800; }
+h3 { font-size: 18px; font-weight: 800; }
+p { margin: 0; }
+.muted { color: var(--muted); }
+.small { font-size: 14px; }
+.tiny { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; font-weight: 600; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
+.row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.row.wrap { flex-wrap: wrap; }
+.spread { justify-content: space-between; }
+.grow { flex: 1; min-width: 0; }
+.stack { display: grid; gap: 8px; }
+.ic { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Brand bar */
+.brand { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.logo { font-family: var(--display); font-weight: 900; font-size: 22px; text-transform: uppercase; letter-spacing: .03em; display: flex; align-items: center; gap: 6px; }
+.logo b { color: var(--accent); font-size: 26px; line-height: 0; }
+.logo s { text-decoration: line-through; text-decoration-thickness: 3px; text-decoration-color: var(--accent); color: var(--muted); }
+.icon-btn { border: 1px solid var(--line); background: var(--surface); border-radius: 12px; width: 44px; height: 44px; display: grid; place-items: center; }
+
+/* HUD */
+.hud { background: linear-gradient(160deg, var(--surface-2), var(--surface)); border: 1px solid var(--line); border-radius: 22px; padding: 18px; display: grid; gap: 14px; position: relative; overflow: hidden; }
+.hud::after { content: ""; position: absolute; right: -60px; top: -60px; width: 200px; height: 200px; border-radius: 50%; background: radial-gradient(circle, var(--accent-soft), transparent 70%); pointer-events: none; }
+.lvl { width: 58px; height: 58px; border-radius: 16px; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-family: var(--display); font-weight: 900; font-size: 30px; flex: none; transform: rotate(-4deg); box-shadow: 0 6px 18px var(--accent-soft); }
+.xpbar { height: 12px; border-radius: 99px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; }
+.xpbar i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--spirit)); border-radius: 99px; transition: width .6s ease; }
+.streak { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); font-weight: 700; font-size: 14px; white-space: nowrap; }
+
+/* Quests */
+.quest { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--line); }
+.quest.done { border-color: color-mix(in srgb, var(--good) 55%, var(--line)); }
+.check { width: 30px; height: 30px; border-radius: 10px; border: 2px solid var(--line); display: grid; place-items: center; flex: none; }
+.quest.done .check { background: var(--good); border-color: var(--good); color: var(--bg); }
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 99px; font-size: 13px; font-weight: 600; background: var(--surface); border: 1px solid var(--line); white-space: nowrap; }
+.chip.on { border-color: transparent; background: var(--accent-soft); color: var(--accent); }
+.ring { width: 64px; height: 64px; flex: none; }
+.ring circle { fill: none; stroke-width: 7; }
+.ring .bg { stroke: var(--surface-2); }
+.ring .fg { stroke: var(--good); stroke-linecap: round; transition: stroke-dashoffset .6s ease; transform: rotate(-90deg); transform-origin: 50% 50%; }
+.ring text { fill: var(--fg); font-family: var(--display); font-weight: 900; font-size: 20px; text-anchor: middle; dominant-baseline: central; }
+
+/* Action pad */
+.pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.act { border: 1px solid var(--line); background: var(--surface); border-radius: 16px; padding: 14px 8px 12px; display: grid; justify-items: center; gap: 6px; font-weight: 700; font-size: 15px; min-height: 92px; position: relative; transition: transform .12s ease; }
+.act:active { transform: scale(.96); }
+.act .ic { width: 28px; height: 28px; }
+.act small { font-family: var(--mono); font-size: 11px; color: var(--muted); font-weight: 500; }
+.a-spirit { color: var(--spirit); } .a-build { color: var(--build); } .a-body { color: var(--body); } .a-stretch { color: var(--stretch); } .a-learn { color: var(--learn); }
+.act span { color: var(--fg); }
+
+/* Weekly musts */
+.must { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 10px; }
+.must .badge { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: var(--surface-2); }
+.pips { display: flex; gap: 4px; flex-wrap: wrap; }
+.pip { width: 16px; height: 8px; border-radius: 4px; background: var(--surface-2); border: 1px solid var(--line); }
+.pip.on { background: currentColor; border-color: transparent; }
+.strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.day { text-align: center; display: grid; gap: 4px; justify-items: center; font-size: 12px; color: var(--muted); font-weight: 600; }
+.dots { display: flex; gap: 3px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--line); }
+.dot.s { background: var(--spirit); border-color: var(--spirit); }
+.dot.b { background: var(--build); border-color: var(--build); }
+.dot.miss { border-color: var(--bad); }
+.day.today { color: var(--accent); }
+.status { padding: 4px 10px; border-radius: 99px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+.status.good { background: color-mix(in srgb, var(--good) 18%, transparent); color: var(--good); }
+.status.warn { background: var(--accent-soft); color: var(--accent); }
+.status.bad { background: color-mix(in srgb, var(--bad) 16%, transparent); color: var(--bad); }
+
+/* Lists */
+.list { display: grid; }
+.item { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; border-top: 1px solid var(--line); min-width: 0; }
+.item:first-child { border-top: 0; padding-top: 2px; }
+.item .ic { margin-top: 2px; }
+.thumb { width: 56px; height: 56px; border-radius: 12px; object-fit: cover; flex: none; background: var(--surface-2); border: 1px solid var(--line); }
+.btn { border: 1px solid var(--line); background: var(--surface-2); border-radius: 12px; padding: 11px 16px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.btn.ghost { background: transparent; }
+.btn.danger { color: var(--bad); }
+.btn.sm { min-height: 36px; padding: 6px 12px; font-size: 14px; border-radius: 10px; }
+.btn.block { width: 100%; }
+.btn:disabled { opacity: .5; cursor: default; }
+.linkish { background: none; border: 0; padding: 4px; color: var(--muted); font-size: 14px; }
+.field { display: grid; gap: 6px; }
+.field label { font-size: 14px; font-weight: 600; color: var(--muted); }
+.input { width: 100%; background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; min-height: 48px; }
+textarea.input { min-height: 84px; resize: vertical; }
+.seg { display: flex; gap: 6px; flex-wrap: wrap; }
+.seg button { border: 1px solid var(--line); background: var(--surface-2); border-radius: 99px; padding: 8px 14px; font-weight: 600; min-height: 40px; }
+.seg button.on { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+
+/* Lock tile */
+.locked { background: repeating-linear-gradient(135deg, var(--surface), var(--surface) 10px, var(--surface-2) 10px, var(--surface-2) 20px); }
+.lockmeter { display: flex; gap: 6px; }
+.lockmeter i { flex: 1; height: 10px; border-radius: 5px; background: var(--surface-2); border: 1px solid var(--line); }
+.lockmeter i.on { background: var(--good); border-color: transparent; }
+
+/* Photos */
+.wall { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.shot { border-radius: 14px; overflow: hidden; background: var(--surface-2); border: 1px solid var(--line); display: grid; }
+.shot img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; max-width: 100%; }
+.shot div { padding: 8px 10px; font-size: 13px; }
+.preview { width: 100%; max-height: 240px; object-fit: cover; border-radius: 14px; border: 1px solid var(--line); }
+
+/* People */
+.avatar { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; font-family: var(--display); font-weight: 900; font-size: 20px; flex: none; background: var(--surface-2); border: 1px solid var(--line); text-transform: uppercase; }
+.person { display: flex; gap: 12px; align-items: center; padding: 12px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--line); text-align: left; width: 100%; }
+.mini { display: flex; gap: 4px; }
+.mini i { width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center; background: var(--surface); border: 1px solid var(--line); font-style: normal; }
+.mini i .ic { width: 13px; height: 13px; }
+.mini i.on { background: currentColor; border-color: transparent; }
+.mini i.on .ic { stroke: var(--bg); }
+.rank { font-family: var(--display); font-weight: 900; font-size: 22px; width: 26px; text-align: center; color: var(--muted); }
+.cols { display: grid; gap: 14px; }
+@media (min-width: 900px) { .cols { grid-template-columns: 380px 1fr; align-items: start; } }
+
+/* Nav */
+.nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px); padding-left: max(8px, env(safe-area-inset-left, 0px)); padding-right: max(8px, env(safe-area-inset-right, 0px)); }
+.nav-in { max-width: 620px; margin: 0 auto; display: flex; }
+.nav a { flex: 1; display: grid; justify-items: center; gap: 2px; padding: 9px 0 8px; color: var(--muted); text-decoration: none; font-size: 12px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; min-height: 58px; }
+.nav a.on { color: var(--accent); }
+.nav a .ic { width: 24px; height: 24px; }
+
+/* Sheet */
+.scrim { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,.55); display: flex; align-items: flex-end; justify-content: center; animation: fade .18s ease; }
+.sheet { width: 100%; max-width: 620px; max-height: 92%; overflow-y: auto; background: var(--surface); border: 1px solid var(--line); border-bottom: 0; border-radius: 24px 24px 0 0; padding: 10px max(16px, env(safe-area-inset-right, 0px)) calc(20px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); display: grid; gap: 14px; animation: up .22s ease; overscroll-behavior: contain; }
+.grab { width: 44px; height: 5px; border-radius: 3px; background: var(--line); justify-self: center; }
+@keyframes up { from { transform: translateY(40px); opacity: .4; } }
+@keyframes fade { from { opacity: 0; } }
+
+/* Toast */
+.toast { position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 50; background: var(--fg); color: var(--bg); padding: 12px 18px; border-radius: 14px; font-weight: 700; box-shadow: var(--shadow); max-width: calc(100% - 32px); text-align: center; }
+.toast.xp { background: var(--accent); color: var(--accent-ink); font-family: var(--display); font-size: 24px; text-transform: uppercase; letter-spacing: .03em; animation: pop .5s ease; }
+@keyframes pop { 0% { transform: translate(-50%, 20px) scale(.8); opacity: 0; } 60% { transform: translate(-50%, -4px) scale(1.06); opacity: 1; } }
+.banner { border-radius: 14px; padding: 12px 14px; background: var(--accent-soft); color: var(--fg); font-size: 15px; border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); }
+.empty { padding: 18px; text-align: center; color: var(--muted); border: 1.5px dashed var(--line); border-radius: 14px; }
+.note { padding: 12px 14px; border-radius: 14px; background: var(--surface-2); border-left: 4px solid var(--accent); }
+.hero-word { font-family: var(--display); font-weight: 900; text-transform: uppercase; font-size: clamp(40px, 12vw, 64px); line-height: .9; letter-spacing: .01em; }
+.hero-word em { font-style: normal; color: var(--accent); }
+.hero-word s { color: var(--muted); text-decoration-color: var(--accent); text-decoration-thickness: 5px; }
+.rules { display: grid; gap: 8px; padding: 0; margin: 0; list-style: none; }
+.rules li { display: flex; gap: 10px; align-items: flex-start; }
+.num { width: 64px; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 </style>
 </head>
 <body>
-<main>
-  <p>Opening Execute &gt; Excuses…</p>
-  <p><a href="https://claude.ai/artifact/3fvozkezmcveX9svPoxJAY">Tap here if it doesn't open</a></p>
-</main>
+<div id="root"></div>
+<div id="sheet"></div>
+<div id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+/* Firebase project config (public by design; access is enforced by Firestore rules). */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyALctwShEH9fJAbrSJAt7u_ymbRAF66Acw",
+  authDomain: "execute-over-excuses.firebaseapp.com",
+  projectId: "execute-over-excuses",
+  storageBucket: "execute-over-excuses.firebasestorage.app",
+  messagingSenderId: "4047768429",
+  appId: "1:4047768429:web:082df454a3290e4a70a864"
+};
+const ADMIN_EMAIL = "noriodeobaro@gmail.com";
+</script>
+<script>
+/* ===== icons ===== */
+const P = {
+  sunrise: '<path d="M12 2v7M4.9 10.9l1.4 1.4M2 18h2M20 18h2M17.7 12.3l1.4-1.4M22 22H2M8 6l4-4 4 4M16 18a4 4 0 0 0-8 0"/>',
+  book: '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
+  brief: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>',
+  dumb: '<path d="M6 5v14M18 5v14M3 9v6M21 9v6M6 12h12"/>',
+  pulse: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+  bulb: '<path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2z"/>',
+  flame: '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.4-.5-2-1-3-1.1-2.1-.2-4 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.2.4-2.3 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',
+  camera: '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3"/>',
+  image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/>',
+  shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+  user: '<circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/>',
+  target: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+  cal: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  lock: '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  x: '<path d="M18 6 6 18M6 6l12 12"/>',
+  trash: '<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>',
+  copy: '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
+  heart: '<path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7z"/>',
+  send: '<path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/>',
+  back: '<path d="m15 18-6-6 6-6"/>',
+};
+const ic = (n, cls = "") => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${P[n] || ""}</svg>`;
+
+/* ===== game rules ===== */
+const DEF_RULES = { spiritDays: 7, buildDays: 5, train: 3, stretch: 1, learn: 1, healWeeks: 3 };
+const KINDS = {
+  prayer:  { label: "Prayer",   area: "spirit",  xp: 20, icon: "sunrise", min: true,  note: "What did you pray about? (optional)", ph: "", photo: true },
+  word:    { label: "The Word", area: "spirit",  xp: 20, icon: "book",    min: true,  note: "What did you read?", ph: "e.g. Proverbs 3, James 1", photo: true },
+  build:   { label: "Build",    area: "build",   xp: 20, icon: "brief",   min: true,  note: "What did you work on?", ph: "Career, money, business or school", req: true, photo: false },
+  train:   { label: "Train",    area: "body",    xp: 30, icon: "dumb",    min: true,  note: "Workout notes (optional)", ph: "e.g. Push day, 5 km run", types: ["Gym", "Basketball", "Run", "Soccer", "Other sport"], photo: true },
+  stretch: { label: "Stretch",  area: "stretch", xp: 15, icon: "pulse",   min: true,  note: "Notes (optional)", ph: "", photo: true },
+  learn:   { label: "Learn",    area: "learn",   xp: 40, icon: "bulb",    min: false, note: "What did you learn? Be specific.", ph: "A new skill, a faster way to work, how to post content better…", req: true, photo: false },
+};
+const LEVELS = [0, 300, 800, 1500, 2500, 4000, 6000, 8500, 11500, 15000];
+const RANKS = ["Recruit", "Disciplined", "Steadfast", "Builder", "Warrior", "Watchman", "Pillar", "Elder", "General", "Legend"];
+const PHOTO_XP = 10, BOTH_SPIRIT_XP = 15, FULL_DAY_XP = 10, WEEK_XP = 200;
+const SHORT_LINK = "https://trueyxl.github.io/execute-over-excuses/";
+
+/* ===== dates ===== */
+const pad = n => String(n).padStart(2, "0");
+const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const parse = s => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+const addD = (s, n) => { const d = parse(s); d.setDate(d.getDate() + n); return iso(d); };
+const monday = s => { const d = parse(s); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return iso(d); };
+const today = () => iso(new Date());
+const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const nice = s => { const d = parse(s); return `${["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d.getDay()]} ${MON[d.getMonth()]} ${d.getDate()}`; };
+const short = s => { const d = parse(s); return `${MON[d.getMonth()]} ${d.getDate()}`; };
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const rid = (n = 10) => { const a = "abcdefghijkmnpqrstuvwxyz23456789"; let s = ""; const r = crypto.getRandomValues(new Uint8Array(n)); for (const x of r) s += a[x % a.length]; return s; };
+
+/* ===== state ===== */
+const S = {
+  db: null, user: null, assets: null, uid: null, isOwner: false, status: "loading", ro: false,
+  profile: undefined, days: {}, plans: {}, notes: [], myProofs: [], people: {}, groups: {}, rules: { ...DEF_RULES },
+  view: "today", sheet: null, sel: null, selData: null, crewProofs: {}, armDel: null, mine: null,
+};
+const views = ["today", "plan", "crew", "coach", "me"];
+
+/* ===== stats ===== */
+function hasArea(day, area) { return (day?.logs || []).some(l => KINDS[l.kind]?.area === area); }
+function hasKind(day, k) { return (day?.logs || []).some(l => l.kind === k); }
+function weekOf(days, mon, R) {
+  const dates = [...Array(7)].map((_, i) => addD(mon, i));
+  const w = { mon, spiritDays: 0, bothDays: 0, buildDays: 0, train: 0, stretch: 0, learn: 0, xp: 0, strip: {} };
+  for (const d of dates) {
+    const day = days[d], s = hasArea(day, "spirit"), b = hasArea(day, "build");
+    if (s) w.spiritDays++; if (b) w.buildDays++;
+    if (hasKind(day, "prayer") && hasKind(day, "word")) w.bothDays++;
+    if (hasArea(day, "body")) w.train++;
+    w.stretch += (day?.logs || []).filter(l => l.kind === "stretch").length;
+    w.learn += (day?.logs || []).filter(l => l.kind === "learn").length;
+    w.strip[d] = (s ? "s" : "") + (b ? "b" : "");
+    w.xp += dayXP(day);
+  }
+  w.musts = {
+    spirit: w.spiritDays >= R.spiritDays, build: w.buildDays >= R.buildDays,
+    train: w.train >= R.train, stretch: w.stretch >= R.stretch, learn: w.learn >= R.learn,
+  };
+  w.mustsDone = Object.values(w.musts).filter(Boolean).length;
+  w.consistent = w.mustsDone === 5;
+  if (w.consistent) w.xp += WEEK_XP;
+  return w;
+}
+function dayXP(day) {
+  if (!day?.logs?.length) return 0;
+  let x = 0;
+  for (const l of day.logs) x += (KINDS[l.kind]?.xp || 0) + (l.proof ? PHOTO_XP : 0);
+  if (hasKind(day, "prayer") && hasKind(day, "word")) x += BOTH_SPIRIT_XP;
+  if (hasArea(day, "spirit") && hasArea(day, "build")) x += FULL_DAY_XP;
+  return x;
+}
+function levelOf(xp) {
+  let i = 0; while (i + 1 < LEVELS.length && xp >= LEVELS[i + 1]) i++;
+  const next = LEVELS[i + 1] ?? LEVELS[i] + 5000;
+  return { n: i + 1, name: RANKS[i], from: LEVELS[i], next, pct: Math.min(100, Math.round((xp - LEVELS[i]) / (next - LEVELS[i]) * 100)) };
+}
+function computeMine() {
+  const R = S.rules, t = today(), cur = monday(t);
+  const dates = Object.keys(S.days).filter(d => S.days[d]?.logs?.length).sort();
+  const first = dates.length ? monday(dates[0]) : cur;
+  const weeks = [];
+  for (let m = first; m <= cur; m = addD(m, 7)) weeks.push(weekOf(S.days, m, R));
+  let xp = 0; for (const w of weeks) xp += w.xp;
+  const thisW = weeks[weeks.length - 1];
+  let streak = 0, i = weeks.length - 1;
+  if (!thisW.consistent) i--;
+  while (i >= 0 && weeks[i].consistent) { streak++; i--; }
+  let best = 0, run = 0; for (const w of weeks) { run = w.consistent ? run + 1 : 0; best = Math.max(best, run); }
+  S.mine = { weeks, thisW, xp, lvl: levelOf(xp), streak, best, last: dates[dates.length - 1] || "", healing: best >= R.healWeeks || !!S.profile?.unlocked?.healing };
+  return S.mine;
+}
+function summary() {
+  const m = S.mine, w = m.thisW;
+  return {
+    xp: m.xp, level: m.lvl.n, streak: m.streak, best: m.best, last: m.last, weekId: w.mon,
+    week: { spiritDays: w.spiritDays, bothDays: w.bothDays, buildDays: w.buildDays, train: w.train, stretch: w.stretch, learn: w.learn, xp: w.xp, musts: w.musts, mustsDone: w.mustsDone, strip: w.strip },
+    history: m.weeks.slice(-8).map(x => ({ mon: x.mon, done: x.mustsDone })),
+  };
+}
+
+/* ===== writes (one at a time) ===== */
+let chain = Promise.resolve();
+const q = fn => (chain = chain.then(fn).catch(onWriteErr));
+function onWriteErr(e) {
+  console.warn(e);
+  if (e?.code === "permission-denied") toast("That wasn't allowed. Sign out and back in, then try again.");
+  else if (e?.code === "resource-exhausted") toast("The app hit its daily limit. Tell your coach.");
+  else toast("Couldn't save. Check your connection and try again.");
+}
+let lastStats = "";
+const stable = v => Array.isArray(v) ? `[${v.map(stable).join(",")}]` : v && typeof v === "object" ? `{${Object.keys(v).sort().map(k => JSON.stringify(k) + ":" + stable(v[k])).join(",")}}` : JSON.stringify(v);
+function syncStats() {
+  if (!S.db || !S.uid || !S.profile || S.ro) return;
+  const st = summary(), key = stable(st);
+  const { updated, ...old } = S.profile.stats || {}, prev = stable(old);
+  const unlock = S.mine.healing && !S.profile.unlocked?.healing;
+  if ((key === prev || key === lastStats) && !unlock) return;
+  lastStats = key;
+  const patch = { stats: { ...st, updated: Date.now() } };
+  if (unlock) { patch.unlocked = { ...(S.profile.unlocked || {}), healing: true }; setTimeout(() => toast("Healing unlocked. 3 weeks of consistency.", "xp"), 400); }
+  q(() => S.db.doc(`people/${S.uid}`).update(patch));
+}
+let statsTimer; const queueStats = () => { clearTimeout(statsTimer); statsTimer = setTimeout(syncStats, 700); };
+
+/* ===== boot ===== */
+let unsubs = [];
+async function boot() {
+  try { const t = localStorage.getItem("exe-theme"); if (t) document.documentElement.dataset.theme = t; } catch {}
+  const h = location.hash.slice(1); if (views.includes(h)) S.view = h;
+  render();
+  if (!FIREBASE_CONFIG || !window.firebase) { S.status = "nodb"; return render(); }
+  firebase.initializeApp(FIREBASE_CONFIG);
+  S.auth = firebase.auth();
+  S.db = firebase.firestore();
+  S.auth.getRedirectResult().catch(e => authErr(e));
+  S.auth.onAuthStateChanged(u => {
+    unsubs.forEach(f => f()); unsubs = [];
+    if (!u) { Object.assign(S, { uid: null, profile: undefined, days: {}, plans: {}, notes: [], myProofs: [], people: {}, groups: {}, status: "noid" }); return render(); }
+    S.uid = u.uid; S.isOwner = !!u.email && u.email.toLowerCase() === ADMIN_EMAIL && u.emailVerified;
+    S.status = "loading"; render();
+    listen();
+  });
+}
+function listen() {
+  const db = S.db, me = `people/${S.uid}`, on = (ref, fn) => unsubs.push(ref.onSnapshot(fn, dbErr));
+  on(db.doc(me), s => { S.profile = s.exists ? s.data() : null; S.status = "ready"; computeMine(); render(); queueStats(); });
+  on(db.collection(`${me}/days`), s => { S.days = {}; s.docs.forEach(d => S.days[d.id] = d.data()); computeMine(); render(); queueStats(); });
+  on(db.collection(`${me}/plans`), s => { S.plans = {}; s.docs.forEach(d => S.plans[d.id] = d.data()); render(); });
+  on(db.collection(`${me}/notes`), s => { S.notes = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => b.ts - a.ts); render(); });
+  on(db.collection(`${me}/proofs`).orderBy("ts", "desc").limit(24), s => { S.myProofs = s.docs.map(d => ({ id: d.id, ...d.data() })); render(); });
+  on(db.collection("people"), s => { S.people = {}; s.docs.forEach(d => S.people[d.id] = d.data()); render(); });
+  on(db.collection("groups"), s => { S.groups = {}; s.docs.forEach(d => S.groups[d.id] = d.data()); render(); });
+  on(db.doc("config/rules"), s => { S.rules = { ...DEF_RULES, ...(s.exists ? s.data() : {}) }; computeMine(); render(); queueStats(); });
+}
+function dbErr(e) { console.warn("db", e); if (e?.code === "permission-denied" && S.status === "loading") { S.status = "nodb"; render(); } }
+function authErr(e) {
+  if (!e) return;
+  const m = { "auth/invalid-credential": "Wrong email or password.", "auth/wrong-password": "Wrong email or password.", "auth/user-not-found": "No account with that email. Tap Create account.", "auth/email-already-in-use": "That email already has an account. Tap Sign in.", "auth/weak-password": "Use at least 6 characters for your password.", "auth/invalid-email": "That email doesn't look right.", "auth/popup-closed-by-user": "", "auth/cancelled-popup-request": "" }[e.code];
+  if (m === "") return;
+  toast(m || "Sign-in didn't work. Try again, or use email and password.");
+}
+async function google() {
+  const p = new firebase.auth.GoogleAuthProvider();
+  try { await S.auth.signInWithPopup(p); }
+  catch (e) { if (e.code === "auth/popup-blocked" || e.code === "auth/operation-not-supported-in-this-environment") return S.auth.signInWithRedirect(p); authErr(e); }
+}
+
+/* ===== render ===== */
+const root = document.getElementById("root");
+function render() {
+  const wide = S.view === "coach" && S.isOwner;
+  let body;
+  if (S.status === "loading") body = loadingView();
+  else if (S.status === "nodb" || S.status === "noid") body = gateView();
+  else if (!S.profile) body = onboardView();
+  else body = ({ today: todayView, plan: planView, crew: crewView, coach: S.isOwner ? coachView : todayView, me: meView }[S.view] || todayView)();
+  root.innerHTML = `<main class="app ${wide ? "wide" : ""}">${brandBar()}${body}</main>${S.profile && S.uid ? navBar() : ""}`;
+  renderSheet();
+}
+function brandBar() {
+  const dark = (document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark")) === "dark";
+  return `<header class="brand"><div class="logo">Execute <b>&gt;</b> <s>Excuses</s></div><button class="icon-btn" data-act="theme" aria-label="Switch to ${dark ? "light" : "dark"} mode">${ic(dark ? "sun" : "moon")}</button></header>`;
+}
+function navBar() {
+  const items = [["today", "target", "Today"], ["plan", "cal", "Plan"], ["crew", "users", "Crew"], ...(S.isOwner ? [["coach", "shield", "Coach"]] : []), ["me", "user", "Me"]];
+  return `<nav class="nav" aria-label="Sections"><div class="nav-in">${items.map(([v, i, l]) => `<a href="#${v}" data-nav="${v}" class="${S.view === v ? "on" : ""}" ${S.view === v ? 'aria-current="page"' : ""}>${ic(i)}<span>${l}</span></a>`).join("")}</div></nav>`;
+}
+function loadingView() {
+  return `<section class="card"><div class="hero-word">Execute<br><em>&gt;</em> <s>Excuses</s></div><p class="muted">Loading your progress…</p></section>`;
+}
+function gateView() {
+  if (S.status === "nodb") return `<section class="card"><div class="hero-word">Execute<br><em>&gt;</em> <s>Excuses</s></div><p>The app can't reach its database right now. Check your connection and reload. If it keeps happening, tell your coach.</p></section>`;
+  const up = S.authMode === "up";
+  return `<section class="card" style="gap:16px"><div class="hero-word">Real men<br><em>execute.</em></div>
+  <p>Sign in to track your days, join your crew and stay accountable.</p>
+  <button class="btn primary block" data-act="google">Continue with Google</button>
+  <div class="row"><span class="grow" style="height:1px;background:var(--line)"></span><span class="small muted">or use email</span><span class="grow" style="height:1px;background:var(--line)"></span></div>
+  <form class="stack" data-form="email" style="gap:12px">
+    <div class="field"><label for="au-email">Email</label><input id="au-email" class="input" type="email" autocomplete="email" required></div>
+    <div class="field"><label for="au-pass">Password</label><input id="au-pass" class="input" type="password" autocomplete="${up ? "new-password" : "current-password"}" minlength="6" required></div>
+    <button class="btn block" type="submit">${up ? "Create account" : "Sign in"}</button>
+  </form>
+  <div class="row spread small"><button class="linkish" data-act="authmode">${up ? "Have an account? Sign in" : "New here? Create account"}</button>${up ? "" : `<button class="linkish" data-act="reset">Forgot password</button>`}</div>
+  </section>${rulesCard()}`;
+}
+function onboardView() {
+  return `<section class="card" style="gap:16px">
+    <div class="hero-word">Real men<br><em>execute.</em></div>
+    <p>Every day you invest in God and in what you're building. Every week you train, stretch and learn something new. Your crew sees it. Your coach sees it. No excuses.</p>
+    <form id="onboard" class="stack" style="gap:14px">
+      <div class="field"><label for="ob-name">Your name</label><input id="ob-name" class="input" autocomplete="given-name" required maxlength="40" placeholder="First name"></div>
+      <div class="field"><label for="ob-why">Your why (optional)</label><textarea id="ob-why" class="input" maxlength="300" placeholder="Who are you becoming? Who is counting on you?"></textarea></div>
+      <button class="btn primary block" type="submit">I'm in. Start executing.</button>
+    </form>
+  </section>${rulesCard()}`;
+}
+
+function hud() {
+  const m = S.mine, L = m.lvl, p = S.profile;
+  return `<section class="hud">
+    <div class="row">
+      <div class="lvl" aria-label="Level ${L.n}">${L.n}</div>
+      <div class="grow stack" style="gap:2px">
+        <p class="tiny muted">Level ${L.n} · ${esc(L.name)}</p>
+        <h1 style="font-size:30px">${esc(p.name || "Brother")}</h1>
+      </div>
+      <span class="streak" title="Consistent weeks in a row">${ic("flame")} ${m.streak} wk</span>
+    </div>
+    <div class="stack" style="gap:6px">
+      <div class="xpbar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${L.pct}" aria-label="Progress to next level"><i style="width:${L.pct}%"></i></div>
+      <div class="row spread small"><span class="mono">${m.xp.toLocaleString()} XP</span><span class="muted mono">${(L.next - m.xp).toLocaleString()} to Lv ${L.n + 1}</span></div>
+    </div>
+  </section>`;
+}
+function ring(n, of) {
+  const r = 26, c = 2 * Math.PI * r, off = c * (1 - n / of);
+  return `<svg class="ring" viewBox="0 0 64 64" aria-label="${n} of ${of} done"><circle class="bg" cx="32" cy="32" r="${r}"/><circle class="fg" cx="32" cy="32" r="${r}" stroke-dasharray="${c}" stroke-dashoffset="${off}"/><text x="32" y="33">${n}/${of}</text></svg>`;
+}
+function todayView() {
+  const t = today(), day = S.days[t], m = S.mine;
+  const pr = (day?.logs || []).filter(l => l.kind === "prayer"), wd = (day?.logs || []).filter(l => l.kind === "word"), bd = (day?.logs || []).filter(l => l.kind === "build");
+  const mins = a => a.reduce((s, l) => s + (+l.min || 0), 0);
+  const sDone = pr.length || wd.length, bDone = bd.length;
+  const unseen = S.notes.filter(n => !n.seen);
+  return `${hud()}
+  ${unseen.map(n => `<section class="note stack"><p class="tiny" style="color:var(--accent)">From your coach · ${short(iso(new Date(n.ts)))}</p><p>${esc(n.text)}</p><div><button class="btn sm" data-act="seen" data-id="${n.id}">${ic("check")} Got it</button></div></section>`).join("")}
+  <section class="card">
+    <div class="row spread"><div><p class="tiny muted">Daily quests</p><h2>${nice(t)}</h2></div>${ring((sDone ? 1 : 0) + (bDone ? 1 : 0), 2)}</div>
+    <div class="quest ${sDone ? "done" : ""}">
+      <span class="check">${sDone ? ic("check") : ""}</span>
+      <div class="grow stack" style="gap:4px"><b>Time with God</b><span class="small muted">Prayer or the Word. We strongly recommend both.</span>
+        <div class="row wrap" style="gap:6px"><span class="chip ${pr.length ? "on" : ""}">${ic("sunrise")} Prayer${pr.length ? ` · ${mins(pr)} min` : ""}</span><span class="chip ${wd.length ? "on" : ""}">${ic("book")} Word${wd.length ? ` · ${mins(wd)} min` : ""}</span>${pr.length && wd.length ? `<span class="chip on">+${BOTH_SPIRIT_XP} both</span>` : ""}</div></div>
+    </div>
+    <div class="quest ${bDone ? "done" : ""}">
+      <span class="check">${bDone ? ic("check") : ""}</span>
+      <div class="grow stack" style="gap:4px"><b>Build your future</b><span class="small muted">Career, money, business or school.</span>
+        ${bd.length ? `<div class="row wrap" style="gap:6px"><span class="chip on">${ic("brief")} ${mins(bd)} min</span></div>` : ""}</div>
+    </div>
+  </section>
+  <section class="pad" aria-label="Log something">
+    ${Object.entries(KINDS).map(([k, d]) => `<button class="act a-${d.area}" data-act="log" data-kind="${k}">${ic(d.icon)}<span>${d.label}</span><small>+${d.xp} XP</small></button>`).join("")}
+  </section>
+  ${weekCard(m.thisW, true)}
+  ${healCard()}
+  <section class="card"><div class="row spread"><h3>Today's log</h3><span class="mono small muted">+${dayXP(day)} XP</span></div>${logList(day?.logs || [], t, true)}</section>`;
+}
+function mustRows(w) {
+  const R = S.rules;
+  const rows = [
+    ["spirit", "sunrise", "Time with God", `${w.spiritDays}/${R.spiritDays} days`, w.spiritDays, R.spiritDays],
+    ["build", "brief", "Build", `${w.buildDays}/${R.buildDays} days`, w.buildDays, R.buildDays],
+    ["body", "dumb", "Gym or sport", `${w.train}/${R.train}`, w.train, R.train],
+    ["stretch", "pulse", "Stretch", `${w.stretch}/${R.stretch}`, w.stretch, R.stretch],
+    ["learn", "bulb", "Learn something new", `${w.learn}/${R.learn}`, w.learn, R.learn],
+  ];
+  return rows.map(([a, i, l, t, n, of]) => `<div class="must a-${a}"><span class="badge">${ic(i)}</span><div class="stack" style="gap:4px;min-width:0"><span style="color:var(--fg);font-weight:600">${l}</span><div class="pips">${[...Array(of)].map((_, k) => `<i class="pip ${k < n ? "on" : ""}"></i>`).join("")}</div></div><span class="mono small" style="color:${n >= of ? "var(--good)" : "var(--muted)"}">${n >= of ? "Done" : t}</span></div>`).join("");
+}
+function weekStatus(w) {
+  const t = today(), R = S.rules;
+  if (w.consistent) return `<span class="status good">Consistent</span>`;
+  const past = [...Array(7)].map((_, i) => addD(w.mon, i)).filter(d => d < t);
+  const left = 7 - past.length;
+  const missS = past.filter(d => !w.strip[d]?.includes("s")).length, missB = past.filter(d => !w.strip[d]?.includes("b")).length;
+  const lost = (7 - missS) < R.spiritDays || (7 - missB) < R.buildDays;
+  if (w.mon < monday(t)) return `<span class="status bad">Missed</span>`;
+  if (lost) return `<span class="status bad">Week broken</span>`;
+  return `<span class="status warn">${left} day${left === 1 ? "" : "s"} left</span>`;
+}
+function strip(w) {
+  const t = today();
+  return `<div class="strip">${[...Array(7)].map((_, i) => { const d = addD(w.mon, i), v = w.strip[d] || "", past = d < t;
+    return `<div class="day ${d === t ? "today" : ""}"><span>${DOW[i]}</span><span class="dots"><i class="dot ${v.includes("s") ? "s" : past ? "miss" : ""}" title="God"></i><i class="dot ${v.includes("b") ? "b" : past ? "miss" : ""}" title="Build"></i></span></div>`; }).join("")}</div>`;
+}
+function weekCard(w, title) {
+  return `<section class="card">
+    <div class="row spread"><div><p class="tiny muted">Week of ${short(w.mon)}</p><h2>${title ? "Weekly must-dos" : "This week"}</h2></div>${weekStatus(w)}</div>
+    ${strip(w)}
+    <div class="stack" style="gap:12px">${mustRows(w)}</div>
+  </section>`;
+}
+function healCard() {
+  const m = S.mine, R = S.rules, n = Math.min(m.streak, R.healWeeks);
+  if (m.healing) return `<section class="card"><div class="row"><span class="badge a-stretch" style="width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:var(--surface-2)">${ic("heart")}</span><div class="grow"><h3>Healing · unlocked</h3><p class="small muted">You earned it with ${R.healWeeks} consistent weeks. This category opens soon.</p></div></div></section>`;
+  return `<section class="card locked"><div class="row"><span style="width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:var(--surface-2);border:1px solid var(--line)">${ic("lock")}</span><div class="grow"><h3>Healing · locked</h3><p class="small muted">Finish ${R.healWeeks} consistent weeks in a row to unlock it.</p></div><span class="mono">${n}/${R.healWeeks}</span></div><div class="lockmeter">${[...Array(R.healWeeks)].map((_, i) => `<i class="${i < n ? "on" : ""}"></i>`).join("")}</div></section>`;
+}
+function proofSrc(p) { return p?.asset ? `/_blob/${p.asset}` : p?.data || ""; }
+function logList(logs, date, mine) {
+  if (!logs.length) return `<div class="empty">Nothing logged yet. Tap a button above to log your first win.</div>`;
+  const proofs = Object.fromEntries((mine ? S.myProofs : (S.selData?.proofs || [])).map(p => [p.id, p]));
+  return `<div class="list">${logs.slice().reverse().map(l => { const d = KINDS[l.kind] || {}, pf = l.proof && proofs[l.proof];
+    return `<div class="item"><span class="a-${d.area}">${ic(d.icon || "check")}</span><div class="grow stack" style="gap:2px"><b>${esc(d.label)}${l.type ? ` · ${esc(l.type)}` : ""}${l.min ? ` · ${+l.min} min` : ""}</b>${l.note ? `<span class="small muted" style="overflow-wrap:anywhere">${esc(l.note)}</span>` : ""}</div>${pf ? `<img class="thumb" src="${esc(proofSrc(pf))}" alt="Proof photo">` : l.proof ? `<span class="thumb" style="display:grid;place-items:center">${ic("image")}</span>` : ""}${mine && !S.ro ? `<button class="linkish" data-act="del" data-date="${date}" data-id="${l.id}" aria-label="Delete">${S.armDel === l.id ? "Tap to delete" : ic("trash")}</button>` : ""}</div>`; }).join("")}</div>`;
+}
+
+/* ----- Plan ----- */
+function planView() {
+  const t = today(), wk = "w" + monday(t), mo = "m" + t.slice(0, 7), m = S.mine;
+  return `<section class="card"><p class="tiny muted">Execution plan</p><h1>Plan the work.<br>Work the plan.</h1><p class="small muted">Write what you will execute this week and this month. Your coach can see it.</p></section>
+  ${planCard(wk, `This week · ${short(monday(t))}–${short(addD(monday(t), 6))}`, "e.g. Send 20 proposals, finish chapter 4, meal prep Sunday")}
+  ${planCard(mo, `This month · ${MON[+t.slice(5, 7) - 1]}`, "e.g. Save 500 $, launch the website, read Proverbs")}
+  ${healCard()}
+  <section class="card"><h3>Your weeks</h3>${historyList(m.weeks.slice(-8).reverse().map(w => ({ mon: w.mon, done: w.mustsDone })))}</section>`;
+}
+function planCard(id, title, ph) {
+  const items = S.plans[id]?.items || [], done = items.filter(i => i.done).length;
+  return `<section class="card"><div class="row spread"><h3>${title}</h3><span class="mono small muted">${done}/${items.length}</span></div>
+    ${items.length ? `<div class="list">${items.map(i => `<div class="item" style="align-items:center"><button class="check" style="background:${i.done ? "var(--good)" : "transparent"};border-color:${i.done ? "var(--good)" : "var(--line)"};color:var(--bg)" data-act="ptoggle" data-plan="${id}" data-id="${i.id}" aria-label="${i.done ? "Mark not done" : "Mark done"}" ${S.ro ? "disabled" : ""}>${i.done ? ic("check") : ""}</button><span class="grow" style="${i.done ? "text-decoration:line-through;color:var(--muted)" : ""};overflow-wrap:anywhere">${esc(i.text)}</span>${S.ro ? "" : `<button class="linkish" data-act="pdel" data-plan="${id}" data-id="${i.id}" aria-label="Remove">${ic("x")}</button>`}</div>`).join("")}</div>` : `<div class="empty">No targets yet. Add your first one below.</div>`}
+    ${S.ro ? "" : `<form class="row" data-form="padd" data-plan="${id}"><input id="pa-${id}" class="input grow" maxlength="120" placeholder="${esc(ph)}" aria-label="New target"><button class="btn primary" type="submit" aria-label="Add">${ic("plus")}</button></form>`}
+  </section>`;
+}
+function historyList(h) {
+  if (!h.length) return `<div class="empty">Your weeks show here once you start logging.</div>`;
+  const cur = monday(today());
+  return `<div class="list">${h.map(w => `<div class="item" style="align-items:center"><span class="grow">Week of ${short(w.mon)}</span><div class="pips" style="color:${w.done === 5 ? "var(--good)" : "var(--accent)"}">${[...Array(5)].map((_, k) => `<i class="pip ${k < w.done ? "on" : ""}"></i>`).join("")}</div><span class="status ${w.done === 5 ? "good" : w.mon === cur ? "warn" : "bad"}" style="min-width:94px;text-align:center">${w.done === 5 ? "Consistent" : w.mon === cur ? "In progress" : `${w.done}/5`}</span></div>`).join("")}</div>`;
+}
+
+/* ----- Crew ----- */
+function personWeek(p) {
+  const st = p?.stats || {}, cur = monday(today());
+  return st.weekId === cur ? st.week : { spiritDays: 0, buildDays: 0, train: 0, stretch: 0, learn: 0, xp: 0, musts: {}, mustsDone: 0, strip: {} };
+}
+function miniMusts(w) {
+  const m = w.musts || {};
+  return `<div class="mini">${[["spirit", "sunrise"], ["build", "brief"], ["train", "dumb", "body"], ["stretch", "pulse"], ["learn", "bulb"]].map(([k, i, a]) => `<i class="a-${a || k} ${m[k] ? "on" : ""}" title="${k}">${ic(i)}</i>`).join("")}</div>`;
+}
+const initial = n => esc((n || "?").trim().charAt(0) || "?");
+function crewView() {
+  const mine = (S.profile.groups || []).filter(g => S.groups[g]);
+  return `<section class="card"><p class="tiny muted">Iron sharpens iron</p><h1>Your crew</h1><p class="small muted">Group up with your brothers. Everyone in a crew sees each other's week and proof photos.</p></section>
+  ${mine.map(groupCard).join("")}
+  ${S.ro ? "" : `<section class="card"><h3>Start a crew</h3><form class="row" data-form="gnew"><input id="g-name" class="input grow" maxlength="40" placeholder="Crew name, e.g. Morning Men" aria-label="Crew name"><button class="btn primary" type="submit">Create</button></form></section>
+  <section class="card"><h3>Join a crew</h3><form class="row" data-form="gjoin"><input id="g-code" class="input grow mono" maxlength="6" placeholder="6-letter code" aria-label="Crew code" autocapitalize="characters" style="text-transform:uppercase"><button class="btn" type="submit">Join</button></form></section>`}`;
+}
+function groupCard(gid) {
+  const g = S.groups[gid];
+  const members = Object.entries(S.people).filter(([, p]) => (p.groups || []).includes(gid)).map(([id, p]) => ({ id, p, w: personWeek(p) }))
+    .sort((a, b) => b.w.mustsDone - a.w.mustsDone || b.w.xp - a.w.xp);
+  const shots = members.flatMap(m => (S.crewProofs[m.id] || []).map(x => ({ ...x, who: m.p.name }))).sort((a, b) => b.ts - a.ts).slice(0, 12);
+  return `<section class="card">
+    <div class="row spread"><div><p class="tiny muted">Crew · code <span class="mono" style="color:var(--accent)">${esc(g.code)}</span></p><h2>${esc(g.name)}</h2></div><button class="btn sm" data-act="invite" data-id="${gid}">${ic("copy")} Invite</button></div>
+    <div class="stack">${members.map((m, i) => `<div class="person"><span class="rank">${i + 1}</span><span class="avatar">${initial(m.p.name)}</span><div class="grow stack" style="gap:4px"><b>${esc(m.p.name || "Someone")}${m.id === S.uid ? " (you)" : ""}</b><span class="small muted mono">Lv ${m.p.stats?.level || 1} · ${m.w.xp} XP this week · ${ic("flame")} ${m.p.stats?.streak || 0}</span></div>${miniMusts(m.w)}</div>`).join("")}</div>
+    <h3 style="margin-top:6px">Proof wall</h3>
+    ${shots.length ? `<div class="wall">${shots.map(s => `<figure class="shot" style="margin:0"><img src="${esc(proofSrc(s))}" alt="Proof photo from ${esc(s.who || "a brother")}" loading="lazy"><div><b>${esc(s.who || "Someone")}</b> · ${esc(KINDS[s.kind]?.label || "")} · ${short(s.date)}</div></figure>`).join("")}</div>` : `<div class="empty">No photos yet. Snap one after your next workout or Bible time.</div>`}
+    <div><button class="linkish" data-act="gleave" data-id="${gid}">${S.armDel === "g" + gid ? "Tap again to leave this crew" : "Leave crew"}</button></div>
+  </section>`;
+}
+let crewLoaded = 0;
+async function loadCrewProofs() {
+  if (!S.db || Date.now() - crewLoaded < 20000) return; crewLoaded = Date.now();
+  const gs = S.profile?.groups || [];
+  const ids = Object.entries(S.people).filter(([, p]) => (p.groups || []).some(g => gs.includes(g))).map(([id]) => id);
+  await Promise.all(ids.map(async id => { try { const s = await S.db.collection(`people/${id}/proofs`).orderBy("ts", "desc").limit(6).get(); S.crewProofs[id] = s.docs.map(d => ({ id: d.id, ...d.data() })); } catch {} }));
+  render();
+}
+
+/* ----- Coach ----- */
+function coachView() {
+  const t = today(), list = Object.entries(S.people).map(([id, p]) => {
+    const w = personWeek(p), idle = p.stats?.last ? Math.round((parse(t) - parse(p.stats.last)) / 864e5) : 99;
+    return { id, p, w, idle };
+  }).sort((a, b) => a.w.mustsDone - b.w.mustsDone || b.idle - a.idle);
+  const onTrack = list.filter(x => x.w.mustsDone >= 3 || x.w.musts?.spirit).length, idle = list.filter(x => x.idle >= 2).length;
+  const left = `<section class="card"><p class="tiny muted">Coach view · only you see this</p><h1>Your men</h1>
+      <div class="row wrap" style="gap:8px"><span class="chip">${list.length} men</span><span class="chip on">${list.filter(x => x.w.consistent).length} consistent this week</span><span class="chip" style="color:var(--bad)">${idle} quiet 2+ days</span></div>
+      <div class="stack">${list.length ? list.map(x => `<button class="person" data-act="sel" data-id="${x.id}" style="${S.sel === x.id ? "border-color:var(--accent)" : ""}"><span class="avatar">${initial(x.p.name)}</span><div class="grow stack" style="gap:4px"><b>${esc(x.p.name || "Someone")}${x.id === S.uid ? " (you)" : ""}</b><span class="small muted">${x.idle >= 99 ? "No logs yet" : x.idle === 0 ? "Active today" : `Last log ${x.idle} day${x.idle === 1 ? "" : "s"} ago`} · ${ic("flame")} ${x.p.stats?.streak || 0}</span></div>${miniMusts(x.w)}</button>`).join("") : `<div class="empty">Nobody has joined yet. Share the app (see Me → Invite men).</div>`}</div></section>
+    ${rulesEditor()}`;
+  return `<div class="cols"><div class="stack" style="gap:14px">${left}</div><div class="stack" style="gap:14px">${S.sel ? personDetail() : `<section class="card"><div class="empty">Pick a man to see his week, his plan, his log and his photos.</div></section>`}</div></div>`;
+}
+function personDetail() {
+  const p = S.people[S.sel]; if (!p) return "";
+  const w = personWeek(p), d = S.selData, t = today();
+  const wObj = { mon: monday(t), ...w, strip: w.strip || {} };
+  const plan = d?.plans?.["w" + monday(t)]?.items || [], mplan = d?.plans?.["m" + t.slice(0, 7)]?.items || [];
+  const recent = d ? Object.keys(d.days).sort().reverse().slice(0, 10) : [];
+  return `<section class="card"><div class="row"><span class="avatar" style="width:52px;height:52px;font-size:26px">${initial(p.name)}</span><div class="grow"><h2>${esc(p.name || "Someone")}</h2><p class="small muted mono">Lv ${p.stats?.level || 1} · ${(p.stats?.xp || 0).toLocaleString()} XP · ${ic("flame")} ${p.stats?.streak || 0} wk streak · best ${p.stats?.best || 0}</p></div></div>
+    ${p.why ? `<div class="note"><p class="tiny muted">His why</p><p>${esc(p.why)}</p></div>` : ""}</section>
+  <section class="card"><div class="row spread"><h3>This week</h3>${weekStatus(wObj)}</div>${strip(wObj)}<div class="stack" style="gap:12px">${mustRows(wObj)}</div></section>
+  <section class="card"><h3>Send a word</h3><form class="stack" data-form="note"><textarea id="n-text" class="input" maxlength="500" placeholder="Encourage him, call him up, or hold him to his word." aria-label="Message"></textarea><button class="btn primary" type="submit">${ic("send")} Send to ${esc(p.name || "him")}</button></form>
+    ${d?.notes?.length ? `<div class="list">${d.notes.slice(0, 5).map(n => `<div class="item"><div class="grow stack" style="gap:2px"><span class="small muted">${short(iso(new Date(n.ts)))} · ${n.seen ? "Seen" : "Not seen yet"}</span><span>${esc(n.text)}</span></div></div>`).join("")}</div>` : ""}</section>
+  <section class="card"><h3>His plan</h3>${!d ? `<p class="muted small">Loading…</p>` : plan.length || mplan.length ? `<div class="list">${[...plan.map(i => ({ ...i, s: "Week" })), ...mplan.map(i => ({ ...i, s: "Month" }))].map(i => `<div class="item"><span class="chip">${i.s}</span><span class="grow" style="${i.done ? "text-decoration:line-through;color:var(--muted)" : ""}">${esc(i.text)}</span>${i.done ? `<span style="color:var(--good)">${ic("check")}</span>` : ""}</div>`).join("")}</div>` : `<div class="empty">No plan written for this week or month.</div>`}</section>
+  <section class="card"><h3>Recent log</h3>${!d ? `<p class="muted small">Loading…</p>` : recent.length ? recent.map(day => `<div class="stack" style="gap:4px"><p class="tiny muted">${nice(day)} · +${dayXP(d.days[day])} XP</p>${logList(d.days[day].logs || [], day, false)}</div>`).join("") : `<div class="empty">No logs yet.</div>`}</section>
+  <section class="card"><h3>Proof photos</h3>${d?.proofs?.length ? `<div class="wall">${d.proofs.map(s => `<figure class="shot" style="margin:0"><img src="${esc(proofSrc(s))}" alt="Proof photo" loading="lazy"><div>${esc(KINDS[s.kind]?.label || "")} · ${short(s.date)}</div></figure>`).join("")}</div>` : `<div class="empty">No photos yet.</div>`}</section>
+  <section class="card"><h3>Last 8 weeks</h3>${historyList((p.stats?.history || []).slice().reverse())}</section>`;
+}
+async function loadPerson(id) {
+  S.sel = id; S.selData = null; render();
+  try {
+    const base = `people/${id}`;
+    const [days, plans, proofs, notes] = await Promise.all([
+      S.db.collection(`${base}/days`).where("date", ">=", addD(today(), -21)).get(),
+      S.db.collection(`${base}/plans`).get(),
+      S.db.collection(`${base}/proofs`).orderBy("ts", "desc").limit(12).get(),
+      S.db.collection(`${base}/notes`).get(),
+    ]);
+    if (S.sel !== id) return;
+    S.selData = { days: Object.fromEntries(days.docs.map(d => [d.id, d.data()])), plans: Object.fromEntries(plans.docs.map(d => [d.id, d.data()])), proofs: proofs.docs.map(d => ({ id: d.id, ...d.data() })), notes: notes.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => b.ts - a.ts) };
+  } catch (e) { console.warn(e); S.selData = { days: {}, plans: {}, proofs: [], notes: [] }; }
+  render();
+}
+function rulesEditor() {
+  const R = S.rules, f = (k, l) => `<label class="row spread"><span>${l}</span><input id="r-${k}" class="input num mono" type="number" inputmode="numeric" min="0" max="7" value="${R[k]}"></label>`;
+  return `<section class="card"><h3>Game rules</h3><p class="small muted">What counts as a consistent week for everyone.</p>
+    <form class="stack" data-form="rules">${f("spiritDays", "Days with God (of 7)")}${f("buildDays", "Build days (of 7)")}${f("train", "Gym or sport sessions")}${f("stretch", "Stretch sessions")}${f("learn", "New things learned")}${f("healWeeks", "Weeks in a row to unlock Healing")}<button class="btn primary" type="submit">Save rules</button></form></section>`;
+}
+
+/* ----- Me ----- */
+function rulesCard() {
+  const R = S.rules;
+  return `<section class="card"><h3>How the game works</h3><ul class="rules">
+    <li><span class="a-spirit">${ic("sunrise")}</span><span><b>Every day:</b> time with God in prayer or the Word. Do both for bonus XP.</span></li>
+    <li><span class="a-build">${ic("brief")}</span><span><b>Every day:</b> invest in your career, money, business or school${R.buildDays < 7 ? ` (${R.buildDays} of 7 days)` : ""}.</span></li>
+    <li><span class="a-body">${ic("dumb")}</span><span><b>Each week:</b> gym or sport ${R.train} times. Snap a photo as proof.</span></li>
+    <li><span class="a-stretch">${ic("pulse")}</span><span><b>Each week:</b> stretch at least ${R.stretch === 1 ? "once" : R.stretch + " times"}.</span></li>
+    <li><span class="a-learn">${ic("bulb")}</span><span><b>Each week:</b> learn something new. A skill, a better way to work, how to post content better.</span></li>
+    <li><span style="color:var(--good)">${ic("heart")}</span><span>Hit all five for <b>${R.healWeeks} weeks in a row</b> to unlock Healing.</span></li></ul></section>`;
+}
+function meView() {
+  const p = S.profile;
+  return `<section class="card"><p class="tiny muted">Your profile</p><h1>${esc(p.name)}</h1>
+    <form class="stack" data-form="profile" style="gap:12px">
+      <div class="field"><label for="pf-name">Name</label><input id="pf-name" class="input" maxlength="40" value="${esc(p.name)}" ${S.ro ? "disabled" : ""}></div>
+      <div class="field"><label for="pf-why">Your why</label><textarea id="pf-why" class="input" maxlength="300" ${S.ro ? "disabled" : ""}>${esc(p.why || "")}</textarea></div>
+      ${S.ro ? "" : `<button class="btn primary" type="submit">Save</button>`}
+    </form></section>
+  ${rulesCard()}
+  <section class="card"><h3>Put it on your home screen</h3>
+    <div class="stack small"><p><b>iPhone:</b> open the link in Safari, tap Share, then <b>Add to Home Screen</b>.</p><p><b>Samsung / Android:</b> open the link in Chrome or Samsung Internet, tap the menu (⋮ or ☰), then <b>Add to Home screen</b>.</p>
+    <div class="row"><input class="input grow mono small" value="${SHORT_LINK}" readonly aria-label="App link" id="me-link"><button class="btn" data-act="copy" data-text="${SHORT_LINK}">${ic("copy")}</button></div></div></section>
+  ${S.isOwner ? `<section class="card"><h3>Invite men</h3><p class="small">Send any man the link above. He signs in with Google or email and shows up in your Coach tab right away.</p></section>` : ""}
+  <section class="card"><div class="row spread"><span class="small muted" style="overflow-wrap:anywhere">Signed in as ${esc(S.auth?.currentUser?.email || "")}</span><button class="btn sm" data-act="signout">Sign out</button></div></section>
+  <section class="card"><h3>Your proof photos</h3>${S.myProofs.length ? `<div class="wall">${S.myProofs.map(s => `<figure class="shot" style="margin:0"><img src="${esc(proofSrc(s))}" alt="Your proof photo" loading="lazy"><div>${esc(KINDS[s.kind]?.label || "")} · ${short(s.date)}</div></figure>`).join("")}</div>` : `<div class="empty">Your gym and Word photos will show here.</div>`}</section>`;
+}
+
+/* ===== log sheet ===== */
+function openLog(kind) {
+  S.sheet = { kind, date: today(), min: 30, type: KINDS[kind].types?.[0] || "", note: "", file: null, url: "", busy: false };
+  renderSheet();
+}
+function renderSheet() {
+  const el = document.getElementById("sheet"), s = S.sheet;
+  if (!s) { el.innerHTML = ""; return; }
+  const d = KINDS[s.kind], t = today(), y = addD(t, -1);
+  const keep = { note: document.getElementById("lg-note")?.value, min: document.getElementById("lg-min")?.value };
+  el.innerHTML = `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Log ${esc(d.label)}" data-stop>
+    <span class="grab"></span>
+    <div class="row spread"><div class="row"><span class="a-${d.area}">${ic(d.icon)}</span><h2>${esc(d.label)}</h2></div><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div>
+    <div class="seg" role="group" aria-label="Day"><button class="${s.date === t ? "on" : ""}" data-act="sdate" data-v="${t}">Today</button><button class="${s.date === y ? "on" : ""}" data-act="sdate" data-v="${y}">Yesterday</button></div>
+    ${d.types ? `<div class="field"><label>Type</label><div class="seg">${d.types.map(x => `<button class="${s.type === x ? "on" : ""}" data-act="stype" data-v="${x}">${x}</button>`).join("")}</div></div>` : ""}
+    ${d.min ? `<div class="field"><label for="lg-min">Minutes</label><div class="seg">${[10, 15, 30, 45, 60, 90].map(m => `<button class="${+s.min === m ? "on" : ""}" data-act="smin" data-v="${m}">${m}</button>`).join("")}</div><input id="lg-min" class="input mono" type="number" inputmode="numeric" min="1" max="600" value="${esc(keep.min ?? s.min)}"></div>` : ""}
+    <div class="field"><label for="lg-note">${esc(d.note)}</label><textarea id="lg-note" class="input" maxlength="600" placeholder="${esc(d.ph)}">${esc(keep.note ?? s.note)}</textarea></div>
+    ${d.photo ? `<div class="field"><label>Proof photo <span class="muted">(+${PHOTO_XP} XP)</span></label>
+      ${s.url ? `<img class="preview" src="${s.url}" alt="Your photo"><button class="btn sm ghost" data-act="nophoto">${ic("x")} Remove photo</button>` : `<div class="row">
+        <label class="btn grow" for="lg-cam">${ic("camera")} Take photo</label><label class="btn grow" for="lg-pick">${ic("image")} Choose</label></div>`}
+      <input id="lg-cam" type="file" accept="image/*" capture="environment" hidden><input id="lg-pick" type="file" accept="image/*" hidden></div>` : ""}
+    <button class="btn primary block" data-act="save" ${s.busy ? "disabled" : ""}>${s.busy ? "Saving…" : `Log it · +${d.xp + (s.url ? PHOTO_XP : 0)} XP`}</button>
+  </div></div>`;
+}
+async function shrink(file, max, quality) {
+  let src, w, h;
+  try { src = await createImageBitmap(file, { imageOrientation: "from-image" }); w = src.width; h = src.height; }
+  catch { src = new Image(); src.src = URL.createObjectURL(file); await src.decode(); w = src.naturalWidth; h = src.naturalHeight; }
+  const k = Math.min(1, max / Math.max(w, h)), c = document.createElement("canvas");
+  c.width = Math.round(w * k); c.height = Math.round(h * k);
+  c.getContext("2d").drawImage(src, 0, 0, c.width, c.height);
+  return new Promise(r => c.toBlob(r, "image/jpeg", quality));
+}
+const toDataURL = b => new Promise((r, j) => { const f = new FileReader(); f.onload = () => r(f.result); f.onerror = j; f.readAsDataURL(b); });
+async function saveLog() {
+  const s = S.sheet, d = KINDS[s.kind];
+  const note = (document.getElementById("lg-note")?.value || "").trim();
+  const min = d.min ? Math.round(+document.getElementById("lg-min").value) : 0;
+  if (d.min && !(min > 0)) return toast("Enter how many minutes.");
+  if (d.req && note.length < 3) return toast(s.kind === "learn" ? "Write what you learned." : "Write what you worked on.");
+  s.busy = true; renderSheet();
+  const log = { id: rid(8), kind: s.kind, ts: Date.now() };
+  if (min) log.min = min; if (note) log.note = note; if (s.type) log.type = s.type;
+  try {
+    if (s.file) {
+      const pid = rid(12), proof = { kind: s.kind, date: s.date, ts: Date.now() };
+      let u = await toDataURL(await shrink(s.file, 1080, .7));
+      if (u.length > 700000) u = await toDataURL(await shrink(s.file, 720, .55));
+      if (u.length > 700000) throw { code: "too_big" };
+      proof.data = u;
+      await S.db.doc(`people/${S.uid}/proofs/${pid}`).set(proof);
+      log.proof = pid;
+    }
+    const before = S.mine.lvl.n, ref = S.db.doc(`people/${S.uid}/days/${s.date}`), cur = S.days[s.date];
+    await (chain = chain.then(() => ref.set({ date: s.date, logs: [...(cur?.logs || []), log] })));
+    const gain = d.xp + (log.proof ? PHOTO_XP : 0);
+    S.sheet = null; renderSheet();
+    if (s.url) URL.revokeObjectURL(s.url);
+    setTimeout(() => { const after = computeMine().lvl; toast(after.n > before ? `Level up! Lv ${after.n} · ${after.name}` : `+${gain} XP`, "xp"); }, 250);
+  } catch (e) {
+    s.busy = false; renderSheet();
+    if (e?.code === "too_big") toast("That photo is too large. Try another one.");
+    else onWriteErr(e);
+  }
+}
+
+/* ===== actions ===== */
+let toastT;
+function toast(msg, kind = "") {
+  const el = document.getElementById("toast");
+  el.innerHTML = `<div class="toast ${kind}" role="status">${esc(msg)}</div>`;
+  clearTimeout(toastT); toastT = setTimeout(() => el.innerHTML = "", kind === "xp" ? 1800 : 3200);
+}
+function go(v) {
+  S.view = v; S.armDel = null;
+  try { history.replaceState(null, "", "#" + v); } catch {}
+  render(); window.scrollTo({ top: 0 });
+  if (v === "crew") loadCrewProofs();
+}
+async function copy(text) {
+  try { await navigator.clipboard.writeText(text); toast("Copied"); }
+  catch { toast("Press and hold to copy: " + text); }
+}
+document.addEventListener("click", e => {
+  const nav = e.target.closest("[data-nav]");
+  if (nav) { e.preventDefault(); return go(nav.dataset.nav); }
+  const a = e.target.closest("[data-act]"); if (!a) return;
+  if (a.dataset.act === "close" && e.target.closest("[data-stop]") && !e.target.closest("button[data-act=close]")) return;
+  const act = a.dataset.act, id = a.dataset.id, s = S.sheet;
+  if (act !== "del" && act !== "gleave" && S.armDel) S.armDel = null;
+  switch (act) {
+    case "theme": {
+      const curDark = (document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark")) === "dark";
+      const t = curDark ? "light" : "dark"; document.documentElement.dataset.theme = t; try { localStorage.setItem("exe-theme", t); } catch {} return render();
+    }
+    case "log": return openLog(a.dataset.kind);
+    case "close": if (s?.url) URL.revokeObjectURL(s.url); S.sheet = null; return renderSheet();
+    case "sdate": s.date = a.dataset.v; return renderSheet();
+    case "stype": s.type = a.dataset.v; return renderSheet();
+    case "smin": s.min = +a.dataset.v; const mi = document.getElementById("lg-min"); if (mi) mi.value = s.min; return renderSheet();
+    case "nophoto": URL.revokeObjectURL(s.url); s.file = null; s.url = ""; return renderSheet();
+    case "save": return saveLog();
+    case "seen": return q(() => S.db.doc(`people/${S.uid}/notes/${id}`).update({ seen: true }));
+    case "del": {
+      if (S.armDel !== id) { S.armDel = id; return render(); }
+      S.armDel = null; const date = a.dataset.date, day = S.days[date], l = day?.logs?.find(x => x.id === id);
+      q(async () => {
+        await S.db.doc(`people/${S.uid}/days/${date}`).set({ date, logs: day.logs.filter(x => x.id !== id) });
+        if (l?.proof) await S.db.doc(`people/${S.uid}/proofs/${l.proof}`).delete();
+      });
+      return toast("Removed");
+    }
+    case "ptoggle": case "pdel": {
+      const pid = a.dataset.plan, items = (S.plans[pid]?.items || []).map(i => ({ ...i }));
+      const next = act === "pdel" ? items.filter(i => i.id !== id) : items.map(i => i.id === id ? { ...i, done: !i.done } : i);
+      if (act === "ptoggle" && next.find(i => i.id === id)?.done) toast("Executed.", "xp");
+      return q(() => S.db.doc(`people/${S.uid}/plans/${pid}`).set({ items: next }));
+    }
+    case "invite": {
+      const g = S.groups[id];
+      return copy(`Join my crew "${g.name}" on Execute > Excuses.\n${SHORT_LINK}\nCrew code: ${g.code}`);
+    }
+    case "gleave": {
+      if (S.armDel !== "g" + id) { S.armDel = "g" + id; return render(); }
+      S.armDel = null;
+      return q(() => S.db.doc(`people/${S.uid}`).update({ groups: (S.profile.groups || []).filter(g => g !== id) }));
+    }
+    case "sel": return loadPerson(id);
+    case "google": return google();
+    case "authmode": S.authMode = S.authMode === "up" ? "in" : "up"; return render();
+    case "reset": {
+      const em = document.getElementById("au-email")?.value.trim();
+      if (!em) return toast("Type your email first, then tap Forgot password.");
+      return S.auth.sendPasswordResetEmail(em).then(() => toast("Check your email for a reset link."), authErr);
+    }
+    case "signout": S.sel = null; S.selData = null; S.crewProofs = {}; return S.auth.signOut();
+    case "copy": return copy(a.dataset.text);
+  }
+});
+document.addEventListener("change", async e => {
+  if (e.target.id === "lg-cam" || e.target.id === "lg-pick") {
+    const f = e.target.files?.[0]; if (!f || !S.sheet) return;
+    S.sheet.note = document.getElementById("lg-note")?.value || "";
+    S.sheet.file = f; S.sheet.url = URL.createObjectURL(f); renderSheet();
+  }
+});
+document.addEventListener("submit", async e => {
+  e.preventDefault();
+  const f = e.target, kind = f.id === "onboard" ? "onboard" : f.dataset.form;
+  if (kind === "email") {
+    const em = document.getElementById("au-email").value.trim(), pw = document.getElementById("au-pass").value;
+    try { S.authMode === "up" ? await S.auth.createUserWithEmailAndPassword(em, pw) : await S.auth.signInWithEmailAndPassword(em, pw); }
+    catch (err) { authErr(err); }
+    return;
+  }
+  if (kind === "onboard") {
+    const name = document.getElementById("ob-name").value.trim(); if (!name) return;
+    const why = document.getElementById("ob-why").value.trim();
+    return q(async () => { await S.db.doc(`people/${S.uid}`).set({ name, why, groups: [], joined: Date.now(), stats: {} }); toast(`Welcome, ${name}. Let's execute.`); });
+  }
+  if (kind === "profile") {
+    const name = document.getElementById("pf-name").value.trim() || S.profile.name, why = document.getElementById("pf-why").value.trim();
+    return q(async () => { await S.db.doc(`people/${S.uid}`).update({ name, why }); toast("Saved"); });
+  }
+  if (kind === "padd") {
+    const pid = f.dataset.plan, inp = document.getElementById("pa-" + pid), text = inp.value.trim(); if (!text) return;
+    inp.value = "";
+    const items = [...(S.plans[pid]?.items || []), { id: rid(6), text, done: false }];
+    return q(() => S.db.doc(`people/${S.uid}/plans/${pid}`).set({ items }));
+  }
+  if (kind === "gnew") {
+    const name = document.getElementById("g-name").value.trim(); if (!name) return;
+    const gid = rid(10), code = rid(6).toUpperCase();
+    return q(async () => {
+      await S.db.doc(`groups/${gid}`).set({ name, code, by: S.uid, created: Date.now() });
+      await S.db.doc(`people/${S.uid}`).update({ groups: [...(S.profile.groups || []), gid] });
+      toast(`Crew created. Code: ${code}`);
+    });
+  }
+  if (kind === "gjoin") {
+    const code = document.getElementById("g-code").value.trim().toUpperCase();
+    const hit = Object.entries(S.groups).find(([, g]) => g.code === code);
+    if (!hit) return toast("No crew with that code. Check the 6 letters and try again.");
+    if ((S.profile.groups || []).includes(hit[0])) return toast("You're already in that crew.");
+    return q(async () => { await S.db.doc(`people/${S.uid}`).update({ groups: [...(S.profile.groups || []), hit[0]] }); toast(`You joined ${hit[1].name}`); crewLoaded = 0; loadCrewProofs(); });
+  }
+  if (kind === "note") {
+    const text = document.getElementById("n-text").value.trim(); if (!text || !S.sel) return;
+    const id = S.sel;
+    return q(async () => { await S.db.doc(`people/${id}/notes/${rid(10)}`).set({ text, ts: Date.now(), from: S.uid, seen: false }); toast("Sent"); loadPerson(id); });
+  }
+  if (kind === "rules") {
+    const R = {}; for (const k of Object.keys(DEF_RULES)) { const v = Math.round(+document.getElementById("r-" + k).value); R[k] = Math.max(k === "healWeeks" ? 1 : 0, Math.min(k.endsWith("Days") ? 7 : 14, isFinite(v) ? v : DEF_RULES[k])); }
+    return q(async () => { await S.db.doc("config/rules").set(R); toast("Rules saved"); });
+  }
+});
+window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if (views.includes(h) && h !== S.view) go(h); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && S.sheet) { S.sheet = null; renderSheet(); } });
+boot();
+</script>
 </body>
 </html>

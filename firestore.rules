@@ -1,0 +1,27 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isAdmin() {
+      return signedIn() && request.auth.token.email == "noriodeobaro@gmail.com" && request.auth.token.email_verified == true;
+    }
+    // Each man writes only his own profile and logs; everyone signed in can read (crews + coach).
+    match /people/{uid} {
+      allow read: if signedIn();
+      allow write: if signedIn() && (request.auth.uid == uid || isAdmin());
+      match /{sub=**} {
+        allow read: if signedIn();
+        allow write: if signedIn() && (request.auth.uid == uid || isAdmin());
+      }
+    }
+    match /groups/{gid} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.by == request.auth.uid;
+      allow update, delete: if signedIn() && (resource.data.by == request.auth.uid || isAdmin());
+    }
+    match /config/{doc} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+  }
+}
