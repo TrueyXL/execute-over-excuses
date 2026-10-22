@@ -532,6 +532,7 @@ function todayView() {
         ${bd.length ? `<div class="row wrap" style="gap:6px"><span class="chip on">${ic("brief")} ${mins(bd)} min</span></div>` : ""}</div>
     </div>
   </section>
+  ${todoCard(t)}
   <section class="pad" aria-label="Log something">
     ${Object.entries(KINDS).map(([k, d]) => `<button class="act a-${d.area}" data-act="log" data-kind="${k}">${ic(d.icon)}<span>${d.label}</span><small>+${d.xp} XP</small></button>`).join("")}
   </section>
@@ -595,10 +596,15 @@ function planView() {
   ${healCard()}
   <section class="card"><h3>Your weeks</h3>${historyList(m.weeks.slice(-8).reverse().map(w => ({ mon: w.mon, done: w.mustsDone })))}</section>`;
 }
-function planCard(id, title, ph) {
+function todoCard(t) {
+  const id = "d" + t, y = "d" + addD(t, -1), have = new Set((S.plans[id]?.items || []).map(i => i.text)), left = (S.plans[y]?.items || []).filter(i => !i.done && !have.has(i.text)).length;
+  const carry = left && !S.ro ? `<button class="btn sm" data-act="pcarry" data-plan="${id}" data-from="${y}">${ic("plus")} Bring ${left} unfinished from yesterday</button>` : "";
+  return planCard(id, "Today's to-do", "e.g. Call the bank, send 5 applications, clean the car", "Nothing on your list yet. Write what you will get done today.", carry);
+}
+function planCard(id, title, ph, empty = "No targets yet. Add your first one below.", extra = "") {
   const items = S.plans[id]?.items || [], done = items.filter(i => i.done).length;
-  return `<section class="card"><div class="row spread"><h3>${title}</h3><span class="mono small muted">${done}/${items.length}</span></div>
-    ${items.length ? `<div class="list">${items.map(i => `<div class="item" style="align-items:center"><button class="check" style="background:${i.done ? "var(--good)" : "transparent"};border-color:${i.done ? "var(--good)" : "var(--line)"};color:var(--bg)" data-act="ptoggle" data-plan="${id}" data-id="${i.id}" aria-label="${i.done ? "Mark not done" : "Mark done"}" ${S.ro ? "disabled" : ""}>${i.done ? ic("check") : ""}</button><span class="grow" style="${i.done ? "text-decoration:line-through;color:var(--muted)" : ""};overflow-wrap:anywhere">${esc(i.text)}</span>${S.ro ? "" : `<button class="linkish" data-act="pdel" data-plan="${id}" data-id="${i.id}" aria-label="Remove">${ic("x")}</button>`}</div>`).join("")}</div>` : `<div class="empty">No targets yet. Add your first one below.</div>`}
+  return `<section class="card"><div class="row spread"><h3>${title}</h3><span class="mono small muted">${done}/${items.length}</span></div>${extra}
+    ${items.length ? `<div class="list">${items.map(i => `<div class="item" style="align-items:center"><button class="check" style="background:${i.done ? "var(--good)" : "transparent"};border-color:${i.done ? "var(--good)" : "var(--line)"};color:var(--bg)" data-act="ptoggle" data-plan="${id}" data-id="${i.id}" aria-label="${i.done ? "Mark not done" : "Mark done"}" ${S.ro ? "disabled" : ""}>${i.done ? ic("check") : ""}</button><span class="grow" style="${i.done ? "text-decoration:line-through;color:var(--muted)" : ""};overflow-wrap:anywhere">${esc(i.text)}</span>${S.ro ? "" : `<button class="linkish" data-act="pdel" data-plan="${id}" data-id="${i.id}" aria-label="Remove">${ic("x")}</button>`}</div>`).join("")}</div>` : `<div class="empty">${empty}</div>`}
     ${S.ro ? "" : `<form class="row" data-form="padd" data-plan="${id}"><input id="pa-${id}" class="input grow" maxlength="120" placeholder="${esc(ph)}" aria-label="New target"><button class="btn primary" type="submit" aria-label="Add">${ic("plus")}</button></form>`}
   </section>`;
 }
@@ -833,14 +839,14 @@ function personDetail() {
   const p = S.people[S.sel]; if (!p) return "";
   const w = personWeek(p), d = S.selData, t = today();
   const wObj = { mon: monday(t), ...w, strip: w.strip || {} };
-  const plan = d?.plans?.["w" + monday(t)]?.items || [], mplan = d?.plans?.["m" + t.slice(0, 7)]?.items || [];
+  const todo = d?.plans?.["d" + t]?.items || [], plan = d?.plans?.["w" + monday(t)]?.items || [], mplan = d?.plans?.["m" + t.slice(0, 7)]?.items || [];
   const recent = d ? Object.keys(d.days).sort().reverse().slice(0, 10) : [];
   return `<section class="card"><div class="row"><span class="avatar" style="width:52px;height:52px;font-size:26px">${initial(p.name)}</span><div class="grow"><h2>${esc(p.name || "Someone")}</h2><p class="small muted mono">Lv ${p.stats?.level || 1} · ${(p.stats?.xp || 0).toLocaleString()} XP · ${ic("flame")} ${p.stats?.streak || 0} wk streak · best ${p.stats?.best || 0}</p></div></div>
     ${p.why ? `<div class="note"><p class="tiny muted">His why</p><p>${esc(p.why)}</p></div>` : ""}</section>
   <section class="card"><div class="row spread"><h3>This week</h3>${weekStatus(wObj)}</div>${strip(wObj)}<div class="stack" style="gap:12px">${mustRows(wObj)}</div></section>
   <section class="card"><h3>Send a word</h3><form class="stack" data-form="note"><textarea id="n-text" class="input" maxlength="500" placeholder="Encourage him, call him up, or hold him to his word." aria-label="Message"></textarea><button class="btn primary" type="submit">${ic("send")} Send to ${esc(p.name || "him")}</button></form>
     ${d?.notes?.length ? `<div class="list">${d.notes.slice(0, 5).map(n => `<div class="item"><div class="grow stack" style="gap:2px"><span class="small muted">${short(iso(new Date(n.ts)))} · ${n.seen ? "Seen" : "Not seen yet"}</span><span>${esc(n.text)}</span></div></div>`).join("")}</div>` : ""}</section>
-  <section class="card"><h3>His plan</h3>${!d ? `<p class="muted small">Loading…</p>` : plan.length || mplan.length ? `<div class="list">${[...plan.map(i => ({ ...i, s: "Week" })), ...mplan.map(i => ({ ...i, s: "Month" }))].map(i => `<div class="item"><span class="chip">${i.s}</span><span class="grow" style="${i.done ? "text-decoration:line-through;color:var(--muted)" : ""}">${esc(i.text)}</span>${i.done ? `<span style="color:var(--good)">${ic("check")}</span>` : ""}</div>`).join("")}</div>` : `<div class="empty">No plan written for this week or month.</div>`}</section>
+  <section class="card"><h3>His plan</h3>${!d ? `<p class="muted small">Loading…</p>` : todo.length || plan.length || mplan.length ? `<div class="list">${[...todo.map(i => ({ ...i, s: "Today" })), ...plan.map(i => ({ ...i, s: "Week" })), ...mplan.map(i => ({ ...i, s: "Month" }))].map(i => `<div class="item"><span class="chip">${i.s}</span><span class="grow" style="${i.done ? "text-decoration:line-through;color:var(--muted)" : ""}">${esc(i.text)}</span>${i.done ? `<span style="color:var(--good)">${ic("check")}</span>` : ""}</div>`).join("")}</div>` : `<div class="empty">No to-do or plan written for today, this week or this month.</div>`}</section>
   <section class="card"><h3>Recent log</h3>${!d ? `<p class="muted small">Loading…</p>` : recent.length ? recent.map(day => `<div class="stack" style="gap:4px"><p class="tiny muted">${nice(day)} · +${dayXP(d.days[day])} XP</p>${logList(d.days[day].logs || [], day, false)}</div>`).join("") : `<div class="empty">No logs yet.</div>`}</section>
   <section class="card"><h3>Proof photos</h3>${d?.proofs?.length ? `<div class="wall">${d.proofs.map(s => `<figure class="shot" style="margin:0"><img src="${esc(proofSrc(s))}" alt="Proof photo" loading="lazy"><div>${esc(KINDS[s.kind]?.label || "")} · ${short(s.date)}</div></figure>`).join("")}</div>` : `<div class="empty">No photos yet.</div>`}</section>
   <section class="card"><h3>Last 8 weeks</h3>${historyList((p.stats?.history || []).slice().reverse())}</section>`;
@@ -1031,6 +1037,12 @@ document.addEventListener("click", e => {
       const next = act === "pdel" ? items.filter(i => i.id !== id) : items.map(i => i.id === id ? { ...i, done: !i.done } : i);
       if (act === "ptoggle" && next.find(i => i.id === id)?.done) toast("Executed.", "xp");
       return q(() => S.db.doc(`people/${S.uid}/plans/${pid}`).set({ items: next }));
+    }
+    case "pcarry": {
+      const pid = a.dataset.plan, cur = S.plans[pid]?.items || [], have = new Set(cur.map(i => i.text));
+      const add = (S.plans[a.dataset.from]?.items || []).filter(i => !i.done && !have.has(i.text)).map(i => ({ id: rid(6), text: i.text, done: false }));
+      toast(add.length ? `Brought over ${add.length}` : "Already on today's list");
+      return add.length && q(() => S.db.doc(`people/${S.uid}/plans/${pid}`).set({ items: [...cur, ...add] }));
     }
     case "invite": {
       const g = S.groups[id];
