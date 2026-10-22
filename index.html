@@ -169,6 +169,24 @@ textarea.input { min-height: 84px; resize: vertical; }
 .mini i.on { background: currentColor; border-color: transparent; }
 .mini i.on .ic { stroke: var(--bg); }
 .rank { font-family: var(--display); font-weight: 900; font-size: 22px; width: 26px; text-align: center; color: var(--muted); }
+/* Calendar */
+.calgrid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.calh { text-align: center; font-size: 12px; color: var(--muted); font-weight: 700; }
+.cell { aspect-ratio: 1 / 1.1; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); display: grid; align-content: space-between; justify-items: center; padding: 6px 2px; font-weight: 700; font-size: 14px; min-width: 0; font-variant-numeric: tabular-nums; }
+.cell.out { opacity: .35; }
+.cell.today { border-color: var(--accent); color: var(--accent); }
+.cell.sel { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.cd { display: flex; gap: 2px; flex-wrap: wrap; justify-content: center; min-height: 6px; }
+.cd i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.cell.sel .cd i { background: var(--accent-ink); }
+.cd i.g { background: var(--muted); }
+.daychk { position: relative; display: inline-block; }
+.daychk input { position: absolute; opacity: 0; inset: 0; margin: 0; }
+.daychk span { display: inline-grid; place-items: center; width: 40px; height: 38px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); font-size: 13px; font-weight: 700; }
+.daychk input:checked + span { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.daychk input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.rt { display: grid; gap: 10px; padding: 12px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--line); }
+.rt .row input[type="time"] { width: auto; min-width: 0; }
 .cols { display: grid; gap: 14px; }
 @media (min-width: 900px) { .cols { grid-template-columns: 380px 1fr; align-items: start; } }
 
@@ -243,6 +261,7 @@ const P = {
   lock: '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   x: '<path d="M18 6 6 18M6 6l12 12"/>',
+  pencil: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
   trash: '<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>',
   copy: '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
   heart: '<path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7z"/>',
@@ -258,10 +277,10 @@ const DEF_RULES = { spiritDays: 7, buildDays: 5, train: 3, stretch: 1, learn: 1,
 const KINDS = {
   prayer:  { label: "Prayer",   area: "spirit",  xp: 20, icon: "sunrise", min: true,  note: "What did you pray about? (optional)", ph: "", photo: true },
   word:    { label: "The Word", area: "spirit",  xp: 20, icon: "book",    min: true,  note: "What did you read?", ph: "e.g. Proverbs 3, James 1", photo: true },
-  build:   { label: "Build",    area: "build",   xp: 20, icon: "brief",   min: true,  note: "What did you work on?", ph: "Career, money, business or school", req: true, photo: false },
+  build:   { label: "Build",    area: "build",   xp: 20, icon: "brief",   min: true,  note: "What did you work on?", ph: "Career, money, business or school", req: true, photo: true },
   train:   { label: "Train",    area: "body",    xp: 30, icon: "dumb",    min: true,  note: "Workout notes (optional)", ph: "e.g. Push day, 5 km run", types: ["Gym", "Basketball", "Run", "Soccer", "Other sport"], photo: true },
   stretch: { label: "Stretch",  area: "stretch", xp: 15, icon: "pulse",   min: true,  note: "Notes (optional)", ph: "", photo: true },
-  learn:   { label: "Learn",    area: "learn",   xp: 40, icon: "bulb",    min: false, note: "What did you learn? Be specific.", ph: "A new skill, a faster way to work, how to post content better…", req: true, photo: false },
+  learn:   { label: "Learn",    area: "learn",   xp: 40, icon: "bulb",    min: false, note: "What did you learn? Be specific.", ph: "A new skill, a faster way to work, how to post content better…", req: true, photo: true },
 };
 const LEVELS = [0, 300, 800, 1500, 2500, 4000, 6000, 8500, 11500, 15000];
 const RANKS = ["Recruit", "Disciplined", "Steadfast", "Builder", "Warrior", "Watchman", "Pillar", "Elder", "General", "Legend"];
@@ -287,8 +306,10 @@ const S = {
   db: null, user: null, assets: null, uid: null, isOwner: false, status: "loading", ro: false,
   profile: undefined, days: {}, plans: {}, notes: [], myProofs: [], people: {}, groups: {}, rules: { ...DEF_RULES },
   view: "today", sheet: null, sel: null, selData: null, crewProofs: {}, armDel: null, mine: null,
+  calMonth: null, calSel: null, gcal: {}, gcalOn: false, gbusy: false, coachOK: false,
 };
-const views = ["today", "plan", "crew", "coach", "me"];
+const views = ["today", "calendar", "plan", "crew", "coach", "me"];
+const COACH_HASH = "4e072c27f29c879fd3c99e86451be75ebc3eaa13ef7e77d3478dab0a7c47bc7a";
 
 /* ===== stats ===== */
 function hasArea(day, area) { return (day?.logs || []).some(l => KINDS[l.kind]?.area === area); }
@@ -427,7 +448,7 @@ function render() {
   if (S.status === "loading") body = loadingView();
   else if (S.status === "nodb" || S.status === "noid") body = gateView();
   else if (!S.profile) body = onboardView();
-  else body = ({ today: todayView, plan: planView, crew: crewView, coach: S.isOwner ? coachView : todayView, me: meView }[S.view] || todayView)();
+  else body = ({ today: todayView, calendar: calendarView, plan: planView, crew: crewView, coach: S.isOwner ? (coachOpen() ? coachView : coachLockView) : todayView, me: meView }[S.view] || todayView)();
   root.innerHTML = `<main class="app ${wide ? "wide" : ""}">${brandBar()}${body}</main>${S.profile && S.uid ? navBar() : ""}`;
   renderSheet();
 }
@@ -436,7 +457,7 @@ function brandBar() {
   return `<header class="brand"><div class="logo">Execute <b>&gt;</b> <s>Excuses</s></div><button class="icon-btn" data-act="theme" aria-label="Switch to ${dark ? "light" : "dark"} mode">${ic(dark ? "sun" : "moon")}</button></header>`;
 }
 function navBar() {
-  const items = [["today", "target", "Today"], ["plan", "cal", "Plan"], ["crew", "users", "Crew"], ...(S.isOwner ? [["coach", "shield", "Coach"]] : []), ["me", "user", "Me"]];
+  const items = [["today", "target", "Today"], ["calendar", "cal", "Calendar"], ["plan", "check", "Plan"], ["crew", "users", "Crew"], ...(S.isOwner ? [["coach", "shield", "Coach"]] : []), ["me", "user", "Me"]];
   return `<nav class="nav" aria-label="Sections"><div class="nav-in">${items.map(([v, i, l]) => `<a href="#${v}" data-nav="${v}" class="${S.view === v ? "on" : ""}" ${S.view === v ? 'aria-current="page"' : ""}>${ic(i)}<span>${l}</span></a>`).join("")}</div></nav>`;
 }
 function loadingView() {
@@ -562,7 +583,7 @@ function logList(logs, date, mine) {
   if (!logs.length) return `<div class="empty">Nothing logged yet. Tap a button above to log your first win.</div>`;
   const proofs = Object.fromEntries((mine ? S.myProofs : (S.selData?.proofs || [])).map(p => [p.id, p]));
   return `<div class="list">${logs.slice().reverse().map(l => { const d = KINDS[l.kind] || {}, pf = l.proof && proofs[l.proof];
-    return `<div class="item"><span class="a-${d.area}">${ic(d.icon || "check")}</span><div class="grow stack" style="gap:2px"><b>${esc(d.label)}${l.type ? ` · ${esc(l.type)}` : ""}${l.min ? ` · ${+l.min} min` : ""}</b>${l.note ? `<span class="small muted" style="overflow-wrap:anywhere">${esc(l.note)}</span>` : ""}</div>${pf ? `<img class="thumb" src="${esc(proofSrc(pf))}" alt="Proof photo">` : l.proof ? `<span class="thumb" style="display:grid;place-items:center">${ic("image")}</span>` : ""}${mine && !S.ro ? `<button class="linkish" data-act="del" data-date="${date}" data-id="${l.id}" aria-label="Delete">${S.armDel === l.id ? "Tap to delete" : ic("trash")}</button>` : ""}</div>`; }).join("")}</div>`;
+    return `<div class="item"><span class="a-${d.area}">${ic(d.icon || "check")}</span><div class="grow stack" style="gap:2px"><b>${esc(d.label)}${l.type ? ` · ${esc(l.type)}` : ""}${l.min ? ` · ${+l.min} min` : ""}</b>${l.note ? `<span class="small muted" style="overflow-wrap:anywhere">${esc(l.note)}</span>` : ""}</div>${pf ? `<img class="thumb" src="${esc(proofSrc(pf))}" alt="Proof photo">` : l.proof ? `<span class="thumb" style="display:grid;place-items:center">${ic("image")}</span>` : ""}${mine && !S.ro ? `<button class="linkish" data-act="edit" data-date="${date}" data-id="${l.id}" aria-label="Edit">${ic("pencil")}</button><button class="linkish" data-act="del" data-date="${date}" data-id="${l.id}" aria-label="Delete">${S.armDel === l.id ? "Tap to delete" : ic("trash")}</button>` : ""}</div>`; }).join("")}</div>`;
 }
 
 /* ----- Plan ----- */
@@ -626,14 +647,183 @@ async function loadCrewProofs() {
   render();
 }
 
-/* ----- Coach ----- */
+/* ----- Calendar ----- */
+const DEF_ROUTINE = {
+  spirit:  { on: true, time: "06:00", dur: 30, days: [0, 1, 2, 3, 4, 5, 6] },
+  build:   { on: true, time: "19:00", dur: 60, days: [0, 1, 2, 3, 4] },
+  train:   { on: true, time: "17:30", dur: 60, days: [0, 2, 4] },
+  stretch: { on: true, time: "09:00", dur: 15, days: [5] },
+  learn:   { on: true, time: "20:00", dur: 30, days: [6] },
+};
+const RT = {
+  spirit:  { label: "Time with God", icon: "sunrise", area: "spirit", note: "Prayer and the Word.", gcolor: "5" },
+  build:   { label: "Build", icon: "brief", area: "build", note: "Career, money, business or school.", gcolor: "9" },
+  train:   { label: "Gym or sport", icon: "dumb", area: "body", note: "Snap a proof photo in the app.", gcolor: "11" },
+  stretch: { label: "Stretch", icon: "pulse", area: "stretch", note: "At least once this week.", gcolor: "2" },
+  learn:   { label: "Learn something new", icon: "bulb", area: "learn", note: "Log what you learned in the app.", gcolor: "3" },
+};
+const BYDAY = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
+const routine = () => { const r = S.profile?.routine || {}; return Object.fromEntries(Object.entries(DEF_ROUTINE).map(([k, d]) => [k, { ...d, ...(r[k] || {}) }])); };
+const dowIdx = s => (parse(s).getDay() + 6) % 7;
+const addMin = (hhmm, m) => { const [h, mi] = hhmm.split(":").map(Number), t = h * 60 + mi + m; return `${pad(Math.floor(t / 60) % 24)}:${pad(t % 60)}`; };
+const fmtTime = hhmm => { const [h, m] = hhmm.split(":").map(Number); return `${h % 12 || 12}:${pad(m)} ${h < 12 ? "AM" : "PM"}`; };
+
+function calendarView() {
+  const t = today(), mon = S.calMonth || t.slice(0, 7), sel = S.calSel || t;
+  const [y, m] = mon.split("-").map(Number), first = iso(new Date(y, m - 1, 1)), last = iso(new Date(y, m, 0));
+  const cells = []; for (let d = monday(first); d <= last || cells.length % 7; d = addD(d, 1)) cells.push(d);
+  const g = S.gcal[mon] || {};
+  const R = routine(), wd = dowIdx(sel), dayLogs = S.days[sel]?.logs || [];
+  const planned = Object.entries(R).filter(([, r]) => r.on && r.days.includes(wd)).sort((a, b) => a[1].time.localeCompare(b[1].time));
+  const doneArea = a => dayLogs.some(l => KINDS[l.kind]?.area === a);
+  return `<section class="card">
+    <div class="row spread"><button class="icon-btn" data-act="calmon" data-v="-1" aria-label="Previous month">${ic("back")}</button><h2>${["January","February","March","April","May","June","July","August","September","October","November","December"][m - 1]} ${y}</h2><button class="icon-btn" data-act="calmon" data-v="1" aria-label="Next month" style="transform:scaleX(-1)">${ic("back")}</button></div>
+    <div class="calgrid">${DOW.map(d => `<span class="calh">${d.charAt(0)}</span>`).join("")}
+    ${cells.map(d => { const ls = S.days[d]?.logs || [], areas = [...new Set(ls.map(l => KINDS[l.kind]?.area).filter(Boolean))];
+      return `<button class="cell ${d.slice(0, 7) !== mon ? "out" : ""} ${d === t ? "today" : ""} ${d === sel ? "sel" : ""}" data-act="calday" data-v="${d}" aria-label="${nice(d)}${areas.length ? `, ${areas.length} areas logged` : ""}">${+d.slice(8)}<span class="cd">${areas.map(a => `<i class="a-${a}"></i>`).join("")}${g[d]?.length ? `<i class="g"></i>` : ""}</span></button>`; }).join("")}</div>
+    <p class="small muted">Colored dots are what you logged. Grey dot = Google Calendar event.</p>
+  </section>
+  <section class="card"><div><p class="tiny muted">${sel === t ? "Today" : sel < t ? "Past day" : "Coming up"}</p><h2>${nice(sel)}</h2></div>
+    <h3>Your routine</h3>
+    ${planned.length ? `<div class="list">${planned.map(([k, r]) => { const meta = RT[k], done = doneArea(meta.area);
+      return `<div class="item" style="align-items:center"><span class="a-${meta.area}">${ic(meta.icon)}</span><div class="grow"><b>${meta.label}</b><div class="small muted mono">${fmtTime(r.time)} · ${r.dur} min</div></div>${done ? `<span class="status good">Done</span>` : sel < t ? `<span class="status bad">Missed</span>` : ""}</div>`; }).join("")}</div>` : `<div class="empty">Nothing in your routine on this day.</div>`}
+    ${dayLogs.length ? `<h3>Logged</h3>${logList(dayLogs, sel, true)}` : ""}
+    ${S.gcalOn ? `<h3>Google Calendar</h3>${(g[sel] || []).length ? `<div class="list">${g[sel].map(e => `<div class="item"><span class="muted">${ic("cal")}</span><div class="grow"><b style="overflow-wrap:anywhere">${esc(e.title)}</b><div class="small muted mono">${e.allDay ? "All day" : fmtTime(e.time)}</div></div></div>`).join("")}</div>` : `<p class="small muted">No Google events this day.</p>`}` : ""}
+  </section>
+  ${syncCard()}
+  ${routineCard()}`;
+}
+function syncCard() {
+  const google = (S.auth?.currentUser?.providerData || []).some(p => p.providerId === "google.com"), live = !!gtok();
+  return `<section class="card"><h3>Sync with your phone calendar</h3>
+    <div class="rt"><div class="row"><span>${ic("cal")}</span><b class="grow">Google Calendar</b>${S.profile?.gcal?.synced ? `<span class="status ${live ? "good" : "warn"}">${live ? "Connected" : "Synced " + short(iso(new Date(S.profile.gcal.synced)))}</span>` : ""}</div>
+      <p class="small muted">Puts your routine on your Google Calendar with reminders, and shows your Google events here. Samsung phones signed in to Google get it automatically.${google ? "" : " You'll pick a Google account to connect."}</p>
+      <button class="btn primary" data-act="gcal" ${S.gbusy ? "disabled" : ""}>${S.gbusy ? "Syncing…" : S.profile?.gcal?.synced ? "Sync again" : "Connect Google Calendar"}</button>
+      <p class="small muted">If Google says the app isn't verified yet, tap <b>Advanced</b>, then <b>Go to Execute Over Excuses</b>.</p></div>
+    <div class="rt"><div class="row"><span>${ic("cal")}</span><b class="grow">iPhone or Samsung calendar</b></div>
+      <p class="small muted">Downloads your routine as a calendar file. <b>iPhone:</b> tap the file, then <b>Add All</b>. <b>Samsung:</b> open the downloaded file and choose <b>Calendar</b>. Download it again after you change your routine.</p>
+      <button class="btn" data-act="ics">Add routine to my phone calendar</button></div>
+  </section>`;
+}
+function routineCard() {
+  const R = routine();
+  return `<section class="card"><h3>My routine</h3><p class="small muted">When you plan to do each must-do. This is what goes on your calendar.</p>
+    <form class="stack" data-form="routine" style="gap:10px">${Object.entries(R).map(([k, r]) => { const meta = RT[k];
+      return `<fieldset class="rt" style="margin:0"><legend class="sr" style="position:absolute;left:-9999px">${meta.label}</legend>
+        <label class="row"><input type="checkbox" id="rt-${k}-on" ${r.on ? "checked" : ""} style="width:22px;height:22px;accent-color:var(--accent)"><span class="a-${meta.area}">${ic(meta.icon)}</span><b class="grow" style="color:var(--fg)">${meta.label}</b></label>
+        <div class="row wrap"><input id="rt-${k}-time" class="input mono" type="time" value="${r.time}" aria-label="${meta.label} time" style="width:140px"><select id="rt-${k}-dur" class="input" aria-label="${meta.label} length" style="width:120px">${[10, 15, 20, 30, 45, 60, 90, 120].map(n => `<option value="${n}" ${+r.dur === n ? "selected" : ""}>${n} min</option>`).join("")}</select></div>
+        <div class="row wrap" style="gap:6px">${DOW.map((d, i) => `<label class="daychk"><input type="checkbox" id="rt-${k}-d${i}" ${r.days.includes(i) ? "checked" : ""} aria-label="${meta.label} on ${d}"><span>${d.slice(0, 2)}</span></label>`).join("")}</div>
+      </fieldset>`; }).join("")}
+      <button class="btn primary" type="submit">Save routine</button></form></section>`;
+}
+function icsText() {
+  const R = routine(), t = today(), stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
+  const escT = s => s.replace(/[\\,;]/g, m => "\\" + m);
+  const L = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Execute Over Excuses//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH", "X-WR-CALNAME:Execute > Excuses"];
+  for (const [k, r] of Object.entries(R)) {
+    if (!r.on || !r.days.length) continue;
+    let d = t; while (!r.days.includes(dowIdx(d))) d = addD(d, 1);
+    const st = d.replace(/-/g, "") + "T" + r.time.replace(":", "") + "00", end = addMin(r.time, +r.dur), en = (end < r.time ? addD(d, 1) : d).replace(/-/g, "") + "T" + end.replace(":", "") + "00";
+    L.push("BEGIN:VEVENT", `UID:eoe-${k}-${S.uid}@trueyxl.github.io`, `DTSTAMP:${stamp}`, `DTSTART:${st}`, `DTEND:${en}`,
+      `RRULE:FREQ=WEEKLY;BYDAY=${r.days.slice().sort().map(i => BYDAY[i]).join(",")}`, `SUMMARY:${escT(RT[k].label)} · Execute > Excuses`,
+      `DESCRIPTION:${escT(RT[k].note)} Log it: ${SHORT_LINK}`, "BEGIN:VALARM", "ACTION:DISPLAY", `DESCRIPTION:${escT(RT[k].label)}`, "TRIGGER:-PT10M", "END:VALARM", "END:VEVENT");
+  }
+  L.push("END:VCALENDAR");
+  return L.join("\r\n") + "\r\n";
+}
+function downloadIcs() {
+  const url = URL.createObjectURL(new Blob([icsText()], { type: "text/calendar;charset=utf-8" }));
+  const a = document.createElement("a"); a.href = url; a.download = "execute-over-excuses.ics"; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  toast("Calendar file ready. Open it to add your routine.");
+}
+
+/* Google Calendar (token lives only in this browser tab session) */
+const GCAL_SCOPE = "https://www.googleapis.com/auth/calendar.events";
+function gtok() { try { const t = JSON.parse(sessionStorage.getItem("eoe-gtok") || "null"); if (t && t.exp > Date.now() && t.uid === S.uid) return t.tok; } catch {} return null; }
+async function gfetch(path, opts = {}) {
+  const r = await fetch("https://www.googleapis.com/calendar/v3/" + path, { ...opts, headers: { Authorization: "Bearer " + gtok(), "Content-Type": "application/json" } });
+  if (r.status === 401) { try { sessionStorage.removeItem("eoe-gtok"); } catch {} throw { code: "gcal-expired" }; }
+  if (r.status === 403) throw { code: "gcal-denied" };
+  if (!r.ok) throw { code: "gcal", status: r.status };
+  return r.status === 204 ? null : r.json();
+}
+async function connectGcal() {
+  const p = new firebase.auth.GoogleAuthProvider(); p.addScope(GCAL_SCOPE);
+  const u = S.auth.currentUser, g = u.providerData.find(x => x.providerId === "google.com");
+  if (g?.email) p.setCustomParameters({ login_hint: g.email });
+  const res = g ? await u.reauthenticateWithPopup(p) : await u.linkWithPopup(p);
+  const tok = res.credential?.accessToken;
+  if (!tok) throw { code: "gcal-denied" };
+  try { sessionStorage.setItem("eoe-gtok", JSON.stringify({ tok, exp: Date.now() + 50 * 60000, uid: S.uid })); } catch {}
+}
+async function syncGcal() {
+  if (S.gbusy) return;
+  S.gbusy = true; render();
+  try {
+    if (!gtok()) await connectGcal();
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone, R = routine(), t = today();
+    const old = await gfetch("calendars/primary/events?maxResults=250&privateExtendedProperty=" + encodeURIComponent("eoe=1"));
+    for (const e of old.items || []) await gfetch("calendars/primary/events/" + encodeURIComponent(e.id), { method: "DELETE" });
+    for (const [k, r] of Object.entries(R)) {
+      if (!r.on || !r.days.length) continue;
+      let d = t; while (!r.days.includes(dowIdx(d))) d = addD(d, 1);
+      const end = addMin(r.time, +r.dur), endD = end < r.time ? addD(d, 1) : d;
+      await gfetch("calendars/primary/events", { method: "POST", body: JSON.stringify({
+        summary: `${RT[k].label} · Execute > Excuses`, description: `${RT[k].note}\nLog it: ${SHORT_LINK}`, colorId: RT[k].gcolor,
+        start: { dateTime: `${d}T${r.time}:00`, timeZone: tz }, end: { dateTime: `${endD}T${end}:00`, timeZone: tz },
+        recurrence: [`RRULE:FREQ=WEEKLY;BYDAY=${r.days.slice().sort().map(i => BYDAY[i]).join(",")}`],
+        reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 10 }] },
+        extendedProperties: { private: { eoe: "1" } },
+      }) });
+    }
+    await S.db.doc(`people/${S.uid}`).update({ gcal: { synced: Date.now() } });
+    S.gcalOn = true; S.gcal = {}; loadGcal(S.calMonth || t.slice(0, 7));
+    toast("Routine added to your Google Calendar", "xp");
+  } catch (e) { gcalErr(e); }
+  S.gbusy = false; render();
+}
+function gcalErr(e) {
+  console.warn("gcal", e);
+  if (e?.code === "gcal-denied") toast("Google didn't allow calendar access. Try again and tick the calendar box.");
+  else if (e?.code === "gcal-expired") toast("Your Google connection timed out. Tap Sync again.");
+  else if (e?.code === "auth/user-mismatch") toast("Pick the same Google account you signed in with.");
+  else if (e?.code === "auth/credential-already-in-use") toast("That Google account belongs to another member. Pick a different one.");
+  else if (e?.code === "auth/popup-closed-by-user" || e?.code === "auth/cancelled-popup-request") {}
+  else if (e?.code === "auth/popup-blocked") toast("Your browser blocked the Google window. Allow pop-ups and try again.");
+  else toast("Couldn't reach Google Calendar. Try again.");
+}
+async function loadGcal(mon) {
+  if (!gtok() || S.gcal[mon]) return;
+  const [y, m] = mon.split("-").map(Number);
+  try {
+    const r = await gfetch(`calendars/primary/events?singleEvents=true&orderBy=startTime&maxResults=250&timeMin=${encodeURIComponent(new Date(y, m - 1, 1).toISOString())}&timeMax=${encodeURIComponent(new Date(y, m, 1).toISOString())}`);
+    const map = {};
+    for (const e of r.items || []) {
+      if (e.extendedProperties?.private?.eoe === "1" || e.status === "cancelled") continue;
+      const allDay = !!e.start?.date, sd = allDay ? e.start.date : iso(new Date(e.start.dateTime));
+      (map[sd] = map[sd] || []).push({ title: e.summary || "(No title)", allDay, time: allDay ? "" : `${pad(new Date(e.start.dateTime).getHours())}:${pad(new Date(e.start.dateTime).getMinutes())}` });
+    }
+    S.gcal[mon] = map; S.gcalOn = true; render();
+  } catch (e) { if (e?.code !== "gcal-expired") console.warn(e); }
+}
+
+/* ----- Coach (owner account + password) ----- */
+async function sha(s) { const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join(""); }
+function coachOpen() { if (!S.isOwner) return false; if (S.coachOK) return true; try { return sessionStorage.getItem("eoe-coach") === COACH_HASH + S.uid; } catch { return false; } }
+function coachLockView() {
+  return `<section class="card" style="gap:16px"><div class="row"><span style="width:48px;height:48px;border-radius:14px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent)">${ic("lock")}</span><div class="grow"><p class="tiny muted">Coach only</p><h1>Locked</h1></div></div>
+    <p class="small muted">Enter the coach password to see your men.</p>
+    <form class="stack" data-form="coachpw" style="gap:12px"><div class="field"><label for="cp-pass">Coach password</label><input id="cp-pass" class="input" type="password" autocomplete="current-password" required></div><button class="btn primary block" type="submit">Unlock</button></form></section>`;
+}
+
 function coachView() {
   const t = today(), list = Object.entries(S.people).map(([id, p]) => {
     const w = personWeek(p), idle = p.stats?.last ? Math.round((parse(t) - parse(p.stats.last)) / 864e5) : 99;
     return { id, p, w, idle };
   }).sort((a, b) => a.w.mustsDone - b.w.mustsDone || b.idle - a.idle);
   const onTrack = list.filter(x => x.w.mustsDone >= 3 || x.w.musts?.spirit).length, idle = list.filter(x => x.idle >= 2).length;
-  const left = `<section class="card"><p class="tiny muted">Coach view · only you see this</p><h1>Your men</h1>
+  const left = `<section class="card"><div class="row spread"><p class="tiny muted">Coach view · only you see this</p><button class="btn sm" data-act="coachlock">${ic("lock")} Lock</button></div><h1>Your men</h1>
       <div class="row wrap" style="gap:8px"><span class="chip">${list.length} men</span><span class="chip on">${list.filter(x => x.w.consistent).length} consistent this week</span><span class="chip" style="color:var(--bad)">${idle} quiet 2+ days</span></div>
       <div class="stack">${list.length ? list.map(x => `<button class="person" data-act="sel" data-id="${x.id}" style="${S.sel === x.id ? "border-color:var(--accent)" : ""}"><span class="avatar">${initial(x.p.name)}</span><div class="grow stack" style="gap:4px"><b>${esc(x.p.name || "Someone")}${x.id === S.uid ? " (you)" : ""}</b><span class="small muted">${x.idle >= 99 ? "No logs yet" : x.idle === 0 ? "Active today" : `Last log ${x.idle} day${x.idle === 1 ? "" : "s"} ago`} · ${ic("flame")} ${x.p.stats?.streak || 0}</span></div>${miniMusts(x.w)}</button>`).join("") : `<div class="empty">Nobody has joined yet. Share the app (see Me → Invite men).</div>`}</div></section>
     ${rulesEditor()}`;
@@ -709,23 +899,33 @@ function openLog(kind) {
   S.sheet = { kind, date: today(), min: 30, type: KINDS[kind].types?.[0] || "", note: "", file: null, url: "", busy: false };
   renderSheet();
 }
+async function openEdit(date, id) {
+  const l = S.days[date]?.logs?.find(x => x.id === id); if (!l) return;
+  S.sheet = { edit: id, kind: l.kind, date, min: l.min || 30, type: l.type || "", note: l.note || "", file: null, url: "", oldProof: l.proof || "", oldSrc: "", dropOld: false, busy: false };
+  if (l.proof) {
+    const pf = S.myProofs.find(p => p.id === l.proof);
+    if (pf) S.sheet.oldSrc = proofSrc(pf);
+    else { try { const d = await S.db.doc(`people/${S.uid}/proofs/${l.proof}`).get(); if (d.exists && S.sheet?.edit === id) S.sheet.oldSrc = proofSrc(d.data()); } catch {} }
+  }
+  renderSheet();
+}
 function renderSheet() {
   const el = document.getElementById("sheet"), s = S.sheet;
   if (!s) { el.innerHTML = ""; return; }
   const d = KINDS[s.kind], t = today(), y = addD(t, -1);
   const keep = { note: document.getElementById("lg-note")?.value, min: document.getElementById("lg-min")?.value };
-  el.innerHTML = `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Log ${esc(d.label)}" data-stop>
+  el.innerHTML = `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${s.edit ? "Edit" : "Log"} ${esc(d.label)}" data-stop>
     <span class="grab"></span>
-    <div class="row spread"><div class="row"><span class="a-${d.area}">${ic(d.icon)}</span><h2>${esc(d.label)}</h2></div><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div>
-    <div class="seg" role="group" aria-label="Day"><button class="${s.date === t ? "on" : ""}" data-act="sdate" data-v="${t}">Today</button><button class="${s.date === y ? "on" : ""}" data-act="sdate" data-v="${y}">Yesterday</button></div>
+    <div class="row spread"><div class="row"><span class="a-${d.area}">${ic(d.icon)}</span><h2>${s.edit ? "Edit · " : ""}${esc(d.label)}</h2></div><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div>
+    ${s.edit ? `<p class="small muted">Logged ${nice(s.date)}</p><div class="field"><label>Category</label><div class="seg">${Object.entries(KINDS).map(([k, x]) => `<button class="${s.kind === k ? "on" : ""}" data-act="skind" data-v="${k}">${x.label}</button>`).join("")}</div></div>` : `<div class="seg" role="group" aria-label="Day"><button class="${s.date === t ? "on" : ""}" data-act="sdate" data-v="${t}">Today</button><button class="${s.date === y ? "on" : ""}" data-act="sdate" data-v="${y}">Yesterday</button></div>`}
     ${d.types ? `<div class="field"><label>Type</label><div class="seg">${d.types.map(x => `<button class="${s.type === x ? "on" : ""}" data-act="stype" data-v="${x}">${x}</button>`).join("")}</div></div>` : ""}
     ${d.min ? `<div class="field"><label for="lg-min">Minutes</label><div class="seg">${[10, 15, 30, 45, 60, 90].map(m => `<button class="${+s.min === m ? "on" : ""}" data-act="smin" data-v="${m}">${m}</button>`).join("")}</div><input id="lg-min" class="input mono" type="number" inputmode="numeric" min="1" max="600" value="${esc(keep.min ?? s.min)}"></div>` : ""}
     <div class="field"><label for="lg-note">${esc(d.note)}</label><textarea id="lg-note" class="input" maxlength="600" placeholder="${esc(d.ph)}">${esc(keep.note ?? s.note)}</textarea></div>
     ${d.photo ? `<div class="field"><label>Proof photo <span class="muted">(+${PHOTO_XP} XP)</span></label>
-      ${s.url ? `<img class="preview" src="${s.url}" alt="Your photo"><button class="btn sm ghost" data-act="nophoto">${ic("x")} Remove photo</button>` : `<div class="row">
+      ${s.url ? `<img class="preview" src="${s.url}" alt="Your photo"><button class="btn sm ghost" data-act="nophoto">${ic("x")} Remove photo</button>` : s.oldProof && !s.dropOld ? `${s.oldSrc ? `<img class="preview" src="${esc(s.oldSrc)}" alt="Your saved photo">` : `<p class="small muted">Photo saved.</p>`}<div class="row"><label class="btn grow" for="lg-cam">${ic("camera")} Retake</label><label class="btn grow" for="lg-pick">${ic("image")} Replace</label><button class="btn ghost danger" data-act="dropold" aria-label="Remove photo">${ic("trash")}</button></div>` : `<div class="row">
         <label class="btn grow" for="lg-cam">${ic("camera")} Take photo</label><label class="btn grow" for="lg-pick">${ic("image")} Choose</label></div>`}
       <input id="lg-cam" type="file" accept="image/*" capture="environment" hidden><input id="lg-pick" type="file" accept="image/*" hidden></div>` : ""}
-    <button class="btn primary block" data-act="save" ${s.busy ? "disabled" : ""}>${s.busy ? "Saving…" : `Log it · +${d.xp + (s.url ? PHOTO_XP : 0)} XP`}</button>
+    <button class="btn primary block" data-act="save" ${s.busy ? "disabled" : ""}>${s.busy ? "Saving…" : s.edit ? "Save changes" : `Log it · +${d.xp + (s.url ? PHOTO_XP : 0)} XP`}</button>
   </div></div>`;
 }
 async function shrink(file, max, quality) {
@@ -745,7 +945,10 @@ async function saveLog() {
   if (d.min && !(min > 0)) return toast("Enter how many minutes.");
   if (d.req && note.length < 3) return toast(s.kind === "learn" ? "Write what you learned." : "Write what you worked on.");
   s.busy = true; renderSheet();
-  const log = { id: rid(8), kind: s.kind, ts: Date.now() };
+  const prev = s.edit ? S.days[s.date]?.logs?.find(x => x.id === s.edit) : null;
+  if (s.edit && !prev) { S.sheet = null; renderSheet(); return toast("That entry was removed."); }
+  const log = { id: prev?.id || rid(8), kind: s.kind, ts: prev?.ts || Date.now() };
+  if (prev) log.edited = Date.now();
   if (min) log.min = min; if (note) log.note = note; if (s.type) log.type = s.type;
   try {
     if (s.file) {
@@ -756,9 +959,12 @@ async function saveLog() {
       proof.data = u;
       await S.db.doc(`people/${S.uid}/proofs/${pid}`).set(proof);
       log.proof = pid;
-    }
+    } else if (s.oldProof && !s.dropOld) log.proof = s.oldProof;
+    if (s.oldProof && log.proof !== s.oldProof) await S.db.doc(`people/${S.uid}/proofs/${s.oldProof}`).delete();
     const before = S.mine.lvl.n, ref = S.db.doc(`people/${S.uid}/days/${s.date}`), cur = S.days[s.date];
-    await (chain = chain.then(() => ref.set({ date: s.date, logs: [...(cur?.logs || []), log] })));
+    const logs = prev ? cur.logs.map(x => x.id === prev.id ? log : x) : [...(cur?.logs || []), log];
+    await (chain = chain.then(() => ref.set({ date: s.date, logs })));
+    if (prev) { S.sheet = null; renderSheet(); if (s.url) URL.revokeObjectURL(s.url); return toast(log.proof && !prev.proof ? `Updated · +${PHOTO_XP} XP for the photo` : "Updated", log.proof && !prev.proof ? "xp" : ""); }
     const gain = d.xp + (log.proof ? PHOTO_XP : 0);
     S.sheet = null; renderSheet();
     if (s.url) URL.revokeObjectURL(s.url);
@@ -782,6 +988,7 @@ function go(v) {
   try { history.replaceState(null, "", "#" + v); } catch {}
   render(); window.scrollTo({ top: 0 });
   if (v === "crew") loadCrewProofs();
+  if (v === "calendar") loadGcal(S.calMonth || today().slice(0, 7));
 }
 async function copy(text) {
   try { await navigator.clipboard.writeText(text); toast("Copied"); }
@@ -804,6 +1011,9 @@ document.addEventListener("click", e => {
     case "sdate": s.date = a.dataset.v; return renderSheet();
     case "stype": s.type = a.dataset.v; return renderSheet();
     case "smin": s.min = +a.dataset.v; const mi = document.getElementById("lg-min"); if (mi) mi.value = s.min; return renderSheet();
+    case "edit": return openEdit(a.dataset.date, id);
+    case "skind": { s.note = document.getElementById("lg-note")?.value || ""; s.kind = a.dataset.v; s.type = KINDS[s.kind].types?.includes(s.type) ? s.type : (KINDS[s.kind].types?.[0] || ""); return renderSheet(); }
+    case "dropold": s.dropOld = true; return renderSheet();
     case "nophoto": URL.revokeObjectURL(s.url); s.file = null; s.url = ""; return renderSheet();
     case "save": return saveLog();
     case "seen": return q(() => S.db.doc(`people/${S.uid}/notes/${id}`).update({ seen: true }));
@@ -839,7 +1049,12 @@ document.addEventListener("click", e => {
       if (!em) return toast("Type your email first, then tap Forgot password.");
       return S.auth.sendPasswordResetEmail(em).then(() => toast("Check your email for a reset link."), authErr);
     }
-    case "signout": S.sel = null; S.selData = null; S.crewProofs = {}; return S.auth.signOut();
+    case "signout": S.sel = null; S.selData = null; S.crewProofs = {}; S.coachOK = false; S.gcal = {}; S.gcalOn = false; try { sessionStorage.removeItem("eoe-coach"); sessionStorage.removeItem("eoe-gtok"); } catch {} return S.auth.signOut();
+    case "coachlock": S.coachOK = false; S.sel = null; S.selData = null; try { sessionStorage.removeItem("eoe-coach"); } catch {} return render();
+    case "calmon": { const [y, m] = (S.calMonth || today().slice(0, 7)).split("-").map(Number), d = new Date(y, m - 1 + +a.dataset.v, 1); S.calMonth = iso(d).slice(0, 7); loadGcal(S.calMonth); return render(); }
+    case "calday": S.calSel = a.dataset.v; return render();
+    case "gcal": return syncGcal();
+    case "ics": return downloadIcs();
     case "copy": return copy(a.dataset.text);
   }
 });
@@ -889,6 +1104,22 @@ document.addEventListener("submit", async e => {
     if (!hit) return toast("No crew with that code. Check the 6 letters and try again.");
     if ((S.profile.groups || []).includes(hit[0])) return toast("You're already in that crew.");
     return q(async () => { await S.db.doc(`people/${S.uid}`).update({ groups: [...(S.profile.groups || []), hit[0]] }); toast(`You joined ${hit[1].name}`); crewLoaded = 0; loadCrewProofs(); });
+  }
+  if (kind === "coachpw") {
+    if (!S.isOwner) return;
+    if ((S.pwWait || 0) > Date.now()) return toast("Too many tries. Wait 30 seconds.");
+    const ok = (await sha("eoe-coach:" + document.getElementById("cp-pass").value)) === COACH_HASH;
+    if (!ok) { S.pwFails = (S.pwFails || 0) + 1; if (S.pwFails >= 5) { S.pwFails = 0; S.pwWait = Date.now() + 30000; } return toast("Wrong password."); }
+    S.coachOK = true; S.pwFails = 0; try { sessionStorage.setItem("eoe-coach", COACH_HASH + S.uid); } catch {}
+    return render();
+  }
+  if (kind === "routine") {
+    const r = {};
+    for (const k of Object.keys(DEF_ROUTINE)) {
+      const days = [...Array(7)].map((_, i) => i).filter(i => document.getElementById(`rt-${k}-d${i}`).checked);
+      r[k] = { on: document.getElementById(`rt-${k}-on`).checked, time: document.getElementById(`rt-${k}-time`).value || DEF_ROUTINE[k].time, dur: +document.getElementById(`rt-${k}-dur`).value, days };
+    }
+    return q(async () => { await S.db.doc(`people/${S.uid}`).update({ routine: r }); toast(S.profile?.gcal?.synced ? "Routine saved. Tap Sync again to update Google Calendar." : "Routine saved"); });
   }
   if (kind === "note") {
     const text = document.getElementById("n-text").value.trim(); if (!text || !S.sel) return;

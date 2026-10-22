@@ -9,9 +9,14 @@ service cloud.firestore {
     match /people/{uid} {
       allow read: if signedIn();
       allow write: if signedIn() && (request.auth.uid == uid || isAdmin());
-      match /{sub=**} {
+      // Proof photos feed the crew wall, so any member can see them.
+      match /proofs/{pid} {
         allow read: if signedIn();
         allow write: if signedIn() && (request.auth.uid == uid || isAdmin());
+      }
+      // Daily logs, plans and coach notes: only the man himself and the coach.
+      match /{sub}/{doc} {
+        allow read, write: if signedIn() && (request.auth.uid == uid || isAdmin());
       }
     }
     match /groups/{gid} {
