@@ -24,6 +24,20 @@ service cloud.firestore {
       allow create: if signedIn() && request.resource.data.by == request.auth.uid;
       allow update, delete: if signedIn() && (resource.data.by == request.auth.uid || isAdmin());
     }
+    // Prayer walls: one per side. You read and post only on your own side's wall (coach sees both).
+    function mySide() {
+      return get(/databases/$(database)/documents/people/$(request.auth.uid)).data.get('side', 'men');
+    }
+    match /walls/{side}/posts/{pid} {
+      allow read: if signedIn() && (isAdmin() || mySide() == side);
+      allow create: if signedIn() && request.resource.data.by == request.auth.uid
+        && (isAdmin() || mySide() == side)
+        && request.resource.data.text is string && request.resource.data.text.size() <= 600;
+      // Anyone on the wall can tap Praying/Amen (only the amen list may change); authors and the coach can edit or delete.
+      allow update: if signedIn() && (resource.data.by == request.auth.uid || isAdmin()
+        || ((isAdmin() || mySide() == side) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['amen'])));
+      allow delete: if signedIn() && (resource.data.by == request.auth.uid || isAdmin());
+    }
     match /config/{doc} {
       allow read: if signedIn();
       allow write: if isAdmin();

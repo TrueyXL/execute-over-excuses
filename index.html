@@ -135,6 +135,8 @@ p { margin: 0; }
 .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
 .btn.ghost { background: transparent; }
 .btn.danger { color: var(--bad); }
+a.btn { text-decoration: none; color: inherit; }
+a.btn.primary { color: var(--accent-ink); }
 .btn.sm { min-height: 36px; padding: 6px 12px; font-size: 14px; border-radius: 10px; }
 .btn.block { width: 100%; }
 .btn:disabled { opacity: .5; cursor: default; }
@@ -152,6 +154,21 @@ textarea.input { min-height: 84px; resize: vertical; }
 .lockmeter { display: flex; gap: 6px; }
 .lockmeter i { flex: 1; height: 10px; border-radius: 5px; background: var(--surface-2); border: 1px solid var(--line); }
 .lockmeter i.on { background: var(--good); border-color: transparent; }
+.lockmeter i.trial { border: 1.5px dashed var(--accent); }
+.lockmeter i.trial.on { background: var(--accent); border-style: solid; }
+.avatar { position: relative; }
+.avatar .live { position: absolute; right: -4px; bottom: -4px; width: 13px; height: 13px; border-radius: 50%; background: var(--good); border: 2.5px solid var(--surface); }
+.online { color: var(--good); font-weight: 700; }
+.pick { display: flex; gap: 8px; }
+.pick label { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2); font-weight: 700; cursor: pointer; }
+.pick input { accent-color: var(--accent-ink); width: 18px; height: 18px; margin: 0; }
+.pick label:has(input:checked) { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.pick label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.post { display: grid; gap: 8px; padding: 14px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--line); border-left: 4px solid var(--accent); min-width: 0; }
+.post.k-prayer { border-left-color: var(--spirit); } .post.k-learned { border-left-color: var(--learn); } .post.k-word { border-left-color: var(--good); }
+.post p { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.chip.btnish { cursor: pointer; min-height: 34px; padding: 4px 12px; }
+.trialbox { padding: 12px 14px; border-radius: 14px; border: 1.5px dashed var(--accent); background: var(--accent-soft); }
 
 /* Photos */
 .wall { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
@@ -273,16 +290,15 @@ const P = {
 const ic = (n, cls = "") => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${P[n] || ""}</svg>`;
 
 /* ===== game rules ===== */
-const DEF_RULES = { spiritDays: 7, buildDays: 5, train: 3, stretch: 1, learn: 1, healWeeks: 3 };
+const DEF_RULES = { spiritDays: 7, buildDays: 5, train: 3, stretch: 1, learn: 1, healWeeks: 3, levelWeeks: 3, trialWeeks: 1 };
 const KINDS = {
-  prayer:  { label: "Prayer",   area: "spirit",  xp: 20, icon: "sunrise", min: true,  note: "What did you pray about? (optional)", ph: "", photo: true },
+  prayer:  { label: "Prayer",   area: "spirit",  xp: 20, icon: "sunrise", min: true,  note: "What did you pray about?", ph: "e.g. My family, my job, patience", photo: true },
   word:    { label: "The Word", area: "spirit",  xp: 20, icon: "book",    min: true,  note: "What did you read?", ph: "e.g. Proverbs 3, James 1", photo: true },
   build:   { label: "Build",    area: "build",   xp: 20, icon: "brief",   min: true,  note: "What did you work on?", ph: "Career, money, business or school", req: true, photo: true },
-  train:   { label: "Train",    area: "body",    xp: 30, icon: "dumb",    min: true,  note: "Workout notes (optional)", ph: "e.g. Push day, 5 km run", types: ["Gym", "Basketball", "Run", "Soccer", "Other sport"], photo: true },
-  stretch: { label: "Stretch",  area: "stretch", xp: 15, icon: "pulse",   min: true,  note: "Notes (optional)", ph: "", photo: true },
+  train:   { label: "Train",    area: "body",    xp: 30, icon: "dumb",    min: true,  note: "What did you do?", ph: "e.g. Push day, 5 km run", types: ["Gym", "Basketball", "Run", "Soccer", "Other sport"], photo: true },
+  stretch: { label: "Stretch",  area: "stretch", xp: 15, icon: "pulse",   min: true,  note: "What did you stretch?", ph: "e.g. Hips and hamstrings, 15 min yoga", photo: true },
   learn:   { label: "Learn",    area: "learn",   xp: 40, icon: "bulb",    min: false, note: "What did you learn? Be specific.", ph: "A new skill, a faster way to work, how to post content better…", req: true, photo: true },
 };
-const LEVELS = [0, 300, 800, 1500, 2500, 4000, 6000, 8500, 11500, 15000];
 const RANKS = ["Recruit", "Disciplined", "Steadfast", "Builder", "Warrior", "Watchman", "Pillar", "Elder", "General", "Legend"];
 const PHOTO_XP = 10, BOTH_SPIRIT_XP = 15, FULL_DAY_XP = 10, WEEK_XP = 200;
 const SHORT_LINK = "https://trueyxl.github.io/execute-over-excuses/";
@@ -344,10 +360,15 @@ function dayXP(day) {
   if (hasArea(day, "spirit") && hasArea(day, "build")) x += FULL_DAY_XP;
   return x;
 }
-function levelOf(xp) {
-  let i = 0; while (i + 1 < LEVELS.length && xp >= LEVELS[i + 1]) i++;
-  const next = LEVELS[i + 1] ?? LEVELS[i] + 5000;
-  return { n: i + 1, name: RANKS[i], from: LEVELS[i], next, pct: Math.min(100, Math.round((xp - LEVELS[i]) / (next - LEVELS[i]) * 100)) };
+/* Level up = levelWeeks consistent weeks in a row, then trialWeeks more (the trial). Any miss restarts the climb. */
+function climb(weeks, cur, R) {
+  const need = R.levelWeeks + R.trialWeeks;
+  let n = 1, run = 0, failed = false;
+  for (const w of weeks) {
+    if (w.consistent) { run++; failed = false; if (run >= need) { n++; run = 0; } }
+    else if (w.mon < cur) { failed = run >= R.levelWeeks; run = 0; }
+  }
+  return { n, name: RANKS[Math.min(n, RANKS.length) - 1], run, need, trial: run >= R.levelWeeks, failed };
 }
 function computeMine() {
   const R = S.rules, t = today(), cur = monday(t);
@@ -361,16 +382,37 @@ function computeMine() {
   if (!thisW.consistent) i--;
   while (i >= 0 && weeks[i].consistent) { streak++; i--; }
   let best = 0, run = 0; for (const w of weeks) { run = w.consistent ? run + 1 : 0; best = Math.max(best, run); }
-  S.mine = { weeks, thisW, xp, lvl: levelOf(xp), streak, best, last: dates[dates.length - 1] || "", healing: best >= R.healWeeks || !!S.profile?.unlocked?.healing };
+  S.mine = { weeks, thisW, xp, lvl: climb(weeks, cur, R), streak, best, last: dates[dates.length - 1] || "", healing: best >= R.healWeeks || !!S.profile?.unlocked?.healing };
   return S.mine;
 }
 function summary() {
-  const m = S.mine, w = m.thisW;
+  const m = S.mine, w = m.thisW, t = today(), todo = S.plans["d" + t]?.items || [];
   return {
     xp: m.xp, level: m.lvl.n, streak: m.streak, best: m.best, last: m.last, weekId: w.mon,
     week: { spiritDays: w.spiritDays, bothDays: w.bothDays, buildDays: w.buildDays, train: w.train, stretch: w.stretch, learn: w.learn, xp: w.xp, musts: w.musts, mustsDone: w.mustsDone, strip: w.strip },
     history: m.weeks.slice(-8).map(x => ({ mon: x.mon, done: x.mustsDone })),
+    climb: { run: m.lvl.run, trial: m.lvl.trial },
+    todo: { date: t, done: todo.filter(i => i.done).length, total: todo.length },
+    recent: Object.values(S.days).flatMap(d => (d.logs || []).map(l => ({ kind: l.kind, date: d.date, ts: l.ts || 0, ...(l.min ? { min: l.min } : {}), ...(l.type ? { type: l.type } : {}) }))).sort((a, b) => b.ts - a.ts).slice(0, 6),
   };
+}
+
+/* ===== people helpers ===== */
+const sideOf = p => p?.side === "women" ? "women" : "men";
+const women = () => sideOf(S.profile) === "women";
+const pro = p => sideOf(p) === "women" ? { his: "her", him: "her", His: "Her" } : { his: "his", him: "him", His: "His" };
+const isOn = p => !!p?.seen && Date.now() - p.seen < 300000;
+function ago(ts) {
+  const m = Math.round((Date.now() - ts) / 60000); if (m < 1) return "just now"; if (m < 60) return `${m}m ago`;
+  const h = Math.round(m / 60); if (h < 24) return `${h}h ago`; return `${Math.round(h / 24)}d ago`;
+}
+const seenTxt = p => isOn(p) ? `<span class="online">Online</span>` : p?.seen ? `Seen ${ago(p.seen)}` : "";
+const av = (p, big) => `<span class="avatar"${big ? ' style="width:52px;height:52px;font-size:26px"' : ""}>${initial(p?.name)}${isOn(p) ? '<i class="live" title="Online now"></i>' : ""}</span>`;
+const safeUrl = u => /^https?:\/\//i.test(u || "") ? u : "";
+let beatAt = 0;
+function beat() {
+  if (!S.db || !S.uid || !S.profile || document.hidden || Date.now() - beatAt < 240000) return;
+  beatAt = Date.now(); S.db.doc(`people/${S.uid}`).update({ seen: Date.now() }).catch(() => {});
 }
 
 /* ===== writes (one at a time) ===== */
@@ -395,7 +437,7 @@ function syncStats() {
   if (unlock) { patch.unlocked = { ...(S.profile.unlocked || {}), healing: true }; setTimeout(() => toast("Healing unlocked. 3 weeks of consistency.", "xp"), 400); }
   q(() => S.db.doc(`people/${S.uid}`).update(patch));
 }
-let statsTimer; const queueStats = () => { clearTimeout(statsTimer); statsTimer = setTimeout(syncStats, 700); };
+let statsTimer = 0; const queueStats = () => { if (!statsTimer) statsTimer = setTimeout(() => { statsTimer = 0; syncStats(); }, 700); };
 
 /* ===== boot ===== */
 let unsubs = [];
@@ -409,7 +451,7 @@ async function boot() {
   S.db = firebase.firestore();
   S.auth.getRedirectResult().catch(e => authErr(e));
   S.auth.onAuthStateChanged(u => {
-    unsubs.forEach(f => f()); unsubs = [];
+    unsubs.forEach(f => f()); unsubs = []; S.wallUnsub?.(); S.wallUnsub = null; S.wallSide = null; S.wall = null; beatAt = 0;
     if (!u) { Object.assign(S, { uid: null, profile: undefined, days: {}, plans: {}, notes: [], myProofs: [], people: {}, groups: {}, status: "noid" }); return render(); }
     S.uid = u.uid; S.isOwner = !!u.email && u.email.toLowerCase() === ADMIN_EMAIL && u.emailVerified;
     S.status = "loading"; render();
@@ -418,14 +460,20 @@ async function boot() {
 }
 function listen() {
   const db = S.db, me = `people/${S.uid}`, on = (ref, fn) => unsubs.push(ref.onSnapshot(fn, dbErr));
-  on(db.doc(me), s => { S.profile = s.exists ? s.data() : null; S.status = "ready"; computeMine(); render(); queueStats(); });
+  on(db.doc(me), s => { S.profile = s.exists ? s.data() : null; S.status = "ready"; computeMine(); if (S.profile) { watchWall(S.isOwner && S.wallPick || sideOf(S.profile)); beat(); } render(); queueStats(); });
   on(db.collection(`${me}/days`), s => { S.days = {}; s.docs.forEach(d => S.days[d.id] = d.data()); computeMine(); render(); queueStats(); });
-  on(db.collection(`${me}/plans`), s => { S.plans = {}; s.docs.forEach(d => S.plans[d.id] = d.data()); render(); });
+  on(db.collection(`${me}/plans`), s => { S.plans = {}; s.docs.forEach(d => S.plans[d.id] = d.data()); render(); queueStats(); });
   on(db.collection(`${me}/notes`), s => { S.notes = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => b.ts - a.ts); render(); });
   on(db.collection(`${me}/proofs`).orderBy("ts", "desc").limit(24), s => { S.myProofs = s.docs.map(d => ({ id: d.id, ...d.data() })); render(); });
   on(db.collection("people"), s => { S.people = {}; s.docs.forEach(d => S.people[d.id] = d.data()); render(); });
   on(db.collection("groups"), s => { S.groups = {}; s.docs.forEach(d => S.groups[d.id] = d.data()); render(); });
+  on(db.doc("config/feature"), s => { S.feature = s.exists ? s.data() : {}; render(); });
   on(db.doc("config/rules"), s => { S.rules = { ...DEF_RULES, ...(s.exists ? s.data() : {}) }; computeMine(); render(); queueStats(); });
+}
+function watchWall(side) {
+  if (S.wallSide === side) return;
+  S.wallUnsub?.(); S.wallSide = side; S.wall = null;
+  S.wallUnsub = S.db.collection(`walls/${side}/posts`).orderBy("ts", "desc").limit(60).onSnapshot(s => { S.wall = s.docs.map(d => ({ id: d.id, ...d.data() })); render(); }, e => { console.warn("wall", e); S.wall = []; render(); });
 }
 function dbErr(e) { console.warn("db", e); if (e?.code === "permission-denied" && S.status === "loading") { S.status = "nodb"; render(); } }
 function authErr(e) {
@@ -449,8 +497,22 @@ function render() {
   else if (S.status === "nodb" || S.status === "noid") body = gateView();
   else if (!S.profile) body = onboardView();
   else body = ({ today: todayView, calendar: calendarView, plan: planView, crew: crewView, coach: S.isOwner ? (coachOpen() ? coachView : coachLockView) : todayView, me: meView }[S.view] || todayView)();
-  root.innerHTML = `<main class="app ${wide ? "wide" : ""}">${brandBar()}${body}</main>${S.profile && S.uid ? navBar() : ""}`;
-  renderSheet();
+  patch(root, `<main class="app ${wide ? "wide" : ""}">${brandBar()}${body}</main>${S.profile && S.uid ? navBar() : ""}`);
+  if (S.sheet?.peek) renderSheet();
+}
+/* Live data re-renders often: skip identical HTML, and keep whatever the person is typing (value, focus, cursor). */
+function patch(el, html) {
+  if (el._html === html) return;
+  const keep = {}, a = document.activeElement;
+  const focus = a?.id && el.contains(a) ? { id: a.id, s: a.selectionStart, e: a.selectionEnd } : null;
+  el.querySelectorAll("input[id],textarea[id]").forEach(x => {
+    if (x.type === "file") return;
+    if (x.type === "checkbox" || x.type === "radio") { if (x.checked !== x.defaultChecked) keep[x.id] = { c: x.checked }; }
+    else if (x.value !== x.defaultValue) keep[x.id] = { v: x.value };
+  });
+  el.innerHTML = html; el._html = html;
+  for (const [id, k] of Object.entries(keep)) { const x = document.getElementById(id); if (x && el.contains(x)) "c" in k ? x.checked = k.c : x.value = k.v; }
+  if (focus) { const x = document.getElementById(focus.id); if (x && el.contains(x)) { x.focus({ preventScroll: true }); try { if (focus.s != null) x.setSelectionRange(focus.s, focus.e); } catch {} } }
 }
 function brandBar() {
   const dark = (document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark")) === "dark";
@@ -466,7 +528,7 @@ function loadingView() {
 function gateView() {
   if (S.status === "nodb") return `<section class="card"><div class="hero-word">Execute<br><em>&gt;</em> <s>Excuses</s></div><p>The app can't reach its database right now. Check your connection and reload. If it keeps happening, tell your coach.</p></section>`;
   const up = S.authMode === "up";
-  return `<section class="card" style="gap:16px"><div class="hero-word">Real men<br><em>execute.</em></div>
+  return `<section class="card" style="gap:16px"><div class="hero-word">Real ones<br><em>execute.</em></div>
   <p>Sign in to track your days, join your crew and stay accountable.</p>
   <button class="btn primary block" data-act="google">Continue with Google</button>
   <div class="row"><span class="grow" style="height:1px;background:var(--line)"></span><span class="small muted">or use email</span><span class="grow" style="height:1px;background:var(--line)"></span></div>
@@ -480,9 +542,10 @@ function gateView() {
 }
 function onboardView() {
   return `<section class="card" style="gap:16px">
-    <div class="hero-word">Real men<br><em>execute.</em></div>
+    <div class="hero-word">Real ones<br><em>execute.</em></div>
     <p>Every day you invest in God and in what you're building. Every week you train, stretch and learn something new. Your crew sees it. Your coach sees it. No excuses.</p>
     <form id="onboard" class="stack" style="gap:14px">
+      <div class="field"><label id="ob-side-l">I'm joining</label>${sidePick("ob")}</div>
       <div class="field"><label for="ob-name">Your name</label><input id="ob-name" class="input" autocomplete="given-name" required maxlength="40" placeholder="First name"></div>
       <div class="field"><label for="ob-why">Your why (optional)</label><textarea id="ob-why" class="input" maxlength="300" placeholder="Who are you becoming? Who is counting on you?"></textarea></div>
       <button class="btn primary block" type="submit">I'm in. Start executing.</button>
@@ -490,6 +553,9 @@ function onboardView() {
   </section>${rulesCard()}`;
 }
 
+function sidePick(pre, cur) {
+  return `<div class="pick" role="radiogroup" aria-labelledby="${pre}-side-l">${[["men", "The men's side"], ["women", "The women's side"]].map(([v, l]) => `<label><input type="radio" name="${pre}-side" id="${pre}-side-${v}" value="${v}" ${cur === v ? "checked" : ""}>${l}</label>`).join("")}</div>`;
+}
 function hud() {
   const m = S.mine, L = m.lvl, p = S.profile;
   return `<section class="hud">
@@ -497,15 +563,18 @@ function hud() {
       <div class="lvl" aria-label="Level ${L.n}">${L.n}</div>
       <div class="grow stack" style="gap:2px">
         <p class="tiny muted">Level ${L.n} · ${esc(L.name)}</p>
-        <h1 style="font-size:30px">${esc(p.name || "Brother")}</h1>
+        <h1 style="font-size:30px">${esc(p.name || (women() ? "Sister" : "Brother"))}</h1>
       </div>
       <span class="streak" title="Consistent weeks in a row">${ic("flame")} ${m.streak} wk</span>
     </div>
-    <div class="stack" style="gap:6px">
-      <div class="xpbar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${L.pct}" aria-label="Progress to next level"><i style="width:${L.pct}%"></i></div>
-      <div class="row spread small"><span class="mono">${m.xp.toLocaleString()} XP</span><span class="muted mono">${(L.next - m.xp).toLocaleString()} to Lv ${L.n + 1}</span></div>
-    </div>
+    ${climbMeter(L)}
+    <p class="small">${L.trial ? `<b style="color:var(--accent)">Trial week.</b> Finish this week consistent to reach Level ${L.n + 1}. Miss it and you restart.` : L.failed ? `<b style="color:var(--bad)">Trial failed.</b> Back to the start: ${S.rules.levelWeeks} consistent weeks in a row earns a new trial.` : `<b>${L.run}/${S.rules.levelWeeks}</b> consistent weeks. Hit ${S.rules.levelWeeks} in a row to unlock your trial for Level ${L.n + 1}.`}</p>
+    <div class="row spread small"><span class="mono">${m.xp.toLocaleString()} XP</span><span class="muted">Best streak ${m.best} wk</span></div>
   </section>`;
+}
+function climbMeter(L) {
+  const R = S.rules;
+  return `<div class="lockmeter" role="img" aria-label="${L.run} of ${L.need} weeks toward the next level">${[...Array(L.need)].map((_, i) => `<i class="${i < L.run ? "on" : ""} ${i >= R.levelWeeks ? "trial" : ""}"></i>`).join("")}</div>`;
 }
 function ring(n, of) {
   const r = 26, c = 2 * Math.PI * r, off = c * (1 - n / of);
@@ -518,6 +587,7 @@ function todayView() {
   const sDone = pr.length || wd.length, bDone = bd.length;
   const unseen = S.notes.filter(n => !n.seen);
   return `${hud()}
+  ${goalCard()}
   ${unseen.map(n => `<section class="note stack"><p class="tiny" style="color:var(--accent)">From your coach · ${short(iso(new Date(n.ts)))}</p><p>${esc(n.text)}</p><div><button class="btn sm" data-act="seen" data-id="${n.id}">${ic("check")} Got it</button></div></section>`).join("")}
   <section class="card">
     <div class="row spread"><div><p class="tiny muted">Daily quests</p><h2>${nice(t)}</h2></div>${ring((sDone ? 1 : 0) + (bDone ? 1 : 0), 2)}</div>
@@ -533,12 +603,35 @@ function todayView() {
     </div>
   </section>
   ${todoCard(t)}
+  ${spotlight()}
   <section class="pad" aria-label="Log something">
     ${Object.entries(KINDS).map(([k, d]) => `<button class="act a-${d.area}" data-act="log" data-kind="${k}">${ic(d.icon)}<span>${d.label}</span><small>+${d.xp} XP</small></button>`).join("")}
   </section>
   ${weekCard(m.thisW, true)}
   ${healCard()}
   <section class="card"><div class="row spread"><h3>Today's log</h3><span class="mono small muted">+${dayXP(day)} XP</span></div>${logList(day?.logs || [], t, true)}</section>`;
+}
+function goalCard() {
+  const g = S.profile.goal, wk = monday(today()), cur = g?.wk === wk && g.text ? g : null;
+  if (!cur || S.goalEdit) return `<section class="card"><div><p class="tiny muted">Week of ${short(wk)}</p><h3>Goal of the week</h3></div><p class="small muted">One goal you will hit by Sunday. Your crew and your coach can see it.</p>
+    <form class="row" data-form="goal"><input id="goal-text" class="input grow" maxlength="120" value="${esc(cur?.text || "")}" placeholder="e.g. Apply to 10 jobs, run 15 km, finish my business plan" aria-label="Goal of the week"><button class="btn primary" type="submit">Set</button></form></section>`;
+  return `<section class="card"><div class="row spread"><p class="tiny muted">Goal of the week</p>${cur.done ? `<span class="status good">Done</span>` : `<span class="status warn">${7 - dowIdx(today())} day${dowIdx(today()) === 6 ? "" : "s"} left</span>`}</div>
+    <div class="row"><button class="check" style="background:${cur.done ? "var(--good)" : "transparent"};border-color:${cur.done ? "var(--good)" : "var(--line)"};color:var(--bg)" data-act="goaldone" aria-label="${cur.done ? "Mark not done" : "Mark done"}">${cur.done ? ic("check") : ""}</button><h2 class="grow" style="font-size:22px;${cur.done ? "text-decoration:line-through;color:var(--muted)" : ""};overflow-wrap:anywhere">${esc(cur.text)}</h2><button class="linkish" data-act="goaledit" aria-label="Change goal">${ic("pencil")}</button></div></section>`;
+}
+function leaders(n = 3) {
+  const cur = monday(today()), side = sideOf(S.profile);
+  return Object.entries(S.people).filter(([, p]) => sideOf(p) === side && p.stats?.weekId === cur && p.stats.week?.xp > 0)
+    .map(([id, p]) => ({ id, p, xp: p.stats.week.xp })).sort((a, b) => b.xp - a.xp).slice(0, n);
+}
+function spotlight() {
+  const f = S.feature || {}, pod = f.podcast || {}, url = safeUrl(pod.url), prize = f.prize?.text, top = leaders();
+  if (!pod.title && !prize) return "";
+  return `<section class="card">
+    ${pod.title ? `<div class="stack" style="gap:6px"><p class="tiny muted">Podcast of the week</p><h3>${esc(pod.title)}</h3>${pod.note ? `<p class="small muted">${esc(pod.note)}</p>` : ""}
+      <div class="row wrap" style="gap:8px">${url ? `<a class="btn sm primary" href="${esc(url)}" target="_blank" rel="noopener">${ic("send")} Listen</a>` : ""}<button class="btn sm" data-act="podlearn">${ic("bulb")} Log what I learned</button></div></div>` : ""}
+    ${prize ? `<div class="stack" style="gap:6px;${pod.title ? "border-top:1px solid var(--line);padding-top:12px" : ""}"><p class="tiny muted">The prize</p><p><b>${esc(prize)}</b></p>
+      ${top.length ? `<p class="tiny muted">This week's leaders</p><div class="list">${top.map((x, i) => `<div class="item" style="align-items:center"><span class="rank">${i + 1}</span>${av(x.p)}<b class="grow">${esc(x.p.name || "Someone")}${x.id === S.uid ? " (you)" : ""}</b><span class="mono small">${x.xp} XP</span></div>`).join("")}</div>` : `<p class="small muted">Nobody has XP this week yet. Be first.</p>`}</div>` : ""}
+  </section>`;
 }
 function mustRows(w) {
   const R = S.rules;
@@ -625,10 +718,12 @@ function miniMusts(w) {
 }
 const initial = n => esc((n || "?").trim().charAt(0) || "?");
 function crewView() {
-  const mine = (S.profile.groups || []).filter(g => S.groups[g]);
-  return `<section class="card"><p class="tiny muted">Iron sharpens iron</p><h1>Your crew</h1><p class="small muted">Group up with your brothers. Everyone in a crew sees each other's week and proof photos.</p></section>
+  const mine = (S.profile.groups || []).filter(g => S.groups[g]), tab = S.crewTab || "wall";
+  const seg = `<div class="seg" role="tablist"><button role="tab" aria-selected="${tab === "wall"}" class="${tab === "wall" ? "on" : ""}" data-act="crewtab" data-v="wall">${ic("heart")} Prayer wall</button><button role="tab" aria-selected="${tab === "crews"}" class="${tab === "crews" ? "on" : ""}" data-act="crewtab" data-v="crews">${ic("users")} My crews</button></div>`;
+  if (tab === "wall") return `<section class="card"><p class="tiny muted">Iron sharpens iron</p><h1>Prayer wall</h1><p class="small muted">Drop a prayer request, something you learned, or a word for ${women() ? "the sisters" : "the mandem"}. Everyone on the ${women() ? "women's" : "men's"} side sees it.</p>${seg}</section>${wallView()}`;
+  return `<section class="card"><p class="tiny muted">Iron sharpens iron</p><h1>Your crew</h1><p class="small muted">Group up with your ${women() ? "sisters" : "brothers"}. Tap anyone to see what they're doing this week.</p>${seg}</section>
   ${mine.map(groupCard).join("")}
-  ${S.ro ? "" : `<section class="card"><h3>Start a crew</h3><form class="row" data-form="gnew"><input id="g-name" class="input grow" maxlength="40" placeholder="Crew name, e.g. Morning Men" aria-label="Crew name"><button class="btn primary" type="submit">Create</button></form></section>
+  ${S.ro ? "" : `<section class="card"><h3>Start a crew</h3><form class="row" data-form="gnew"><input id="g-name" class="input grow" maxlength="40" placeholder="Crew name, e.g. ${women() ? "Morning Sisters" : "Morning Men"}" aria-label="Crew name"><button class="btn primary" type="submit">Create</button></form></section>
   <section class="card"><h3>Join a crew</h3><form class="row" data-form="gjoin"><input id="g-code" class="input grow mono" maxlength="6" placeholder="6-letter code" aria-label="Crew code" autocapitalize="characters" style="text-transform:uppercase"><button class="btn" type="submit">Join</button></form></section>`}`;
 }
 function groupCard(gid) {
@@ -638,11 +733,45 @@ function groupCard(gid) {
   const shots = members.flatMap(m => (S.crewProofs[m.id] || []).map(x => ({ ...x, who: m.p.name }))).sort((a, b) => b.ts - a.ts).slice(0, 12);
   return `<section class="card">
     <div class="row spread"><div><p class="tiny muted">Crew · code <span class="mono" style="color:var(--accent)">${esc(g.code)}</span></p><h2>${esc(g.name)}</h2></div><button class="btn sm" data-act="invite" data-id="${gid}">${ic("copy")} Invite</button></div>
-    <div class="stack">${members.map((m, i) => `<div class="person"><span class="rank">${i + 1}</span><span class="avatar">${initial(m.p.name)}</span><div class="grow stack" style="gap:4px"><b>${esc(m.p.name || "Someone")}${m.id === S.uid ? " (you)" : ""}</b><span class="small muted mono">Lv ${m.p.stats?.level || 1} · ${m.w.xp} XP this week · ${ic("flame")} ${m.p.stats?.streak || 0}</span></div>${miniMusts(m.w)}</div>`).join("")}</div>
+    <div class="stack">${members.map((m, i) => `<button class="person" data-act="peek" data-id="${m.id}" aria-label="See ${esc(m.p.name || "this person")}'s week"><span class="rank">${i + 1}</span>${av(m.p)}<div class="grow stack" style="gap:4px"><b>${esc(m.p.name || "Someone")}${m.id === S.uid ? " (you)" : ""}</b><span class="small muted">${m.p.stats?.climb?.trial ? `<span style="color:var(--accent);font-weight:700">Trial week</span> · ` : ""}Lv ${m.p.stats?.level || 1} · ${ic("flame")} ${m.p.stats?.streak || 0} wk${seenTxt(m.p) ? ` · ${seenTxt(m.p)}` : ""}</span></div>${miniMusts(m.w)}</button>`).join("")}</div>
     <h3 style="margin-top:6px">Proof wall</h3>
-    ${shots.length ? `<div class="wall">${shots.map(s => `<figure class="shot" style="margin:0"><img src="${esc(proofSrc(s))}" alt="Proof photo from ${esc(s.who || "a brother")}" loading="lazy"><div><b>${esc(s.who || "Someone")}</b> · ${esc(KINDS[s.kind]?.label || "")} · ${short(s.date)}</div></figure>`).join("")}</div>` : `<div class="empty">No photos yet. Snap one after your next workout or Bible time.</div>`}
+    ${shots.length ? `<div class="wall">${shots.map(s => `<figure class="shot" style="margin:0"><img src="${esc(proofSrc(s))}" alt="Proof photo from ${esc(s.who || "a crew member")}" loading="lazy"><div><b>${esc(s.who || "Someone")}</b> · ${esc(KINDS[s.kind]?.label || "")} · ${short(s.date)}</div></figure>`).join("")}</div>` : `<div class="empty">No photos yet. Snap one after your next workout or Bible time.</div>`}
     <div><button class="linkish" data-act="gleave" data-id="${gid}">${S.armDel === "g" + gid ? "Tap again to leave this crew" : "Leave crew"}</button></div>
   </section>`;
+}
+const WALL_KINDS = { prayer: ["Prayer request", "Praying"], learned: ["What I learned", "Amen"], word: ["A word for the crew", "Amen"] };
+function wallView() {
+  const posts = S.wall, k = S.wallKind || "prayer", pick = S.isOwner ? S.wallSide : null;
+  const form = S.ro ? "" : `<section class="card"><h3>Drop something</h3>
+    <div class="seg" role="group" aria-label="Post type">${Object.entries(WALL_KINDS).map(([v, [l]]) => `<button class="${k === v ? "on" : ""}" data-act="wallkind" data-v="${v}">${l}</button>`).join("")}</div>
+    <form class="stack" data-form="wall" style="gap:10px"><textarea id="wall-text" class="input" maxlength="600" placeholder="${k === "prayer" ? "What can we pray with you about?" : k === "learned" ? "What did you learn this week? A verse, a lesson, a skill." : "Encourage your crew."}" aria-label="Your post"></textarea>
+      <label class="row small" style="gap:8px"><input id="wall-anon" type="checkbox"> Post without my name</label>
+      <button class="btn primary" type="submit">${ic("send")} Post</button></form></section>`;
+  const sw = pick ? `<section class="card"><p class="small muted">Coach: you can see both walls.</p><div class="seg">${["men", "women"].map(v => `<button class="${pick === v ? "on" : ""}" data-act="wallside" data-v="${v}">${v === "men" ? "Men's wall" : "Women's wall"}</button>`).join("")}</div></section>` : "";
+  const list = posts == null ? `<p class="muted small">Loading…</p>` : posts.length ? posts.map(post).join("") : `<div class="empty">Nothing here yet. Be the first to drop a prayer request or a lesson.</div>`;
+  return `${sw}${form}<section class="stack" style="gap:10px" aria-label="Posts">${list}</section>`;
+}
+function post(x) {
+  const who = S.people[x.by], name = esc(who?.name || x.name || "Someone"), amen = x.amen || [], on = amen.includes(S.uid);
+  const label = x.anon ? (S.isOwner ? `Anonymous <span class="muted">(${name})</span>` : "Anonymous") : name;
+  const [kl, verb] = WALL_KINDS[x.kind] || WALL_KINDS.word;
+  const del = (x.by === S.uid || S.isOwner) && !S.ro ? `<button class="linkish" data-act="wdel" data-id="${x.id}" aria-label="Delete post">${S.armDel === "w" + x.id ? "Tap to delete" : ic("trash")}</button>` : "";
+  return `<article class="post k-${esc(x.kind)}"><div class="row spread" style="align-items:flex-start"><div class="row" style="gap:10px;min-width:0">${x.anon ? `<span class="avatar">?</span>` : av(who || { name: x.name })}<div style="min-width:0"><b>${label}</b><p class="tiny muted">${kl} · ${ago(x.ts)}</p></div></div>${del}</div>
+    <p>${esc(x.text)}</p><div><button class="chip btnish ${on ? "on" : ""}" data-act="amen" data-id="${x.id}" aria-pressed="${on}">${ic(x.kind === "prayer" ? "heart" : "flame")} ${verb}${amen.length ? ` · ${amen.length}` : ""}</button></div></article>`;
+}
+function peekSheet(id) {
+  const p = S.people[id]; if (!p) return "";
+  const st = p.stats || {}, w = personWeek(p), t = today(), wObj = { mon: monday(t), ...w, strip: w.strip || {} };
+  const g = p.goal?.wk === monday(t) && p.goal.text ? p.goal : null, td = st.todo?.date === t ? st.todo : null, R = S.rules;
+  const run = st.climb?.run || 0, shots = (S.crewProofs[id] || []).slice(0, 6);
+  return `<div class="row">${av(p, true)}<div class="grow"><h2>${esc(p.name || "Someone")}</h2><p class="small muted">Lv ${st.level || 1} · ${ic("flame")} ${st.streak || 0} wk streak · best ${st.best || 0}${seenTxt(p) ? ` · ${seenTxt(p)}` : ""}</p></div></div>
+    <div class="stack" style="gap:6px">${climbMeter({ run, need: R.levelWeeks + R.trialWeeks })}<p class="small muted">${st.climb?.trial ? `<b style="color:var(--accent)">On ${pro(p).his} trial week</b> for Level ${(st.level || 1) + 1}. Pray for ${pro(p).him}.` : `${Math.min(run, R.levelWeeks)}/${R.levelWeeks} weeks toward ${pro(p).his} next trial.`}</p></div>
+    ${g ? `<div class="note"><p class="tiny muted">Goal of the week</p><p><b style="${g.done ? "text-decoration:line-through;color:var(--muted)" : ""}">${esc(g.text)}</b>${g.done ? ` <span style="color:var(--good)">Done</span>` : ""}</p></div>` : ""}
+    ${td && td.total ? `<p class="small">To-do today: <b>${td.done}/${td.total}</b> done</p>` : ""}
+    <div class="row spread"><h3>This week</h3>${weekStatus(wObj)}</div>${strip(wObj)}<div class="stack" style="gap:12px">${mustRows(wObj)}</div>
+    <h3>What ${pro(p).his === "her" ? "she's" : "he's"} been doing</h3>
+    ${st.recent?.length ? `<div class="list">${st.recent.map(l => { const d = KINDS[l.kind] || {}; return `<div class="item"><span class="a-${d.area}">${ic(d.icon || "check")}</span><div class="grow"><b>${esc(d.label || "")}${l.type ? ` · ${esc(l.type)}` : ""}${l.min ? ` · ${+l.min} min` : ""}</b></div><span class="small muted">${l.ts ? ago(l.ts) : short(l.date)}</span></div>`; }).join("")}</div>` : `<div class="empty">Nothing logged yet.</div>`}
+    ${shots.length ? `<h3>Proof photos</h3><div class="wall">${shots.map(s => `<figure class="shot" style="margin:0"><img src="${esc(proofSrc(s))}" alt="Proof photo" loading="lazy"><div>${esc(KINDS[s.kind]?.label || "")} · ${short(s.date)}</div></figure>`).join("")}</div>` : ""}`;
 }
 let crewLoaded = 0;
 async function loadCrewProofs() {
@@ -824,16 +953,18 @@ function coachLockView() {
 }
 
 function coachView() {
-  const t = today(), list = Object.entries(S.people).map(([id, p]) => {
+  const t = today(), all = Object.entries(S.people), fs = S.coachSide || "all", list = all.filter(([, p]) => fs === "all" || sideOf(p) === fs).map(([id, p]) => {
     const w = personWeek(p), idle = p.stats?.last ? Math.round((parse(t) - parse(p.stats.last)) / 864e5) : 99;
     return { id, p, w, idle };
   }).sort((a, b) => a.w.mustsDone - b.w.mustsDone || b.idle - a.idle);
   const onTrack = list.filter(x => x.w.mustsDone >= 3 || x.w.musts?.spirit).length, idle = list.filter(x => x.idle >= 2).length;
-  const left = `<section class="card"><div class="row spread"><p class="tiny muted">Coach view · only you see this</p><button class="btn sm" data-act="coachlock">${ic("lock")} Lock</button></div><h1>Your men</h1>
-      <div class="row wrap" style="gap:8px"><span class="chip">${list.length} men</span><span class="chip on">${list.filter(x => x.w.consistent).length} consistent this week</span><span class="chip" style="color:var(--bad)">${idle} quiet 2+ days</span></div>
-      <div class="stack">${list.length ? list.map(x => `<button class="person" data-act="sel" data-id="${x.id}" style="${S.sel === x.id ? "border-color:var(--accent)" : ""}"><span class="avatar">${initial(x.p.name)}</span><div class="grow stack" style="gap:4px"><b>${esc(x.p.name || "Someone")}${x.id === S.uid ? " (you)" : ""}</b><span class="small muted">${x.idle >= 99 ? "No logs yet" : x.idle === 0 ? "Active today" : `Last log ${x.idle} day${x.idle === 1 ? "" : "s"} ago`} · ${ic("flame")} ${x.p.stats?.streak || 0}</span></div>${miniMusts(x.w)}</button>`).join("") : `<div class="empty">Nobody has joined yet. Share the app (see Me → Invite men).</div>`}</div></section>
+  const left = `<section class="card"><div class="row spread"><p class="tiny muted">Coach view · only you see this</p><button class="btn sm" data-act="coachlock">${ic("lock")} Lock</button></div><h1>Your people</h1>
+      <div class="seg">${[["all", `Everyone · ${all.length}`], ["men", `Men · ${all.filter(([, p]) => sideOf(p) === "men").length}`], ["women", `Women · ${all.filter(([, p]) => sideOf(p) === "women").length}`]].map(([v, l]) => `<button class="${fs === v ? "on" : ""}" data-act="coachside" data-v="${v}">${l}</button>`).join("")}</div>
+      <div class="row wrap" style="gap:8px"><span class="chip on">${list.filter(x => isOn(x.p)).length} online now</span><span class="chip on">${list.filter(x => x.w.consistent).length} consistent this week</span><span class="chip" style="color:var(--bad)">${idle} quiet 2+ days</span></div>
+      <div class="stack">${list.length ? list.map(x => `<button class="person" data-act="sel" data-id="${x.id}" style="${S.sel === x.id ? "border-color:var(--accent)" : ""}">${av(x.p)}<div class="grow stack" style="gap:4px"><b>${esc(x.p.name || "Someone")}${x.id === S.uid ? " (you)" : ""}</b><span class="small muted">${x.p.stats?.climb?.trial ? `<span style="color:var(--accent);font-weight:700">Trial</span> · ` : ""}${x.idle >= 99 ? "No logs yet" : x.idle === 0 ? "Logged today" : `Last log ${x.idle} day${x.idle === 1 ? "" : "s"} ago`} · ${ic("flame")} ${x.p.stats?.streak || 0}${seenTxt(x.p) ? ` · ${seenTxt(x.p)}` : ""}</span></div>${miniMusts(x.w)}</button>`).join("") : `<div class="empty">Nobody here yet. Share the app (see Me → Invite people).</div>`}</div></section>
+    ${featureEditor()}
     ${rulesEditor()}`;
-  return `<div class="cols"><div class="stack" style="gap:14px">${left}</div><div class="stack" style="gap:14px">${S.sel ? personDetail() : `<section class="card"><div class="empty">Pick a man to see his week, his plan, his log and his photos.</div></section>`}</div></div>`;
+  return `<div class="cols"><div class="stack" style="gap:14px">${left}</div><div class="stack" style="gap:14px">${S.sel ? personDetail() : `<section class="card"><div class="empty">Pick someone to see their week, plan, log and photos.</div></section>`}</div></div>`;
 }
 function personDetail() {
   const p = S.people[S.sel]; if (!p) return "";
@@ -841,12 +972,14 @@ function personDetail() {
   const wObj = { mon: monday(t), ...w, strip: w.strip || {} };
   const todo = d?.plans?.["d" + t]?.items || [], plan = d?.plans?.["w" + monday(t)]?.items || [], mplan = d?.plans?.["m" + t.slice(0, 7)]?.items || [];
   const recent = d ? Object.keys(d.days).sort().reverse().slice(0, 10) : [];
-  return `<section class="card"><div class="row"><span class="avatar" style="width:52px;height:52px;font-size:26px">${initial(p.name)}</span><div class="grow"><h2>${esc(p.name || "Someone")}</h2><p class="small muted mono">Lv ${p.stats?.level || 1} · ${(p.stats?.xp || 0).toLocaleString()} XP · ${ic("flame")} ${p.stats?.streak || 0} wk streak · best ${p.stats?.best || 0}</p></div></div>
-    ${p.why ? `<div class="note"><p class="tiny muted">His why</p><p>${esc(p.why)}</p></div>` : ""}</section>
+  const g = p.goal?.wk === monday(t) && p.goal.text ? p.goal : null, pr = pro(p);
+  return `<section class="card"><div class="row">${av(p, true)}<div class="grow"><h2>${esc(p.name || "Someone")}</h2><p class="small muted mono">${sideOf(p) === "women" ? "Women" : "Men"} · Lv ${p.stats?.level || 1}${p.stats?.climb?.trial ? " (trial week)" : ""} · ${(p.stats?.xp || 0).toLocaleString()} XP · ${ic("flame")} ${p.stats?.streak || 0} wk streak · best ${p.stats?.best || 0}</p>${seenTxt(p) ? `<p class="small muted">${seenTxt(p)}</p>` : ""}</div></div>
+    ${p.why ? `<div class="note"><p class="tiny muted">${pr.His} why</p><p>${esc(p.why)}</p></div>` : ""}
+    ${g ? `<div class="note"><p class="tiny muted">Goal of the week${g.done ? " · done" : ""}</p><p>${esc(g.text)}</p></div>` : ""}</section>
   <section class="card"><div class="row spread"><h3>This week</h3>${weekStatus(wObj)}</div>${strip(wObj)}<div class="stack" style="gap:12px">${mustRows(wObj)}</div></section>
-  <section class="card"><h3>Send a word</h3><form class="stack" data-form="note"><textarea id="n-text" class="input" maxlength="500" placeholder="Encourage him, call him up, or hold him to his word." aria-label="Message"></textarea><button class="btn primary" type="submit">${ic("send")} Send to ${esc(p.name || "him")}</button></form>
+  <section class="card"><h3>Send a word</h3><form class="stack" data-form="note"><textarea id="n-text" class="input" maxlength="500" placeholder="Encourage ${pr.him}, call ${pr.him} up, or hold ${pr.him} to ${pr.his} word." aria-label="Message"></textarea><button class="btn primary" type="submit">${ic("send")} Send to ${esc(p.name || pr.him)}</button></form>
     ${d?.notes?.length ? `<div class="list">${d.notes.slice(0, 5).map(n => `<div class="item"><div class="grow stack" style="gap:2px"><span class="small muted">${short(iso(new Date(n.ts)))} · ${n.seen ? "Seen" : "Not seen yet"}</span><span>${esc(n.text)}</span></div></div>`).join("")}</div>` : ""}</section>
-  <section class="card"><h3>His plan</h3>${!d ? `<p class="muted small">Loading…</p>` : todo.length || plan.length || mplan.length ? `<div class="list">${[...todo.map(i => ({ ...i, s: "Today" })), ...plan.map(i => ({ ...i, s: "Week" })), ...mplan.map(i => ({ ...i, s: "Month" }))].map(i => `<div class="item"><span class="chip">${i.s}</span><span class="grow" style="${i.done ? "text-decoration:line-through;color:var(--muted)" : ""}">${esc(i.text)}</span>${i.done ? `<span style="color:var(--good)">${ic("check")}</span>` : ""}</div>`).join("")}</div>` : `<div class="empty">No to-do or plan written for today, this week or this month.</div>`}</section>
+  <section class="card"><h3>${pr.His} plan</h3>${!d ? `<p class="muted small">Loading…</p>` : todo.length || plan.length || mplan.length ? `<div class="list">${[...todo.map(i => ({ ...i, s: "Today" })), ...plan.map(i => ({ ...i, s: "Week" })), ...mplan.map(i => ({ ...i, s: "Month" }))].map(i => `<div class="item"><span class="chip">${i.s}</span><span class="grow" style="${i.done ? "text-decoration:line-through;color:var(--muted)" : ""}">${esc(i.text)}</span>${i.done ? `<span style="color:var(--good)">${ic("check")}</span>` : ""}</div>`).join("")}</div>` : `<div class="empty">No to-do or plan written for today, this week or this month.</div>`}</section>
   <section class="card"><h3>Recent log</h3>${!d ? `<p class="muted small">Loading…</p>` : recent.length ? recent.map(day => `<div class="stack" style="gap:4px"><p class="tiny muted">${nice(day)} · +${dayXP(d.days[day])} XP</p>${logList(d.days[day].logs || [], day, false)}</div>`).join("") : `<div class="empty">No logs yet.</div>`}</section>
   <section class="card"><h3>Proof photos</h3>${d?.proofs?.length ? `<div class="wall">${d.proofs.map(s => `<figure class="shot" style="margin:0"><img src="${esc(proofSrc(s))}" alt="Proof photo" loading="lazy"><div>${esc(KINDS[s.kind]?.label || "")} · ${short(s.date)}</div></figure>`).join("")}</div>` : `<div class="empty">No photos yet.</div>`}</section>
   <section class="card"><h3>Last 8 weeks</h3>${historyList((p.stats?.history || []).slice().reverse())}</section>`;
@@ -866,10 +999,20 @@ async function loadPerson(id) {
   } catch (e) { console.warn(e); S.selData = { days: {}, plans: {}, proofs: [], notes: [] }; }
   render();
 }
+function featureEditor() {
+  const f = S.feature || {}, pod = f.podcast || {};
+  return `<section class="card"><h3>Podcast of the week & prize</h3><p class="small muted">Shows on everyone's Today tab. Leave a box empty to hide it.</p>
+    <form class="stack" data-form="feature" style="gap:10px">
+      <div class="field"><label for="ft-title">Podcast title</label><input id="ft-title" class="input" maxlength="100" value="${esc(pod.title || "")}" placeholder="e.g. TGL · One Step, Part 1"></div>
+      <div class="field"><label for="ft-url">Link</label><input id="ft-url" class="input" type="url" maxlength="300" value="${esc(pod.url || "")}" placeholder="https://"></div>
+      <div class="field"><label for="ft-note">Why listen (optional)</label><input id="ft-note" class="input" maxlength="160" value="${esc(pod.note || "")}"></div>
+      <div class="field"><label for="ft-prize">Prize</label><textarea id="ft-prize" class="input" maxlength="200" placeholder="e.g. Most XP this week wins lunch with the coach.">${esc(f.prize?.text || "")}</textarea></div>
+      <button class="btn primary" type="submit">Save</button></form></section>`;
+}
 function rulesEditor() {
   const R = S.rules, f = (k, l) => `<label class="row spread"><span>${l}</span><input id="r-${k}" class="input num mono" type="number" inputmode="numeric" min="0" max="7" value="${R[k]}"></label>`;
   return `<section class="card"><h3>Game rules</h3><p class="small muted">What counts as a consistent week for everyone.</p>
-    <form class="stack" data-form="rules">${f("spiritDays", "Days with God (of 7)")}${f("buildDays", "Build days (of 7)")}${f("train", "Gym or sport sessions")}${f("stretch", "Stretch sessions")}${f("learn", "New things learned")}${f("healWeeks", "Weeks in a row to unlock Healing")}<button class="btn primary" type="submit">Save rules</button></form></section>`;
+    <form class="stack" data-form="rules">${f("spiritDays", "Days with God (of 7)")}${f("buildDays", "Build days (of 7)")}${f("train", "Gym or sport sessions")}${f("stretch", "Stretch sessions")}${f("learn", "New things learned")}${f("healWeeks", "Weeks in a row to unlock Healing")}${f("levelWeeks", "Weeks in a row to earn a level trial")}${f("trialWeeks", "Trial weeks to level up")}<button class="btn primary" type="submit">Save rules</button></form></section>`;
 }
 
 /* ----- Me ----- */
@@ -881,13 +1024,16 @@ function rulesCard() {
     <li><span class="a-body">${ic("dumb")}</span><span><b>Each week:</b> gym or sport ${R.train} times. Snap a photo as proof.</span></li>
     <li><span class="a-stretch">${ic("pulse")}</span><span><b>Each week:</b> stretch at least ${R.stretch === 1 ? "once" : R.stretch + " times"}.</span></li>
     <li><span class="a-learn">${ic("bulb")}</span><span><b>Each week:</b> learn something new. A skill, a better way to work, how to post content better.</span></li>
-    <li><span style="color:var(--good)">${ic("heart")}</span><span>Hit all five for <b>${R.healWeeks} weeks in a row</b> to unlock Healing.</span></li></ul></section>`;
+    <li><span style="color:var(--accent)">${ic("shield")}</span><span><b>Levels:</b> hit all five for ${R.levelWeeks} weeks in a row to earn a ${R.trialWeeks === 1 ? "one-week" : R.trialWeeks + "-week"} trial. Pass the trial to level up. Miss a week and you restart the climb.</span></li>
+    <li><span style="color:var(--good)">${ic("heart")}</span><span>Hit all five for <b>${R.healWeeks} weeks in a row</b> to unlock Healing.</span></li>
+    <li><span class="a-learn">${ic("pencil")}</span><span>Every log needs a short note. Say what you actually did.</span></li></ul></section>`;
 }
 function meView() {
   const p = S.profile;
   return `<section class="card"><p class="tiny muted">Your profile</p><h1>${esc(p.name)}</h1>
     <form class="stack" data-form="profile" style="gap:12px">
       <div class="field"><label for="pf-name">Name</label><input id="pf-name" class="input" maxlength="40" value="${esc(p.name)}" ${S.ro ? "disabled" : ""}></div>
+      <div class="field"><label id="pf-side-l">Side</label>${sidePick("pf", sideOf(p))}</div>
       <div class="field"><label for="pf-why">Your why</label><textarea id="pf-why" class="input" maxlength="300" ${S.ro ? "disabled" : ""}>${esc(p.why || "")}</textarea></div>
       ${S.ro ? "" : `<button class="btn primary" type="submit">Save</button>`}
     </form></section>
@@ -895,14 +1041,14 @@ function meView() {
   <section class="card"><h3>Put it on your home screen</h3>
     <div class="stack small"><p><b>iPhone:</b> open the link in Safari, tap Share, then <b>Add to Home Screen</b>.</p><p><b>Samsung / Android:</b> open the link in Chrome or Samsung Internet, tap the menu (⋮ or ☰), then <b>Add to Home screen</b>.</p>
     <div class="row"><input class="input grow mono small" value="${SHORT_LINK}" readonly aria-label="App link" id="me-link"><button class="btn" data-act="copy" data-text="${SHORT_LINK}">${ic("copy")}</button></div></div></section>
-  ${S.isOwner ? `<section class="card"><h3>Invite men</h3><p class="small">Send any man the link above. He signs in with Google or email and shows up in your Coach tab right away.</p></section>` : ""}
+  ${S.isOwner ? `<section class="card"><h3>Invite people</h3><p class="small">Send anyone the link above. They sign in with Google or email, pick the men's or women's side, and show up in your Coach tab right away.</p></section>` : ""}
   <section class="card"><div class="row spread"><span class="small muted" style="overflow-wrap:anywhere">Signed in as ${esc(S.auth?.currentUser?.email || "")}</span><button class="btn sm" data-act="signout">Sign out</button></div></section>
   <section class="card"><h3>Your proof photos</h3>${S.myProofs.length ? `<div class="wall">${S.myProofs.map(s => `<figure class="shot" style="margin:0"><img src="${esc(proofSrc(s))}" alt="Your proof photo" loading="lazy"><div>${esc(KINDS[s.kind]?.label || "")} · ${short(s.date)}</div></figure>`).join("")}</div>` : `<div class="empty">Your gym and Word photos will show here.</div>`}</section>`;
 }
 
 /* ===== log sheet ===== */
-function openLog(kind) {
-  S.sheet = { kind, date: today(), min: 30, type: KINDS[kind].types?.[0] || "", note: "", file: null, url: "", busy: false };
+function openLog(kind, note = "") {
+  S.sheet = { kind, date: today(), min: 30, type: KINDS[kind].types?.[0] || "", note, file: null, url: "", busy: false };
   renderSheet();
 }
 async function openEdit(date, id) {
@@ -917,22 +1063,23 @@ async function openEdit(date, id) {
 }
 function renderSheet() {
   const el = document.getElementById("sheet"), s = S.sheet;
-  if (!s) { el.innerHTML = ""; return; }
+  if (!s) return patch(el, "");
+  if (s.peek) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(S.people[s.peek]?.name || "Crew member")}" data-stop><span class="grab"></span><div class="row spread"><p class="tiny muted">Crew</p><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div>${peekSheet(s.peek)}</div></div>`);
   const d = KINDS[s.kind], t = today(), y = addD(t, -1);
   const keep = { note: document.getElementById("lg-note")?.value, min: document.getElementById("lg-min")?.value };
-  el.innerHTML = `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${s.edit ? "Edit" : "Log"} ${esc(d.label)}" data-stop>
+  patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${s.edit ? "Edit" : "Log"} ${esc(d.label)}" data-stop>
     <span class="grab"></span>
     <div class="row spread"><div class="row"><span class="a-${d.area}">${ic(d.icon)}</span><h2>${s.edit ? "Edit · " : ""}${esc(d.label)}</h2></div><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div>
     ${s.edit ? `<p class="small muted">Logged ${nice(s.date)}</p><div class="field"><label>Category</label><div class="seg">${Object.entries(KINDS).map(([k, x]) => `<button class="${s.kind === k ? "on" : ""}" data-act="skind" data-v="${k}">${x.label}</button>`).join("")}</div></div>` : `<div class="seg" role="group" aria-label="Day"><button class="${s.date === t ? "on" : ""}" data-act="sdate" data-v="${t}">Today</button><button class="${s.date === y ? "on" : ""}" data-act="sdate" data-v="${y}">Yesterday</button></div>`}
     ${d.types ? `<div class="field"><label>Type</label><div class="seg">${d.types.map(x => `<button class="${s.type === x ? "on" : ""}" data-act="stype" data-v="${x}">${x}</button>`).join("")}</div></div>` : ""}
     ${d.min ? `<div class="field"><label for="lg-min">Minutes</label><div class="seg">${[10, 15, 30, 45, 60, 90].map(m => `<button class="${+s.min === m ? "on" : ""}" data-act="smin" data-v="${m}">${m}</button>`).join("")}</div><input id="lg-min" class="input mono" type="number" inputmode="numeric" min="1" max="600" value="${esc(keep.min ?? s.min)}"></div>` : ""}
-    <div class="field"><label for="lg-note">${esc(d.note)}</label><textarea id="lg-note" class="input" maxlength="600" placeholder="${esc(d.ph)}">${esc(keep.note ?? s.note)}</textarea></div>
+    <div class="field"><label for="lg-note">${esc(d.note)} <span style="color:var(--accent)">(required)</span></label><textarea id="lg-note" class="input" maxlength="600" placeholder="${esc(d.ph)}">${esc(keep.note ?? s.note)}</textarea></div>
     ${d.photo ? `<div class="field"><label>Proof photo <span class="muted">(+${PHOTO_XP} XP)</span></label>
       ${s.url ? `<img class="preview" src="${s.url}" alt="Your photo"><button class="btn sm ghost" data-act="nophoto">${ic("x")} Remove photo</button>` : s.oldProof && !s.dropOld ? `${s.oldSrc ? `<img class="preview" src="${esc(s.oldSrc)}" alt="Your saved photo">` : `<p class="small muted">Photo saved.</p>`}<div class="row"><label class="btn grow" for="lg-cam">${ic("camera")} Retake</label><label class="btn grow" for="lg-pick">${ic("image")} Replace</label><button class="btn ghost danger" data-act="dropold" aria-label="Remove photo">${ic("trash")}</button></div>` : `<div class="row">
         <label class="btn grow" for="lg-cam">${ic("camera")} Take photo</label><label class="btn grow" for="lg-pick">${ic("image")} Choose</label></div>`}
       <input id="lg-cam" type="file" accept="image/*" capture="environment" hidden><input id="lg-pick" type="file" accept="image/*" hidden></div>` : ""}
     <button class="btn primary block" data-act="save" ${s.busy ? "disabled" : ""}>${s.busy ? "Saving…" : s.edit ? "Save changes" : `Log it · +${d.xp + (s.url ? PHOTO_XP : 0)} XP`}</button>
-  </div></div>`;
+  </div></div>`);
 }
 async function shrink(file, max, quality) {
   let src, w, h;
@@ -949,7 +1096,7 @@ async function saveLog() {
   const note = (document.getElementById("lg-note")?.value || "").trim();
   const min = d.min ? Math.round(+document.getElementById("lg-min").value) : 0;
   if (d.min && !(min > 0)) return toast("Enter how many minutes.");
-  if (d.req && note.length < 3) return toast(s.kind === "learn" ? "Write what you learned." : "Write what you worked on.");
+  if (note.length < 3) { document.getElementById("lg-note")?.focus(); return toast("Add a short note first. Say what you did."); }
   s.busy = true; renderSheet();
   const prev = s.edit ? S.days[s.date]?.logs?.find(x => x.id === s.edit) : null;
   if (s.edit && !prev) { S.sheet = null; renderSheet(); return toast("That entry was removed."); }
@@ -994,6 +1141,7 @@ function go(v) {
   try { history.replaceState(null, "", "#" + v); } catch {}
   render(); window.scrollTo({ top: 0 });
   if (v === "crew") loadCrewProofs();
+  beat();
   if (v === "calendar") loadGcal(S.calMonth || today().slice(0, 7));
 }
 async function copy(text) {
@@ -1006,7 +1154,7 @@ document.addEventListener("click", e => {
   const a = e.target.closest("[data-act]"); if (!a) return;
   if (a.dataset.act === "close" && e.target.closest("[data-stop]") && !e.target.closest("button[data-act=close]")) return;
   const act = a.dataset.act, id = a.dataset.id, s = S.sheet;
-  if (act !== "del" && act !== "gleave" && S.armDel) S.armDel = null;
+  if (act !== "del" && act !== "gleave" && act !== "wdel" && S.armDel) S.armDel = null;
   switch (act) {
     case "theme": {
       const curDark = (document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark")) === "dark";
@@ -1054,6 +1202,28 @@ document.addEventListener("click", e => {
       return q(() => S.db.doc(`people/${S.uid}`).update({ groups: (S.profile.groups || []).filter(g => g !== id) }));
     }
     case "sel": return loadPerson(id);
+    case "peek": S.sheet = { peek: id }; loadCrewProofs(); return renderSheet();
+    case "crewtab": S.crewTab = a.dataset.v; return render();
+    case "wallkind": S.wallKind = a.dataset.v; return render();
+    case "wallside": S.wallPick = a.dataset.v; watchWall(a.dataset.v); return render();
+    case "coachside": S.coachSide = a.dataset.v; return render();
+    case "amen": {
+      const x = S.wall?.find(p => p.id === id); if (!x || S.ro) return;
+      const F = firebase.firestore.FieldValue, on = (x.amen || []).includes(S.uid);
+      return q(() => S.db.doc(`walls/${S.wallSide}/posts/${id}`).update({ amen: on ? F.arrayRemove(S.uid) : F.arrayUnion(S.uid) }));
+    }
+    case "wdel": {
+      if (S.armDel !== "w" + id) { S.armDel = "w" + id; return render(); }
+      S.armDel = null; toast("Post removed");
+      return q(() => S.db.doc(`walls/${S.wallSide}/posts/${id}`).delete());
+    }
+    case "goaldone": {
+      const g = S.profile.goal; if (!g) return;
+      if (!g.done) toast("Goal crushed.", "xp");
+      return q(() => S.db.doc(`people/${S.uid}`).update({ goal: { ...g, done: !g.done } }));
+    }
+    case "goaledit": S.goalEdit = true; render(); return document.getElementById("goal-text")?.focus();
+    case "podlearn": return openLog("learn", `Podcast: ${S.feature?.podcast?.title || ""}. `);
     case "google": return google();
     case "authmode": S.authMode = S.authMode === "up" ? "in" : "up"; return render();
     case "reset": {
@@ -1087,19 +1257,41 @@ document.addEventListener("submit", async e => {
     return;
   }
   if (kind === "onboard") {
-    const name = document.getElementById("ob-name").value.trim(); if (!name) return;
-    const why = document.getElementById("ob-why").value.trim();
-    return q(async () => { await S.db.doc(`people/${S.uid}`).set({ name, why, groups: [], joined: Date.now(), stats: {} }); toast(`Welcome, ${name}. Let's execute.`); });
+    const name = document.getElementById("ob-name").value.trim(), side = document.querySelector("input[name=ob-side]:checked")?.value;
+    if (!side) return toast("Pick the men's side or the women's side.");
+    if (!name) return toast("Type your name.");
+    const why = document.getElementById("ob-why").value.trim(), btn = f.querySelector("button[type=submit]");
+    if (btn) { btn.disabled = true; btn.textContent = "Setting you up…"; }
+    return q(async () => { await S.db.doc(`people/${S.uid}`).set({ name, why, side, groups: [], joined: Date.now(), stats: {}, seen: Date.now() }); toast(`Welcome, ${name}. Let's execute.`); })
+      .finally(() => { if (btn?.isConnected) { btn.disabled = false; btn.textContent = "I'm in. Start executing."; } });
   }
   if (kind === "profile") {
     const name = document.getElementById("pf-name").value.trim() || S.profile.name, why = document.getElementById("pf-why").value.trim();
-    return q(async () => { await S.db.doc(`people/${S.uid}`).update({ name, why }); toast("Saved"); });
+    const side = document.querySelector("input[name=pf-side]:checked")?.value || sideOf(S.profile);
+    return q(async () => { await S.db.doc(`people/${S.uid}`).update({ name, why, side }); toast("Saved"); });
   }
   if (kind === "padd") {
     const pid = f.dataset.plan, inp = document.getElementById("pa-" + pid), text = inp.value.trim(); if (!text) return;
     inp.value = "";
     const items = [...(S.plans[pid]?.items || []), { id: rid(6), text, done: false }];
     return q(() => S.db.doc(`people/${S.uid}/plans/${pid}`).set({ items }));
+  }
+  if (kind === "goal") {
+    const inp = document.getElementById("goal-text"), text = inp.value.trim(); if (!text) return toast("Type your goal for this week.");
+    const g = S.profile.goal, wk = monday(today()), same = g?.wk === wk;
+    inp.value = ""; S.goalEdit = false;
+    return q(async () => { await S.db.doc(`people/${S.uid}`).update({ goal: { wk, text, done: same && g.text === text ? !!g.done : false } }); toast("Goal set. Go get it."); });
+  }
+  if (kind === "wall") {
+    const inp = document.getElementById("wall-text"), text = inp.value.trim(); if (text.length < 3) return toast("Write a little more first.");
+    const anon = document.getElementById("wall-anon").checked, side = S.wallSide || sideOf(S.profile), kindP = S.wallKind || "prayer";
+    inp.value = ""; document.getElementById("wall-anon").checked = false;
+    return q(async () => { await S.db.doc(`walls/${side}/posts/${rid(12)}`).set({ by: S.uid, name: anon ? "" : S.profile.name || "", kind: kindP, text, anon, ts: Date.now(), amen: [] }); toast(kindP === "prayer" ? "Posted. The crew will pray with you." : "Posted"); });
+  }
+  if (kind === "feature") {
+    const v = id => document.getElementById(id).value.trim(), url = v("ft-url");
+    if (url && !safeUrl(url)) return toast("The link must start with https://");
+    return q(async () => { await S.db.doc("config/feature").set({ podcast: { title: v("ft-title"), url, note: v("ft-note") }, prize: { text: v("ft-prize") }, updated: Date.now() }); toast("Saved. Everyone sees it now."); });
   }
   if (kind === "gnew") {
     const name = document.getElementById("g-name").value.trim(); if (!name) return;
@@ -1139,12 +1331,14 @@ document.addEventListener("submit", async e => {
     return q(async () => { await S.db.doc(`people/${id}/notes/${rid(10)}`).set({ text, ts: Date.now(), from: S.uid, seen: false }); toast("Sent"); loadPerson(id); });
   }
   if (kind === "rules") {
-    const R = {}; for (const k of Object.keys(DEF_RULES)) { const v = Math.round(+document.getElementById("r-" + k).value); R[k] = Math.max(k === "healWeeks" ? 1 : 0, Math.min(k.endsWith("Days") ? 7 : 14, isFinite(v) ? v : DEF_RULES[k])); }
+    const R = {}; for (const k of Object.keys(DEF_RULES)) { const v = Math.round(+document.getElementById("r-" + k).value); R[k] = Math.max(k.endsWith("Weeks") ? 1 : 0, Math.min(k.endsWith("Days") ? 7 : 14, isFinite(v) ? v : DEF_RULES[k])); }
     return q(async () => { await S.db.doc("config/rules").set(R); toast("Rules saved"); });
   }
 });
 window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if (views.includes(h) && h !== S.view) go(h); });
 document.addEventListener("keydown", e => { if (e.key === "Escape" && S.sheet) { S.sheet = null; renderSheet(); } });
+document.addEventListener("visibilitychange", () => { if (!document.hidden) { beat(); render(); } });
+setInterval(() => { beat(); if (S.profile) render(); }, 60000);
 boot();
 </script>
 </body>
