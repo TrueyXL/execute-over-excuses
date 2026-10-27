@@ -233,6 +233,15 @@ textarea.input { min-height: 84px; resize: vertical; }
 @keyframes fade { from { opacity: 0; } }
 
 /* Toast */
+.tour { position: fixed; inset: 0; z-index: 45; }
+.tour-dim { position: absolute; inset: 0; background: rgba(0,0,0,.72); }
+.tour-hole { position: absolute; border-radius: 18px; box-shadow: 0 0 0 9999px rgba(0,0,0,.72); outline: 2px solid var(--accent); transition: all .25s ease; pointer-events: none; }
+.tour-card { position: absolute; left: 50%; transform: translateX(-50%); width: min(380px, calc(100vw - 32px)); background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 16px; display: grid; gap: 10px; box-shadow: 0 12px 40px rgba(0,0,0,.45); transition: top .25s ease; }
+.tour-card h3 { margin: 0; }
+.tour-card p { margin: 0; }
+.tour-dots { display: flex; gap: 4px; }
+.tour-dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--line); }
+.tour-dots i.on { background: var(--accent); }
 .toast { position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 50; background: var(--fg); color: var(--bg); padding: 12px 18px; border-radius: 14px; font-weight: 700; box-shadow: var(--shadow); max-width: calc(100% - 32px); text-align: center; }
 .toast.xp { background: var(--accent); color: var(--accent-ink); font-family: var(--display); font-size: 24px; text-transform: uppercase; letter-spacing: .03em; animation: pop .5s ease; }
 @keyframes pop { 0% { transform: translate(-50%, 20px) scale(.8); opacity: 0; } 60% { transform: translate(-50%, -4px) scale(1.06); opacity: 1; } }
@@ -251,6 +260,7 @@ textarea.input { min-height: 84px; resize: vertical; }
 <body>
 <div id="root"></div>
 <div id="sheet"></div>
+<div id="tour"></div>
 <div id="toast"></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -567,6 +577,7 @@ function render() {
   else body = ({ today: todayView, calendar: calendarView, plan: planView, crew: crewView, coach: S.isOwner ? (coachOpen() ? coachView : coachLockView) : todayView, me: meView }[S.view] || todayView)();
   patch(root, `<main class="app ${wide ? "wide" : ""}">${brandBar()}${body}</main>${S.profile && S.uid ? navBar() : ""}`);
   if (S.sheet?.peek || S.sheet?.feed) renderSheet();
+  if (S.tour != null) renderTour(); else maybeTour();
 }
 /* Live data re-renders often: skip identical HTML, and keep whatever the person is typing (value, focus, cursor). */
 function patch(el, html) {
@@ -658,7 +669,7 @@ function todayView() {
   ${annCard()}
   ${goalCard()}
   ${unseen.map(n => `<section class="note stack"><p class="tiny" style="color:var(--accent)">From your coach · ${short(iso(new Date(n.ts)))}</p><p>${esc(n.text)}</p><div><button class="btn sm" data-act="seen" data-id="${n.id}">${ic("check")} Got it</button></div></section>`).join("")}
-  <section class="card">
+  <section class="card" data-tour="quests">
     <div class="row spread"><div><p class="tiny muted">Daily quests</p><h2>${nice(t)}</h2></div>${ring((sDone ? 1 : 0) + (bDone ? 1 : 0), 2)}</div>
     <div class="quest ${sDone ? "done" : ""}">
       <span class="check">${sDone ? ic("check") : ""}</span>
@@ -683,9 +694,9 @@ function todayView() {
 }
 function goalCard() {
   const g = S.profile.goal, wk = monday(today()), cur = g?.wk === wk && g.text ? g : null;
-  if (!cur || S.goalEdit) return `<section class="card"><div><p class="tiny muted">Week of ${short(wk)}</p><h3>Goal of the week</h3></div><p class="small muted">One goal you will hit by Sunday. Your crew and your coach can see it.</p>
+  if (!cur || S.goalEdit) return `<section class="card" data-tour="goal"><div><p class="tiny muted">Week of ${short(wk)}</p><h3>Goal of the week</h3></div><p class="small muted">One goal you will hit by Sunday. Your crew and your coach can see it.</p>
     <form class="row" data-form="goal"><input id="goal-text" class="input grow" maxlength="120" value="${esc(cur?.text || "")}" placeholder="e.g. Apply to 10 jobs, run 15 km, finish my business plan" aria-label="Goal of the week"><button class="btn primary" type="submit">Set</button></form></section>`;
-  return `<section class="card"><div class="row spread"><p class="tiny muted">Goal of the week</p>${cur.done ? `<span class="status good">Done</span>` : `<span class="status warn">${7 - dowIdx(today())} day${dowIdx(today()) === 6 ? "" : "s"} left</span>`}</div>
+  return `<section class="card" data-tour="goal"><div class="row spread"><p class="tiny muted">Goal of the week</p>${cur.done ? `<span class="status good">Done</span>` : `<span class="status warn">${7 - dowIdx(today())} day${dowIdx(today()) === 6 ? "" : "s"} left</span>`}</div>
     <div class="row"><button class="check" style="background:${cur.done ? "var(--good)" : "transparent"};border-color:${cur.done ? "var(--good)" : "var(--line)"};color:var(--bg)" data-act="goaldone" aria-label="${cur.done ? "Mark not done" : "Mark done"}">${cur.done ? ic("check") : ""}</button><h2 class="grow" style="font-size:22px;${cur.done ? "text-decoration:line-through;color:var(--muted)" : ""};overflow-wrap:anywhere">${esc(cur.text)}</h2><button class="linkish" data-act="goaledit" aria-label="Change goal">${ic("pencil")}</button></div></section>`;
 }
 function leaders(n = 3) {
@@ -740,7 +751,7 @@ function strip(w) {
     return `<div class="day ${d === t ? "today" : ""}"><span>${DOW[i]}</span><span class="dots"><i class="dot ${v.includes("s") ? "s" : past ? "miss" : ""}" title="God"></i><i class="dot ${v.includes("b") ? "b" : past ? "miss" : ""}" title="Build"></i></span></div>`; }).join("")}</div>`;
 }
 function weekCard(w, title) {
-  return `<section class="card">
+  return `<section class="card"${title ? ' data-tour="week"' : ""}>
     <div class="row spread"><div><p class="tiny muted">Week of ${short(w.mon)}</p><h2>${title ? "Weekly must-dos" : "This week"}</h2></div>${weekStatus(w)}</div>
     ${strip(w)}
     <div class="stack" style="gap:12px">${mustRows(w)}</div>
@@ -776,7 +787,7 @@ function todoCard(t) {
 function planCard(id, title, ph, empty = "No targets yet. Add your first one below.", extra = "") {
   const timed = id[0] === "d", items = (S.plans[id]?.items || []).slice(), done = items.filter(i => i.done).length;
   if (timed) items.sort((a, b) => (a.time || "99").localeCompare(b.time || "99"));
-  return `<section class="card"><div class="row spread"><h3>${title}</h3><span class="mono small muted">${done}/${items.length}</span></div>${extra}
+  return `<section class="card"${timed ? ' data-tour="todo"' : ""}><div class="row spread"><h3>${title}</h3><span class="mono small muted">${done}/${items.length}</span></div>${extra}
     ${items.length ? `<div class="list">${items.map(i => `<div class="item" style="align-items:center"><button class="check" style="background:${i.done ? "var(--good)" : "transparent"};border-color:${i.done ? "var(--good)" : "var(--line)"};color:var(--bg)" data-act="ptoggle" data-plan="${id}" data-id="${i.id}" aria-label="${i.done ? "Mark not done" : "Mark done"}" ${S.ro ? "disabled" : ""}>${i.done ? ic("check") : ""}</button>${i.time ? `<span class="tchip">${fmtTime(i.time)}</span>` : ""}<span class="grow" style="${i.done ? "text-decoration:line-through;color:var(--muted)" : ""};overflow-wrap:anywhere">${esc(i.text)}</span>${S.ro ? "" : `<button class="linkish" data-act="pdel" data-plan="${id}" data-id="${i.id}" aria-label="Remove">${ic("x")}</button>`}</div>`).join("")}</div>` : `<div class="empty">${empty}</div>`}
     ${S.ro ? "" : `<form class="row wrap" data-form="padd" data-plan="${id}"><input id="pa-${id}" class="input grow" maxlength="120" placeholder="${esc(ph)}" aria-label="New target" style="min-width:160px">${timed ? `<input id="pt-${id}" class="input mono" type="time" aria-label="Time (optional, puts it on Google Calendar)" title="Optional time" style="width:120px">` : ""}<button class="btn primary" type="submit" aria-label="Add">${ic("plus")}</button></form>${timed ? `<p class="tiny muted">Add a time and it goes on your Google Calendar too.</p>` : ""}`}
   </section>`;
@@ -1194,6 +1205,7 @@ function meView() {
       <div class="field"><label for="pf-why">Your why</label><textarea id="pf-why" class="input" maxlength="300" ${S.ro ? "disabled" : ""}>${esc(p.why || "")}</textarea></div>
       ${S.ro ? "" : `<button class="btn primary" type="submit">Save</button>`}
     </form></section>
+  <section class="card"><h3>How to use the app</h3><p class="small muted">A 2-minute video and a quick tour of the Today screen.</p><div class="row wrap" style="gap:8px"><button class="btn primary" data-act="tutvideo">${ic("send")} Watch the video</button><button class="btn" data-act="tourreplay">Replay the tour</button></div></section>
   ${rulesCard()}
   ${canNotify() ? `<section class="card"><h3>Crew notifications</h3>${Notification.permission === "granted" ? `<p class="small">On. You get a ping when someone in your crew logs, posts on the prayer wall, or your coach makes an announcement.</p>` : Notification.permission === "denied" ? `<p class="small muted">Blocked for this site. Turn them on in your browser's site settings.</p>` : `<p class="small">Get a ping when someone in your crew logs or posts.</p><div><button class="btn sm primary" data-act="notifyon">${ic("bell")} Turn on notifications</button></div>`}<p class="tiny muted">Works while the app is open or in the background. On iPhone, add it to your home screen first.</p></section>` : ""}
   <section class="card"><h3>Put it on your home screen</h3>
@@ -1219,9 +1231,55 @@ async function openEdit(date, id) {
   }
   renderSheet();
 }
+/* ===== first-run tour (skippable; done once per account, replay from Me) ===== */
+const TOUR = [
+  { title: "Welcome to Execute > Excuses", text: "Quick tour, about 30 seconds. You can skip it any time." },
+  { sel: ".hud", title: "Your level", text: "Hit 3 consistent weeks in a row to earn a trial week. Pass the trial and you level up. Miss a week and the climb starts over." },
+  { sel: "[data-tour=quests]", title: "Every day", text: "Time with God: prayer or the Word. Do both for bonus XP. And build your future (career, money, business or school) 5 days out of 7." },
+  { sel: ".pad", title: "Log it", text: "Tap what you did. A short note is required. Add a proof photo for bonus XP." },
+  { sel: "[data-tour=week]", title: "Every week", text: "Gym or sport 3 times, stretch once, learn something new once. Do it all and the week counts as consistent." },
+  { sel: "[data-tour=goal]", title: "Goal of the week", text: "One goal you'll hit by Sunday. Your crew can see it." },
+  { sel: "[data-tour=todo]", title: "Today's to-do", text: "Write what you'll get done today. Add a time and it also goes on your Google Calendar." },
+  { sel: ".bell", title: "Crew activity", text: "See when your crew logs or posts. Turn on notifications to get a ping." },
+  { sel: "[data-nav=calendar]", title: "Calendar", text: "Your routine and your Google Calendar events in one place." },
+  { sel: "[data-nav=plan]", title: "Plan", text: "Write your targets for this week and this month." },
+  { sel: "[data-nav=crew]", title: "Crew", text: "Start or join a crew with a code. Pray for each other on your crew's prayer wall, and tap anyone to see their week." },
+  { sel: "[data-nav=me]", title: "Me", text: "Your profile, how to put the app on your home screen, and this tour and the video if you need them again." },
+  { title: "You're set", text: "Watch the 2-minute video, or get started now.", end: true },
+];
+let tourShut = false, tourStep = -1;
+function maybeTour() {
+  if (tourShut || S.tour != null || S.ro || S.status !== "ready" || !S.profile || S.profile.tour || S.view !== "today" || S.sheet) return;
+  S.tour = 0; setTimeout(renderTour, 300);
+}
+function renderTour() {
+  const el = document.getElementById("tour");
+  if (S.tour == null) { tourStep = -1; return patch(el, ""); }
+  const st = TOUR[S.tour], tgt = st.sel && document.querySelector(st.sel);
+  if (tgt && tourStep !== S.tour && !tgt.closest(".nav")) tgt.scrollIntoView({ block: "center", behavior: "instant" });
+  tourStep = S.tour;
+  const vh = innerHeight, r = tgt?.getBoundingClientRect(), pad = 6;
+  const hole = r ? `<div class="tour-hole" style="top:${r.top - pad}px;left:${r.left - pad}px;width:${r.width + pad * 2}px;height:${Math.min(r.height, vh * .55) + pad * 2}px"></div>` : `<div class="tour-dim"></div>`;
+  const pos = !r ? `top:50%;transform:translate(-50%,-50%)` : r.top + Math.min(r.height, vh * .55) / 2 > vh / 2 ? `top:${Math.max(12, r.top - pad - 12)}px;transform:translate(-50%,-100%)` : `top:${Math.min(vh - 220, r.top + Math.min(r.height, vh * .55) + pad + 12)}px`;
+  const n = TOUR.length - 2, i = S.tour;
+  patch(el, `<div class="tour" role="dialog" aria-modal="true" aria-label="App tour">${hole}<div class="tour-card" style="${pos}">
+    ${i > 0 && !st.end ? `<div class="row spread"><div class="tour-dots" aria-hidden="true">${TOUR.slice(1, -1).map((_, k) => `<i class="${k < i ? "on" : ""}"></i>`).join("")}</div><span class="tiny muted">${i} of ${n}</span></div>` : ""}
+    <h3>${esc(st.title)}</h3><p class="small">${esc(st.text)}</p>
+    <div class="row spread" style="gap:8px">${st.end ? `<button class="btn" data-act="tourvideo">${ic("send")} Watch video</button><button class="btn primary" data-act="tourskip">Let's go</button>`
+      : `<button class="linkish small" data-act="tourskip">Skip tour</button><div class="row" style="gap:8px">${i > 0 ? `<button class="btn sm" data-act="tourback">Back</button>` : ""}<button class="btn sm primary" data-act="tournext">${i === 0 ? "Show me" : "Next"}</button></div>`}</div>
+  </div></div>`);
+}
+function endTour() {
+  S.tour = null; tourShut = true; renderTour();
+  if (S.profile && !S.profile.tour && !S.ro) q(() => S.db.doc(`people/${S.uid}`).update({ tour: Date.now() }));
+}
+addEventListener("resize", () => S.tour != null && renderTour());
+addEventListener("scroll", () => S.tour != null && renderTour(), { passive: true });
+
 function renderSheet() {
   const el = document.getElementById("sheet"), s = S.sheet;
   if (!s) return patch(el, "");
+  if (s.video) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="How to use the app" data-stop><span class="grab"></span><div class="row spread"><h2>How to use the app</h2><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div><video src="tutorial.mp4" controls playsinline autoplay style="width:100%;max-height:72vh;border-radius:14px;background:#000"></video></div></div>`);
   if (s.feed) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Crew activity" data-stop><span class="grab"></span>${feedSheet()}</div></div>`);
   if (s.peek) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(S.people[s.peek]?.name || "Crew member")}" data-stop><span class="grab"></span><div class="row spread"><p class="tiny muted">Crew</p><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div>${peekSheet(s.peek)}</div></div>`);
   const d = KINDS[s.kind], t = today(), y = addD(t, -1);
@@ -1321,7 +1379,7 @@ document.addEventListener("click", e => {
       const t = curDark ? "light" : "dark"; document.documentElement.dataset.theme = t; try { localStorage.setItem("exe-theme", t); } catch {} return render();
     }
     case "log": return openLog(a.dataset.kind);
-    case "close": if (s?.url) URL.revokeObjectURL(s.url); S.sheet = null; return renderSheet();
+    case "close": if (s?.url) URL.revokeObjectURL(s.url); document.querySelector("#sheet video")?.pause(); S.sheet = null; return renderSheet();
     case "sdate": s.date = a.dataset.v; return renderSheet();
     case "stype": s.type = a.dataset.v; return renderSheet();
     case "smin": s.min = +a.dataset.v; const mi = document.getElementById("lg-min"); if (mi) mi.value = s.min; return renderSheet();
@@ -1369,6 +1427,12 @@ document.addEventListener("click", e => {
     case "wallkind": S.wallKind = a.dataset.v; return render();
     case "feed": { const r = lastRead(); S.sheet = { feed: true, read: r }; try { localStorage.setItem(NOTE_KEY(), String(Date.now())); } catch {} render(); return renderSheet(); }
     case "notifyon": return askNotify();
+    case "tournext": S.tour = Math.min(TOUR.length - 1, S.tour + 1); return renderTour();
+    case "tourback": S.tour = Math.max(0, S.tour - 1); return renderTour();
+    case "tourskip": return endTour();
+    case "tourvideo": endTour(); S.sheet = { video: true }; return renderSheet();
+    case "tutvideo": S.sheet = { video: true }; return renderSheet();
+    case "tourreplay": tourShut = false; go("today"); S.tour = 0; tourStep = -1; return setTimeout(renderTour, 200);
     case "feedgo": {
       const [where, x] = a.dataset.v.split(":"); S.sheet = null; renderSheet();
       if (where === "peek") { S.sheet = { peek: x }; loadCrewProofs(); return renderSheet(); }
@@ -1512,7 +1576,7 @@ document.addEventListener("submit", async e => {
   }
 });
 window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if (views.includes(h) && h !== S.view) go(h); });
-document.addEventListener("keydown", e => { if (e.key === "Escape" && S.sheet) { S.sheet = null; renderSheet(); } });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && S.tour != null) return endTour(); if (e.key === "Escape" && S.sheet) { S.sheet = null; renderSheet(); } });
 document.addEventListener("visibilitychange", () => { if (!document.hidden) { beat(); render(); } });
 setInterval(() => { beat(); if (S.profile) render(); }, 60000);
 boot();
