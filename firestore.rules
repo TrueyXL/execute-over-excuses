@@ -45,6 +45,26 @@ service cloud.firestore {
             || (request.resource.data.t == 'c' && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 300));
         allow delete: if signedIn() && (resource.data.by == request.auth.uid || resource.data.to == request.auth.uid || isAdmin());
       }
+      // Crew group chat: members read and send; authors and the coach can delete.
+      match /chat/{mid} {
+        allow read: if signedIn() && (isAdmin() || inCrew(gid));
+        allow create: if signedIn() && request.resource.data.by == request.auth.uid && (isAdmin() || inCrew(gid))
+          && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 1000;
+        allow delete: if signedIn() && (resource.data.by == request.auth.uid || isAdmin());
+      }
+    }
+    // Private 1-on-1 messages. Thread id = the two uids sorted and joined with "_"; only those two can read or write.
+    match /dms/{pid} {
+      function inDm() { return signedIn() && request.auth.uid in pid.split('_'); }
+      allow read: if signedIn() && request.auth.uid in resource.data.u;
+      allow create, update: if inDm() && request.resource.data.u == pid.split('_')
+        && request.resource.data.last.by == request.auth.uid;
+      match /msgs/{mid} {
+        allow read: if inDm();
+        allow create: if inDm() && request.resource.data.by == request.auth.uid
+          && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 1000;
+        allow delete: if inDm() && resource.data.by == request.auth.uid;
+      }
     }
     match /config/{doc} {
       allow read: if signedIn();
