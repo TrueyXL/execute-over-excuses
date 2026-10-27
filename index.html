@@ -204,6 +204,10 @@ textarea.input { min-height: 84px; resize: vertical; }
 .cd i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .cell.sel .cd i { background: var(--accent-ink); }
 .cd i.g { background: var(--muted); }
+.tl .item { align-items: center; }
+.tl .tm { flex: none; width: 64px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; line-height: 1.25; }
+.gdot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--muted); }
+.tchip { font-size: 12px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; flex: none; }
 .daychk { position: relative; display: inline-block; }
 .daychk input { position: absolute; opacity: 0; inset: 0; margin: 0; }
 .daychk span { display: inline-grid; place-items: center; width: 40px; height: 38px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); font-size: 13px; font-weight: 700; }
@@ -331,7 +335,7 @@ const S = {
   db: null, user: null, assets: null, uid: null, isOwner: false, status: "loading", ro: false,
   profile: undefined, days: {}, plans: {}, notes: [], myProofs: [], people: {}, groups: {}, rules: { ...DEF_RULES },
   view: "today", sheet: null, sel: null, selData: null, crewProofs: {}, armDel: null, mine: null,
-  calMonth: null, calSel: null, gcal: {}, gcalOn: false, gbusy: false, coachOK: false,
+  calMonth: null, calSel: null, gstore: {}, gbusy: false, coachOK: false,
   cwall: {}, gtab: {}, alertTop: 0,
 };
 const views = ["today", "calendar", "plan", "crew", "coach", "me"];
@@ -463,7 +467,7 @@ async function boot() {
   S.auth.getRedirectResult().catch(e => authErr(e));
   S.auth.onAuthStateChanged(u => {
     unsubs.forEach(f => f()); unsubs = []; watchCrews([]); beatAt = 0; S.alertTop = Date.now();
-    if (!u) { Object.assign(S, { uid: null, profile: undefined, days: {}, plans: {}, notes: [], myProofs: [], people: {}, groups: {}, status: "noid" }); return render(); }
+    if (!u) { Object.assign(S, { uid: null, profile: undefined, days: {}, plans: {}, notes: [], myProofs: [], people: {}, groups: {}, gstore: {}, status: "noid" }); return render(); }
     S.uid = u.uid; S.isOwner = !!u.email && u.email.toLowerCase() === ADMIN_EMAIL && u.emailVerified;
     S.status = "loading"; render();
     listen();
@@ -473,6 +477,7 @@ function listen() {
   const db = S.db, me = `people/${S.uid}`, on = (ref, fn) => unsubs.push(ref.onSnapshot(fn, dbErr));
   on(db.doc(me), s => { S.profile = s.exists ? s.data() : null; S.status = "ready"; computeMine(); if (S.profile) { watchCrews(S.profile.groups || []); beat(); } render(); queueStats(); });
   on(db.collection(`${me}/days`), s => { S.days = {}; s.docs.forEach(d => S.days[d.id] = d.data()); computeMine(); render(); queueStats(); });
+  on(db.collection(`${me}/gcal`), s => { S.gstore = {}; s.docs.forEach(d => S.gstore[d.id.slice(1)] = d.data()); render(); });
   on(db.collection(`${me}/plans`), s => { S.plans = {}; s.docs.forEach(d => S.plans[d.id] = d.data()); render(); queueStats(); });
   on(db.collection(`${me}/notes`), s => { S.notes = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => b.ts - a.ts); render(); });
   on(db.collection(`${me}/proofs`).orderBy("ts", "desc").limit(24), s => { S.myProofs = s.docs.map(d => ({ id: d.id, ...d.data() })); render(); });
@@ -667,6 +672,7 @@ function todayView() {
     </div>
   </section>
   ${todoCard(t)}
+  ${todayCalCard(t)}
   ${spotlight()}
   <section class="pad" aria-label="Log something">
     ${Object.entries(KINDS).map(([k, d]) => `<button class="act a-${d.area}" data-act="log" data-kind="${k}">${ic(d.icon)}<span>${d.label}</span><small>+${d.xp} XP</small></button>`).join("")}
@@ -768,10 +774,11 @@ function todoCard(t) {
   return planCard(id, "Today's to-do", "e.g. Call the bank, send 5 applications, clean the car", "Nothing on your list yet. Write what you will get done today.", carry);
 }
 function planCard(id, title, ph, empty = "No targets yet. Add your first one below.", extra = "") {
-  const items = S.plans[id]?.items || [], done = items.filter(i => i.done).length;
+  const timed = id[0] === "d", items = (S.plans[id]?.items || []).slice(), done = items.filter(i => i.done).length;
+  if (timed) items.sort((a, b) => (a.time || "99").localeCompare(b.time || "99"));
   return `<section class="card"><div class="row spread"><h3>${title}</h3><span class="mono small muted">${done}/${items.length}</span></div>${extra}
-    ${items.length ? `<div class="list">${items.map(i => `<div class="item" style="align-items:center"><button class="check" style="background:${i.done ? "var(--good)" : "transparent"};border-color:${i.done ? "var(--good)" : "var(--line)"};color:var(--bg)" data-act="ptoggle" data-plan="${id}" data-id="${i.id}" aria-label="${i.done ? "Mark not done" : "Mark done"}" ${S.ro ? "disabled" : ""}>${i.done ? ic("check") : ""}</button><span class="grow" style="${i.done ? "text-decoration:line-through;color:var(--muted)" : ""};overflow-wrap:anywhere">${esc(i.text)}</span>${S.ro ? "" : `<button class="linkish" data-act="pdel" data-plan="${id}" data-id="${i.id}" aria-label="Remove">${ic("x")}</button>`}</div>`).join("")}</div>` : `<div class="empty">${empty}</div>`}
-    ${S.ro ? "" : `<form class="row" data-form="padd" data-plan="${id}"><input id="pa-${id}" class="input grow" maxlength="120" placeholder="${esc(ph)}" aria-label="New target"><button class="btn primary" type="submit" aria-label="Add">${ic("plus")}</button></form>`}
+    ${items.length ? `<div class="list">${items.map(i => `<div class="item" style="align-items:center"><button class="check" style="background:${i.done ? "var(--good)" : "transparent"};border-color:${i.done ? "var(--good)" : "var(--line)"};color:var(--bg)" data-act="ptoggle" data-plan="${id}" data-id="${i.id}" aria-label="${i.done ? "Mark not done" : "Mark done"}" ${S.ro ? "disabled" : ""}>${i.done ? ic("check") : ""}</button>${i.time ? `<span class="tchip">${fmtTime(i.time)}</span>` : ""}<span class="grow" style="${i.done ? "text-decoration:line-through;color:var(--muted)" : ""};overflow-wrap:anywhere">${esc(i.text)}</span>${S.ro ? "" : `<button class="linkish" data-act="pdel" data-plan="${id}" data-id="${i.id}" aria-label="Remove">${ic("x")}</button>`}</div>`).join("")}</div>` : `<div class="empty">${empty}</div>`}
+    ${S.ro ? "" : `<form class="row wrap" data-form="padd" data-plan="${id}"><input id="pa-${id}" class="input grow" maxlength="120" placeholder="${esc(ph)}" aria-label="New target" style="min-width:160px">${timed ? `<input id="pt-${id}" class="input mono" type="time" aria-label="Time (optional, puts it on Google Calendar)" title="Optional time" style="width:120px">` : ""}<button class="btn primary" type="submit" aria-label="Add">${ic("plus")}</button></form>${timed ? `<p class="tiny muted">Add a time and it goes on your Google Calendar too.</p>` : ""}`}
   </section>`;
 }
 function historyList(h) {
@@ -876,37 +883,56 @@ const dowIdx = s => (parse(s).getDay() + 6) % 7;
 const addMin = (hhmm, m) => { const [h, mi] = hhmm.split(":").map(Number), t = h * 60 + mi + m; return `${pad(Math.floor(t / 60) % 24)}:${pad(t % 60)}`; };
 const fmtTime = hhmm => { const [h, m] = hhmm.split(":").map(Number); return `${h % 12 || 12}:${pad(m)} ${h < 12 ? "AM" : "PM"}`; };
 
+/* Google events saved in the app (people/<uid>/gcal/m<YYYY-MM>), so they show on any device without reconnecting. */
+const gDay = d => (S.gstore[d.slice(0, 7)]?.ev || {})[d] || [];
+function gImported() { const ts = Object.values(S.gstore).map(x => x.at || 0); return ts.length ? Math.max(...ts) : 0; }
+function dayTimeline(sel) {
+  const t = today(), R = routine(), wd = dowIdx(sel), dayLogs = S.days[sel]?.logs || [];
+  const doneArea = a => dayLogs.some(l => KINDS[l.kind]?.area === a);
+  const ge = gDay(sel), todos = S.plans["d" + sel]?.items || [];
+  const rows = [
+    ...Object.entries(R).filter(([, r]) => r.on && r.days.includes(wd)).map(([k, r]) => { const meta = RT[k], done = doneArea(meta.area);
+      return { at: r.time, html: `<div class="item"><span class="tm">${fmtTime(r.time)}</span><span class="a-${meta.area}">${ic(meta.icon)}</span><div class="grow"><b>${meta.label}</b><div class="small muted">${r.dur} min · your routine</div></div>${done ? `<span class="status good">Done</span>` : sel < t ? `<span class="status bad">Missed</span>` : ""}</div>` }; }),
+    ...ge.filter(e => !e.d).map(e => ({ at: e.s, html: `<div class="item"><span class="tm">${fmtTime(e.s)}${e.e ? `<br>${fmtTime(e.e)}` : ""}</span><i class="gdot" style="${e.c ? `background:${esc(e.c)}` : ""}"></i><div class="grow" style="min-width:0"><b style="overflow-wrap:anywhere">${esc(e.t)}</b><div class="small muted" style="overflow-wrap:anywhere">${esc(e.k || "Google")}${e.l ? ` · ${esc(e.l)}` : ""}</div></div></div>` })),
+    ...todos.filter(i => i.time).map(i => ({ at: i.time, html: `<div class="item"><span class="tm">${fmtTime(i.time)}</span><span class="a-build">${ic("check")}</span><div class="grow" style="min-width:0"><b style="overflow-wrap:anywhere;${i.done ? "text-decoration:line-through;color:var(--muted)" : ""}">${esc(i.text)}</b><div class="small muted">To-do</div></div>${i.done ? `<span class="status good">Done</span>` : ""}</div>` })),
+  ].sort((a, b) => a.at.localeCompare(b.at));
+  const allDay = ge.filter(e => e.d), loose = todos.filter(i => !i.time);
+  return `${allDay.length ? `<div class="row wrap" style="gap:6px">${allDay.map(e => `<span class="chip" style="white-space:normal"><i class="gdot" style="${e.c ? `background:${esc(e.c)}` : ""}"></i> ${esc(e.t)}</span>`).join("")}</div>` : ""}
+    ${rows.length ? `<div class="list tl">${rows.map(r => r.html).join("")}</div>` : `<div class="empty">Nothing planned this day.</div>`}
+    ${loose.length ? `<p class="tiny muted">To-do, no set time</p><div class="list">${loose.map(i => `<div class="item"><span class="${i.done ? "" : "muted"}">${ic("check")}</span><span class="grow" style="overflow-wrap:anywhere;${i.done ? "text-decoration:line-through;color:var(--muted)" : ""}">${esc(i.text)}</span></div>`).join("")}</div>` : ""}`;
+}
 function calendarView() {
   const t = today(), mon = S.calMonth || t.slice(0, 7), sel = S.calSel || t;
   const [y, m] = mon.split("-").map(Number), first = iso(new Date(y, m - 1, 1)), last = iso(new Date(y, m, 0));
   const cells = []; for (let d = monday(first); d <= last || cells.length % 7; d = addD(d, 1)) cells.push(d);
-  const g = S.gcal[mon] || {};
-  const R = routine(), wd = dowIdx(sel), dayLogs = S.days[sel]?.logs || [];
-  const planned = Object.entries(R).filter(([, r]) => r.on && r.days.includes(wd)).sort((a, b) => a[1].time.localeCompare(b[1].time));
-  const doneArea = a => dayLogs.some(l => KINDS[l.kind]?.area === a);
+  const dayLogs = S.days[sel]?.logs || [], imp = gImported();
   return `<section class="card">
     <div class="row spread"><button class="icon-btn" data-act="calmon" data-v="-1" aria-label="Previous month">${ic("back")}</button><h2>${["January","February","March","April","May","June","July","August","September","October","November","December"][m - 1]} ${y}</h2><button class="icon-btn" data-act="calmon" data-v="1" aria-label="Next month" style="transform:scaleX(-1)">${ic("back")}</button></div>
     <div class="calgrid">${DOW.map(d => `<span class="calh">${d.charAt(0)}</span>`).join("")}
     ${cells.map(d => { const ls = S.days[d]?.logs || [], areas = [...new Set(ls.map(l => KINDS[l.kind]?.area).filter(Boolean))];
-      return `<button class="cell ${d.slice(0, 7) !== mon ? "out" : ""} ${d === t ? "today" : ""} ${d === sel ? "sel" : ""}" data-act="calday" data-v="${d}" aria-label="${nice(d)}${areas.length ? `, ${areas.length} areas logged` : ""}">${+d.slice(8)}<span class="cd">${areas.map(a => `<i class="a-${a}"></i>`).join("")}${g[d]?.length ? `<i class="g"></i>` : ""}</span></button>`; }).join("")}</div>
+      return `<button class="cell ${d.slice(0, 7) !== mon ? "out" : ""} ${d === t ? "today" : ""} ${d === sel ? "sel" : ""}" data-act="calday" data-v="${d}" aria-label="${nice(d)}${areas.length ? `, ${areas.length} areas logged` : ""}${gDay(d).length ? `, ${gDay(d).length} Google events` : ""}">${+d.slice(8)}<span class="cd">${areas.map(a => `<i class="a-${a}"></i>`).join("")}${gDay(d).length ? `<i class="g"></i>` : ""}</span></button>`; }).join("")}</div>
     <p class="small muted">Colored dots are what you logged. Grey dot = Google Calendar event.</p>
+    ${imp ? `<div class="row spread small"><span class="muted">Google events updated ${ago(imp)}</span><button class="linkish" data-act="gimport" ${S.gbusy ? "disabled" : ""}>${S.gbusy ? "Updating…" : "Refresh"}</button></div>` : ""}
   </section>
   <section class="card"><div><p class="tiny muted">${sel === t ? "Today" : sel < t ? "Past day" : "Coming up"}</p><h2>${nice(sel)}</h2></div>
-    <h3>Your routine</h3>
-    ${planned.length ? `<div class="list">${planned.map(([k, r]) => { const meta = RT[k], done = doneArea(meta.area);
-      return `<div class="item" style="align-items:center"><span class="a-${meta.area}">${ic(meta.icon)}</span><div class="grow"><b>${meta.label}</b><div class="small muted mono">${fmtTime(r.time)} · ${r.dur} min</div></div>${done ? `<span class="status good">Done</span>` : sel < t ? `<span class="status bad">Missed</span>` : ""}</div>`; }).join("")}</div>` : `<div class="empty">Nothing in your routine on this day.</div>`}
+    ${dayTimeline(sel)}
     ${dayLogs.length ? `<h3>Logged</h3>${logList(dayLogs, sel, true)}` : ""}
-    ${S.gcalOn ? `<h3>Google Calendar</h3>${(g[sel] || []).length ? `<div class="list">${g[sel].map(e => `<div class="item"><span class="muted">${ic("cal")}</span><div class="grow"><b style="overflow-wrap:anywhere">${esc(e.title)}</b><div class="small muted mono">${e.allDay ? "All day" : fmtTime(e.time)}</div></div></div>`).join("")}</div>` : `<p class="small muted">No Google events this day.</p>`}` : ""}
   </section>
   ${syncCard()}
   ${routineCard()}`;
+}
+function todayCalCard(t) {
+  const ge = gDay(t); if (!ge.length) return "";
+  const list = [...ge].sort((a, b) => (a.d ? "" : a.s).localeCompare(b.d ? "" : b.s));
+  return `<section class="card"><div class="row spread"><h3>Today on your calendar</h3><a class="linkish small" href="#calendar" data-nav="calendar">Open</a></div>
+    <div class="list tl">${list.map(e => `<div class="item"><span class="tm">${e.d ? "All day" : fmtTime(e.s)}</span><i class="gdot" style="${e.c ? `background:${esc(e.c)}` : ""}"></i><b class="grow" style="overflow-wrap:anywhere">${esc(e.t)}</b></div>`).join("")}</div></section>`;
 }
 function syncCard() {
   const google = (S.auth?.currentUser?.providerData || []).some(p => p.providerId === "google.com"), live = !!gtok();
   return `<section class="card"><h3>Sync with your phone calendar</h3>
     <div class="rt"><div class="row"><span>${ic("cal")}</span><b class="grow">Google Calendar</b>${S.profile?.gcal?.synced ? `<span class="status ${live ? "good" : "warn"}">${live ? "Connected" : "Synced " + short(iso(new Date(S.profile.gcal.synced)))}</span>` : ""}</div>
-      <p class="small muted">Puts your routine on your Google Calendar with reminders, and shows your Google events here. Samsung phones signed in to Google get it automatically.${google ? "" : " You'll pick a Google account to connect."}</p>
-      <button class="btn primary" data-act="gcal" ${S.gbusy ? "disabled" : ""}>${S.gbusy ? "Syncing…" : S.profile?.gcal?.synced ? "Sync again" : "Connect Google Calendar"}</button>
+      <p class="small muted">Brings all your Google Calendar events into this calendar and keeps them here, even on another phone. Puts your routine and any to-do with a time on Google, with reminders. It updates by itself each time you open the Calendar tab while connected. Samsung phones signed in to Google get it automatically.${google ? "" : " You'll pick a Google account to connect."}</p>
+      <button class="btn primary" data-act="gcal" ${S.gbusy ? "disabled" : ""}>${S.gbusy ? "Syncing…" : S.profile?.gcal?.synced ? "Sync now" : "Connect Google Calendar"}</button>
       <p class="small muted">If Google says the app isn't verified yet, tap <b>Advanced</b>, then <b>Go to Execute Over Excuses</b>.</p></div>
     <div class="rt"><div class="row"><span>${ic("cal")}</span><b class="grow">iPhone or Samsung calendar</b></div>
       <p class="small muted">Downloads your routine as a calendar file. <b>iPhone:</b> tap the file, then <b>Add All</b>. <b>Samsung:</b> open the downloaded file and choose <b>Calendar</b>. Download it again after you change your routine.</p>
@@ -947,7 +973,7 @@ function downloadIcs() {
 }
 
 /* Google Calendar (token lives only in this browser tab session) */
-const GCAL_SCOPE = "https://www.googleapis.com/auth/calendar.events";
+const GCAL_SCOPES = ["https://www.googleapis.com/auth/calendar.events", "https://www.googleapis.com/auth/calendar.calendarlist.readonly"];
 function gtok() { try { const t = JSON.parse(sessionStorage.getItem("eoe-gtok") || "null"); if (t && t.exp > Date.now() && t.uid === S.uid) return t.tok; } catch {} return null; }
 async function gfetch(path, opts = {}) {
   const r = await fetch("https://www.googleapis.com/calendar/v3/" + path, { ...opts, headers: { Authorization: "Bearer " + gtok(), "Content-Type": "application/json" } });
@@ -957,7 +983,7 @@ async function gfetch(path, opts = {}) {
   return r.status === 204 ? null : r.json();
 }
 async function connectGcal() {
-  const p = new firebase.auth.GoogleAuthProvider(); p.addScope(GCAL_SCOPE);
+  const p = new firebase.auth.GoogleAuthProvider(); GCAL_SCOPES.forEach(x => p.addScope(x));
   const u = S.auth.currentUser, g = u.providerData.find(x => x.providerId === "google.com");
   if (g?.email) p.setCustomParameters({ login_hint: g.email });
   const res = g ? await u.reauthenticateWithPopup(p) : await u.linkWithPopup(p);
@@ -985,9 +1011,10 @@ async function syncGcal() {
         extendedProperties: { private: { eoe: "1" } },
       }) });
     }
+    await syncTodos();
+    const n = await importGcal();
     await S.db.doc(`people/${S.uid}`).update({ gcal: { synced: Date.now() } });
-    S.gcalOn = true; S.gcal = {}; loadGcal(S.calMonth || t.slice(0, 7));
-    toast("Routine added to your Google Calendar", "xp");
+    toast(`Synced. ${n} Google event${n === 1 ? "" : "s"} in your calendar.`, "xp");
   } catch (e) { gcalErr(e); }
   S.gbusy = false; render();
 }
@@ -1001,19 +1028,74 @@ function gcalErr(e) {
   else if (e?.code === "auth/popup-blocked") toast("Your browser blocked the Google window. Allow pop-ups and try again.");
   else toast("Couldn't reach Google Calendar. Try again.");
 }
-async function loadGcal(mon) {
-  if (!gtok() || S.gcal[mon]) return;
-  const [y, m] = mon.split("-").map(Number);
+const enc = encodeURIComponent;
+async function gcalList() {
   try {
-    const r = await gfetch(`calendars/primary/events?singleEvents=true&orderBy=startTime&maxResults=250&timeMin=${encodeURIComponent(new Date(y, m - 1, 1).toISOString())}&timeMax=${encodeURIComponent(new Date(y, m, 1).toISOString())}`);
-    const map = {};
-    for (const e of r.items || []) {
-      if (e.extendedProperties?.private?.eoe === "1" || e.status === "cancelled") continue;
-      const allDay = !!e.start?.date, sd = allDay ? e.start.date : iso(new Date(e.start.dateTime));
-      (map[sd] = map[sd] || []).push({ title: e.summary || "(No title)", allDay, time: allDay ? "" : `${pad(new Date(e.start.dateTime).getHours())}:${pad(new Date(e.start.dateTime).getMinutes())}` });
-    }
-    S.gcal[mon] = map; S.gcalOn = true; render();
-  } catch (e) { if (e?.code !== "gcal-expired") console.warn(e); }
+    const r = await gfetch("users/me/calendarList?minAccessRole=reader&maxResults=50");
+    const cs = (r.items || []).filter(c => c.selected || c.primary).map(c => ({ id: c.id, name: c.summaryOverride || c.summary || "Google", color: c.backgroundColor || "" }));
+    if (cs.length) return cs;
+  } catch (e) { if (e?.code === "gcal-expired") throw e; }
+  return [{ id: "primary", name: "Google", color: "" }];
+}
+/* Copies Google events from last month to 3 months ahead into the app. Skips the app's own routine and to-do events. */
+async function importGcal() {
+  const now = new Date(), from = new Date(now.getFullYear(), now.getMonth() - 1, 1), to = new Date(now.getFullYear(), now.getMonth() + 4, 1);
+  const months = {}; for (let d = new Date(from); d < to; d.setMonth(d.getMonth() + 1)) months[iso(d).slice(0, 7)] = {};
+  const hm = dt => { const x = new Date(dt); return `${pad(x.getHours())}:${pad(x.getMinutes())}`; };
+  let n = 0;
+  for (const c of await gcalList()) {
+    let page = "", guard = 0;
+    do {
+      const r = await gfetch(`calendars/${enc(c.id)}/events?singleEvents=true&orderBy=startTime&maxResults=500&timeMin=${enc(from.toISOString())}&timeMax=${enc(to.toISOString())}${page ? `&pageToken=${enc(page)}` : ""}`);
+      for (const e of r.items || []) {
+        if (e.status === "cancelled" || e.extendedProperties?.private?.eoe || e.attendees?.some(a => a.self && a.responseStatus === "declined")) continue;
+        const allDay = !!e.start?.date, x = { t: (e.summary || "(No title)").slice(0, 120), d: allDay, s: allDay ? "" : hm(e.start.dateTime), e: allDay ? "" : hm(e.end?.dateTime || e.start.dateTime), k: c.name.slice(0, 40), c: c.color };
+        if (e.location) x.l = e.location.slice(0, 80);
+        const days = []; if (allDay) { for (let d = e.start.date, i = 0; d < (e.end?.date || addD(d, 1)) && i < 31; d = addD(d, 1), i++) days.push(d); } else days.push(iso(new Date(e.start.dateTime)));
+        for (const d of days) { const mo = months[d.slice(0, 7)]; if (mo) (mo[d] = mo[d] || []).push(x); }
+        n++;
+      }
+      page = r.nextPageToken || "";
+    } while (page && ++guard < 6);
+  }
+  const at = Date.now();
+  await Promise.all(Object.entries(months).map(([mo, ev]) => {
+    for (const l of Object.values(ev)) l.sort((a, b) => (a.d ? "" : a.s).localeCompare(b.d ? "" : b.s));
+    if (stable(S.gstore[mo]?.ev || {}) === stable(ev) && at - (S.gstore[mo]?.at || 0) < 864e5) return null;
+    return S.db.doc(`people/${S.uid}/gcal/m${mo}`).set({ ev, at });
+  }));
+  return n;
+}
+/* To-dos with a time become Google events (tagged eoe=todo). Ticking one off marks it ✓ on Google; deleting it removes it. */
+async function syncTodos() {
+  const t = today(), tz = Intl.DateTimeFormat().resolvedOptions().timeZone, want = {};
+  for (const [pid, pl] of Object.entries(S.plans)) if (pid[0] === "d" && pid.slice(1) >= t) for (const i of pl.items || []) if (i.time) want[i.id] = { d: pid.slice(1), i };
+  const r = await gfetch(`calendars/primary/events?maxResults=250&timeMin=${enc(parse(t).toISOString())}&privateExtendedProperty=${enc("eoe=todo")}`);
+  const have = {};
+  for (const e of r.items || []) { const id = e.extendedProperties?.private?.eoeId; if (!id || have[id] || !want[id]) await gfetch("calendars/primary/events/" + enc(e.id), { method: "DELETE" }); else have[id] = e; }
+  for (const [id, { d, i }] of Object.entries(want)) {
+    const end = addMin(i.time, +i.dur || 30), endD = end < i.time ? addD(d, 1) : d, summary = `${i.done ? "✓ " : ""}${i.text}`, e = have[id];
+    if (e && e.summary === summary && e.start?.dateTime?.startsWith(`${d}T${i.time}`)) continue;
+    const body = { summary, description: `To-do from Execute > Excuses\n${SHORT_LINK}`, colorId: "6",
+      start: { dateTime: `${d}T${i.time}:00`, timeZone: tz }, end: { dateTime: `${endD}T${end}:00`, timeZone: tz },
+      reminders: { useDefault: false, overrides: i.done ? [] : [{ method: "popup", minutes: 10 }] }, extendedProperties: { private: { eoe: "todo", eoeId: id } } };
+    await gfetch("calendars/primary/events" + (e ? "/" + enc(e.id) : ""), { method: e ? "PATCH" : "POST", body: JSON.stringify(body) });
+  }
+}
+/* Quiet refresh while the Google connection is still open (it lasts about an hour). */
+let gAutoAt = 0, todoT = 0;
+async function autoGcal(force) {
+  if (!gtok() || S.gbusy || (!force && Date.now() - Math.max(gAutoAt, gImported()) < 300000)) return;
+  gAutoAt = Date.now(); S.gbusy = true; render();
+  try { await syncTodos(); await importGcal(); } catch (e) { if (force) gcalErr(e); else console.warn("gcal", e); }
+  S.gbusy = false; render();
+}
+const queueTodoSync = () => { if (!gtok()) return; clearTimeout(todoT); todoT = setTimeout(() => syncTodos().catch(e => console.warn("gcal", e)), 2000); };
+async function refreshGcal() {
+  if (gtok()) return autoGcal(true);
+  S.gbusy = true; render();
+  try { await connectGcal(); S.gbusy = false; return autoGcal(true); } catch (e) { gcalErr(e); }
+  S.gbusy = false; render();
 }
 
 /* ----- Coach (owner account + password) ----- */
@@ -1220,7 +1302,7 @@ function go(v) {
   render(); window.scrollTo({ top: 0 });
   if (v === "crew") loadCrewProofs();
   beat();
-  if (v === "calendar") loadGcal(S.calMonth || today().slice(0, 7));
+  if (v === "calendar") autoGcal();
 }
 async function copy(text) {
   try { await navigator.clipboard.writeText(text); toast("Copied"); }
@@ -1262,7 +1344,9 @@ document.addEventListener("click", e => {
       const pid = a.dataset.plan, items = (S.plans[pid]?.items || []).map(i => ({ ...i }));
       const next = act === "pdel" ? items.filter(i => i.id !== id) : items.map(i => i.id === id ? { ...i, done: !i.done } : i);
       if (act === "ptoggle" && next.find(i => i.id === id)?.done) toast("Executed.", "xp");
-      return q(() => S.db.doc(`people/${S.uid}/plans/${pid}`).set({ items: next }));
+      q(() => S.db.doc(`people/${S.uid}/plans/${pid}`).set({ items: next }));
+      if (pid[0] === "d" && items.find(i => i.id === id)?.time) queueTodoSync();
+      return;
     }
     case "pcarry": {
       const pid = a.dataset.plan, cur = S.plans[pid]?.items || [], have = new Set(cur.map(i => i.text));
@@ -1318,12 +1402,13 @@ document.addEventListener("click", e => {
       if (!em) return toast("Type your email first, then tap Forgot password.");
       return S.auth.sendPasswordResetEmail(em).then(() => toast("Check your email for a reset link."), authErr);
     }
-    case "signout": S.sel = null; S.selData = null; S.crewProofs = {}; S.coachOK = false; S.gcal = {}; S.gcalOn = false; try { sessionStorage.removeItem("eoe-coach"); sessionStorage.removeItem("eoe-gtok"); } catch {} return S.auth.signOut();
+    case "signout": S.sel = null; S.selData = null; S.crewProofs = {}; S.coachOK = false; S.gstore = {}; try { sessionStorage.removeItem("eoe-coach"); sessionStorage.removeItem("eoe-gtok"); } catch {} return S.auth.signOut();
     case "coachlock": S.coachOK = false; S.sel = null; S.selData = null; try { sessionStorage.removeItem("eoe-coach"); } catch {} return render();
-    case "calmon": { const [y, m] = (S.calMonth || today().slice(0, 7)).split("-").map(Number), d = new Date(y, m - 1 + +a.dataset.v, 1); S.calMonth = iso(d).slice(0, 7); loadGcal(S.calMonth); return render(); }
+    case "calmon": { const [y, m] = (S.calMonth || today().slice(0, 7)).split("-").map(Number), d = new Date(y, m - 1 + +a.dataset.v, 1); S.calMonth = iso(d).slice(0, 7); return render(); }
     case "calday": S.calSel = a.dataset.v; return render();
     case "gcal": return syncGcal();
     case "ics": return downloadIcs();
+    case "gimport": return refreshGcal();
     case "copy": return copy(a.dataset.text);
   }
 });
@@ -1359,9 +1444,12 @@ document.addEventListener("submit", async e => {
   }
   if (kind === "padd") {
     const pid = f.dataset.plan, inp = document.getElementById("pa-" + pid), text = inp.value.trim(); if (!text) return;
-    inp.value = "";
-    const items = [...(S.plans[pid]?.items || []), { id: rid(6), text, done: false }];
-    return q(() => S.db.doc(`people/${S.uid}/plans/${pid}`).set({ items }));
+    const tin = document.getElementById("pt-" + pid), time = tin?.value || "";
+    inp.value = ""; if (tin) tin.value = "";
+    const items = [...(S.plans[pid]?.items || []), { id: rid(6), text, done: false, ...(time ? { time } : {}) }];
+    q(() => S.db.doc(`people/${S.uid}/plans/${pid}`).set({ items }));
+    if (time) { queueTodoSync(); if (!gtok() && S.profile?.gcal?.synced) toast("Added. It goes to Google next time you sync on the Calendar tab."); }
+    return;
   }
   if (kind === "goal") {
     const inp = document.getElementById("goal-text"), text = inp.value.trim(); if (!text) return toast("Type your goal for this week.");
