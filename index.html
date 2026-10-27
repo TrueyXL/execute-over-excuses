@@ -186,6 +186,14 @@ textarea.input { min-height: 84px; resize: vertical; }
 .cmts { display: grid; gap: 6px; padding-left: 10px; border-left: 2px solid var(--line); }
 .cmts p { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
 .cheerline { display: flex; gap: 6px; flex-wrap: wrap; }
+.chatlog { display: flex; flex-direction: column; gap: 6px; max-height: 52vh; min-height: 120px; overflow-y: auto; padding: 4px 2px; overscroll-behavior: contain; }
+.bub { max-width: 82%; align-self: flex-start; padding: 8px 12px; border-radius: 16px 16px 16px 4px; background: var(--surface-2); border: 1px solid var(--line); overflow-wrap: anywhere; white-space: pre-wrap; }
+.bub.me { align-self: flex-end; border-radius: 16px 16px 4px 16px; background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.bub .by { display: block; font-size: 12px; font-weight: 700; color: var(--accent); }
+.bubmeta { font-size: 11px; color: var(--muted); align-self: flex-start; margin: -2px 6px 2px; }
+.bubmeta.me { align-self: flex-end; }
+.chatday { align-self: center; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin: 6px 0 2px; }
+.unreaddot { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 99px; background: var(--accent); color: var(--accent-ink); font-size: 11px; font-weight: 800; display: inline-grid; place-items: center; }
 .trialbox { padding: 12px 14px; border-radius: 14px; border: 1.5px dashed var(--accent); background: var(--accent-soft); }
 
 /* Photos */
@@ -319,6 +327,7 @@ const P = {
   moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/>',
   back: '<path d="m15 18-6-6 6-6"/>',
   bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>',
+  msg: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
   thumb: '<path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/>',
   chat: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
   mega: '<path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
@@ -361,7 +370,7 @@ const S = {
   profile: undefined, days: {}, plans: {}, notes: [], myProofs: [], people: {}, groups: {}, rules: { ...DEF_RULES },
   view: "today", sheet: null, sel: null, selData: null, crewProofs: {}, armDel: null, mine: null,
   calMonth: null, calSel: null, gstore: {}, gbusy: false, coachOK: false,
-  cwall: {}, cheers: {}, cOpen: null, gtab: {}, alertTop: 0,
+  cwall: {}, gchat: {}, dms: [], dmMsgs: null, cheers: {}, cOpen: null, gtab: {}, alertTop: 0,
 };
 const views = ["today", "calendar", "plan", "crew", "coach", "me"];
 const COACH_HASH = "4e072c27f29c879fd3c99e86451be75ebc3eaa13ef7e77d3478dab0a7c47bc7a";
@@ -508,19 +517,74 @@ function listen() {
   on(db.collection(`${me}/proofs`).orderBy("ts", "desc").limit(24), s => { S.myProofs = s.docs.map(d => ({ id: d.id, ...d.data() })); render(); });
   on(db.collection("people"), s => { S.people = {}; s.docs.forEach(d => S.people[d.id] = d.data()); alertNew(); render(); });
   on(db.collection("groups"), s => { S.groups = {}; s.docs.forEach(d => S.groups[d.id] = d.data()); render(); });
+  on(db.collection("dms").where("u", "array-contains", S.uid).limit(60), s => { S.dms = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (b.last?.ts || 0) - (a.last?.ts || 0)); alertNew(); render(); });
   on(db.doc("config/feature"), s => { S.feature = s.exists ? s.data() : {}; alertNew(); render(); });
   on(db.doc("config/rules"), s => { S.rules = { ...DEF_RULES, ...(s.exists ? s.data() : {}) }; computeMine(); render(); queueStats(); });
 }
 /* One live prayer wall and one live Good job / comment feed per crew you're in. */
 let crewUnsubs = {};
 function watchCrews(gids) {
-  for (const g of Object.keys(crewUnsubs)) if (!gids.includes(g)) { crewUnsubs[g](); delete crewUnsubs[g]; delete S.cwall[g]; delete S.cheers[g]; }
+  for (const g of Object.keys(crewUnsubs)) if (!gids.includes(g)) { crewUnsubs[g](); delete crewUnsubs[g]; delete S.cwall[g]; delete S.cheers[g]; delete S.gchat[g]; }
   for (const g of gids) if (!crewUnsubs[g]) {
     const a = S.db.collection(`groups/${g}/posts`).orderBy("ts", "desc").limit(60).onSnapshot(s => { S.cwall[g] = s.docs.map(d => ({ id: d.id, ...d.data() })); alertNew(); render(); }, e => { console.warn("wall", e); S.cwall[g] = []; render(); });
     const b = S.db.collection(`groups/${g}/cheers`).orderBy("ts", "desc").limit(400).onSnapshot(s => { S.cheers[g] = s.docs.map(d => ({ id: d.id, ...d.data() })); alertNew(); render(); }, e => { console.warn("cheers", e); S.cheers[g] = []; render(); });
-    crewUnsubs[g] = () => { a(); b(); };
+    const c = S.db.collection(`groups/${g}/chat`).orderBy("ts", "desc").limit(80).onSnapshot(s => { S.gchat[g] = s.docs.map(d => ({ id: d.id, ...d.data() })).reverse(); alertNew(); render(); }, e => { console.warn("chat", e); S.gchat[g] = []; render(); });
+    crewUnsubs[g] = () => { a(); b(); c(); };
   }
 }
+
+/* ===== chat: one group chat per crew, plus private 1-on-1 threads (dms/<uidA_uidB>, sorted ids) ===== */
+const dmId = other => [S.uid, other].sort().join("_");
+const SEEN_KEY = () => "eoe-seen-" + S.uid;
+const seenAll = () => { try { return JSON.parse(localStorage.getItem(SEEN_KEY()) || "{}"); } catch { return {}; } };
+const seen = id => seenAll()[id] || 0;
+function markSeen(id) { const m = seenAll(), last = chatLast(id); if (!last || m[id] >= last) return; m[id] = last; try { localStorage.setItem(SEEN_KEY(), JSON.stringify(m)); } catch {} }
+function chatLast(id) { return id[0] === "g" && id[1] === ":" ? Math.max(0, ...(S.gchat[id.slice(2)] || []).map(m => m.ts)) : S.dms.find(d => d.id === id)?.last?.ts || 0; }
+const gNew = g => (S.gchat[g] || []).filter(m => m.by !== S.uid && m.ts > seen("g:" + g)).length;
+const dmNew = d => d.last && d.last.by !== S.uid && d.last.ts > seen(d.id);
+const chatOpen = id => !document.hidden && (S.sheet?.dm && dmId(S.sheet.dm) === id || id[0] === "g" && S.view === "crew" && S.gtab[id.slice(2)] === "chat");
+function chatLog(msgs, group, k) {
+  if (msgs == null) return `<div class="chatlog"><p class="muted small">Loading…</p></div>`;
+  if (!msgs.length) return `<div class="chatlog"><div class="empty">${group ? "No messages yet. Say what's up to the crew." : "No messages yet. Say hi."}</div></div>`;
+  let day = "", out = "";
+  msgs.forEach((m, i) => {
+    const dt = iso(new Date(m.ts)), me = m.by === S.uid, prev = msgs[i - 1], next = msgs[i + 1];
+    if (dt !== day) { day = dt; out += `<div class="chatday">${dt === today() ? "Today" : dt === addD(today(), -1) ? "Yesterday" : nice(dt)}</div>`; }
+    const first = !prev || prev.by !== m.by || iso(new Date(prev.ts)) !== dt, lastOf = !next || next.by !== m.by || next.ts - m.ts > 3e5;
+    const nm = S.people[m.by]?.name || m.name || "Someone";
+    out += `<div class="bub ${me ? "me" : ""}">${group && !me && first ? `<span class="by">${esc(nm)}</span>` : ""}${esc(m.text)}</div>`;
+    if (lastOf) out += `<div class="bubmeta ${me ? "me" : ""}">${new Date(m.ts).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}${(me || S.isOwner) && !S.ro && group ? ` · <button class="linkish" style="font-size:11px;min-height:0;padding:0" data-act="chdel" data-g="${group}" data-id="${m.id}">${S.armDel === "m" + m.id ? "tap to delete" : "delete"}</button>` : ""}</div>`;
+  });
+  return `<div class="chatlog" data-k="${k}" data-n="${msgs.length}" aria-live="polite">${out}</div>`;
+}
+const chatForm = (form, attrs, id, ph) => S.ro ? "" : `<form class="row" data-form="${form}" ${attrs}><input id="${id}" class="input grow" maxlength="1000" placeholder="${esc(ph)}" aria-label="Message" autocomplete="off"><button class="btn primary" type="submit" aria-label="Send">${ic("send")}</button></form>`;
+function crewChat(gid) {
+  markSeen("g:" + gid);
+  return `${chatLog(S.gchat[gid], gid, "g:" + gid)}${chatForm("gchat", `data-g="${gid}"`, "gc-" + gid, `Message ${S.groups[gid]?.name || "the crew"}`)}`;
+}
+function dmSheet(other) {
+  const p = S.people[other] || {}, id = dmId(other);
+  if (S.dmMsgs?.length) markSeen(id);
+  return `<div class="row spread"><div class="row" style="gap:10px;min-width:0">${av(p)}<div style="min-width:0"><h2 style="overflow-wrap:anywhere">${esc(p.name || "Crew member")}</h2><p class="tiny muted">Private · only you two can see this</p></div></div><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div>
+    ${chatLog(S.dmMsgs, null, id)}${chatForm("dm", `data-to="${other}"`, "dm-input", `Message ${p.name || ""}`.trim())}`;
+}
+function dmCard() {
+  const ts = S.dms.filter(d => d.last && S.people[d.u.find(x => x !== S.uid)]);
+  if (!ts.length) return "";
+  return `<section class="card"><h3>Messages</h3><div class="list">${ts.map(d => { const o = d.u.find(x => x !== S.uid), p = S.people[o], n = dmNew(d);
+    return `<button class="item person" data-act="dm" data-id="${o}">${av(p)}<div class="grow stack" style="gap:2px;min-width:0;text-align:left"><b>${esc(p.name || "Someone")}</b><span class="small muted" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.last.by === S.uid ? "You: " : ""}${esc(d.last.text)}</span></div><span class="stack" style="gap:4px;align-items:flex-end;flex:none"><span class="small muted">${ago(d.last.ts)}</span>${n ? `<span class="unreaddot">new</span>` : ""}</span></button>`; }).join("")}</div></section>`;
+}
+let dmUnsub = null, dmFor = null;
+function watchDm() {
+  const want = S.sheet?.dm ? dmId(S.sheet.dm) : null;
+  if (want === dmFor) return;
+  if (dmUnsub) dmUnsub(); dmUnsub = null; dmFor = want; S.dmMsgs = null;
+  if (want) dmUnsub = S.db.collection(`dms/${want}/msgs`).orderBy("ts", "desc").limit(100).onSnapshot(s => { S.dmMsgs = s.docs.map(d => ({ id: d.id, ...d.data() })).reverse(); renderSheet(); render(); }, e => { console.warn("dm", e); S.dmMsgs = []; renderSheet(); });
+}
+/* Re-renders rebuild the chat box: jump to the newest message when one arrives, otherwise keep where the person scrolled. */
+const chatPos = {};
+document.addEventListener("scroll", e => { const x = e.target; if (x.classList?.contains("chatlog")) chatPos[x.dataset.k] = { top: x.scrollTop, n: x.dataset.n }; }, true);
+function scrollChats() { document.querySelectorAll(".chatlog[data-k]").forEach(x => { const p = chatPos[x.dataset.k]; x.scrollTop = p && p.n === x.dataset.n ? p.top : x.scrollHeight; chatPos[x.dataset.k] = { top: x.scrollTop, n: x.dataset.n }; }); }
 
 /* ===== notifications ===== */
 const NOTE_KEY = () => "eoe-read-" + S.uid;
@@ -542,6 +606,8 @@ function feed() {
     const nm = S.people[c.by]?.name || c.name || "Someone", what = { prayer: "prayer time", word: "Bible time", build: "build session", train: "workout", stretch: "stretch", learn: "lesson" }[myRecent(c.log)?.kind] || "log";
     out.push({ key: `c${c.id}`, ts: c.ts, who: c.by, icon: c.t === "gj" ? "thumb" : "chat", area: "build", title: c.t === "gj" ? `${nm} said good job on your ${what}` : `${nm} commented on your ${what}`, sub: c.t === "c" ? c.text : "", go: ["gwins", g] });
   }
+  for (const [g, ms] of Object.entries(S.gchat)) { const fresh = (ms || []).filter(m => m.by !== S.uid && m.ts > since && m.ts > seen("g:" + g)); if (fresh.length) { const m = fresh[fresh.length - 1], nm = S.people[m.by]?.name || m.name || "Someone"; out.push({ key: `m${m.id}`, ts: m.ts, who: m.by, icon: "msg", area: "build", title: `${nm} in ${S.groups[g]?.name || "your crew"} chat${fresh.length > 1 ? ` (${fresh.length} new)` : ""}`, sub: m.text, go: ["gchat", g] }); } }
+  for (const d of S.dms) if (dmNew(d) && d.last.ts > since) { const o = d.u.find(x => x !== S.uid); out.push({ key: `d${d.id}${d.last.ts}`, ts: d.last.ts, who: o, icon: "msg", area: "build", title: `Message from ${S.people[o]?.name || d.last.name || "someone"}`, sub: d.last.text, go: ["dm", o] }); }
   const a = S.feature?.announce; if (a?.text && a.ts > since) out.push({ key: `a${a.ts}`, ts: a.ts, icon: "mega", area: "build", title: "Announcement from your coach", sub: a.text, go: ["today"] });
   return out.sort((x, y) => y.ts - x.ts).slice(0, 40);
 }
@@ -550,7 +616,7 @@ const unread = () => { const r = lastRead(); return feed().filter(x => x.ts > r)
 /* Live ping for anything newer than this session's start (or the last ping). */
 function alertNew() {
   if (!S.profile || !S.uid) return;
-  const fresh = feed().filter(x => x.ts > S.alertTop && x.ts <= Date.now() + 6e4 && !(S.isOwner && x.key[0] === "a"));
+  const fresh = feed().filter(x => x.ts > S.alertTop && x.ts <= Date.now() + 6e4 && !(S.isOwner && x.key[0] === "a") && !(x.go[0] === "gchat" && chatOpen("g:" + x.go[1])) && !(x.go[0] === "dm" && chatOpen(dmId(x.go[1]))));
   if (!fresh.length) return;
   S.alertTop = Math.max(...fresh.map(x => x.ts));
   const top = fresh[0], msg = fresh.length > 1 ? `${top.title} (+${fresh.length - 1} more)` : top.title;
@@ -600,7 +666,8 @@ function render() {
   else if (!S.profile) body = onboardView();
   else body = ({ today: todayView, calendar: calendarView, plan: planView, crew: crewView, coach: S.isOwner ? (coachOpen() ? coachView : coachLockView) : todayView, me: meView }[S.view] || todayView)();
   patch(root, `<main class="app ${wide ? "wide" : ""}">${brandBar()}${body}</main>${S.profile && S.uid ? navBar() : ""}`);
-  if (S.sheet?.peek || S.sheet?.feed) renderSheet();
+  if (S.sheet?.peek || S.sheet?.feed || S.sheet?.dm) renderSheet();
+  scrollChats();
   if (S.tour != null) renderTour(); else maybeTour();
 }
 /* Live data re-renders often: skip identical HTML, and keep whatever the person is typing (value, focus, cursor). */
@@ -840,7 +907,8 @@ function miniMusts(w) {
 const initial = n => esc((n || "?").trim().charAt(0) || "?");
 function crewView() {
   const mine = (S.profile.groups || []).filter(g => S.groups[g]);
-  return `<section class="card"><p class="tiny muted">Iron sharpens iron</p><h1>Your crew</h1><p class="small muted">Group up with your ${women() ? "sisters" : "brothers"}. Tap anyone to see what they're doing this week. Say good job on their wins. Each crew has its own prayer wall.</p></section>
+  return `<section class="card"><p class="tiny muted">Iron sharpens iron</p><h1>Your crew</h1><p class="small muted">Group up with your ${women() ? "sisters" : "brothers"}. Tap anyone to see their week or send them a message. Chat with the whole crew, say good job on their wins, and pray together on the prayer wall.</p></section>
+  ${dmCard()}
   ${mine.length ? "" : `<div class="empty">You're not in a crew yet. Start one or join with a code below.</div>`}
   ${mine.map(groupCard).join("")}
   ${S.ro ? "" : `<section class="card"><h3>Start a crew</h3><form class="row" data-form="gnew"><input id="g-name" class="input grow" maxlength="40" placeholder="Crew name, e.g. ${women() ? "Morning Sisters" : "Morning Men"}" aria-label="Crew name"><button class="btn primary" type="submit">Create</button></form></section>
@@ -853,11 +921,12 @@ function groupCard(gid) {
   const shots = members.flatMap(m => (S.crewProofs[m.id] || []).map(x => ({ ...x, who: m.p.name }))).sort((a, b) => b.ts - a.ts).slice(0, 12);
   const tab = S.gtab[gid] || "crew", r = lastRead(), fresh = (S.cwall[gid] || []).filter(x => x.by !== S.uid && x.ts > r).length;
   const gjNew = (S.cheers[gid] || []).filter(c => c.to === S.uid && c.by !== S.uid && c.ts > r).length;
-  const seg = `<div class="seg" role="tablist">${[["crew", "users", "Crew"], ["wins", "thumb", `Wins${gjNew ? ` · ${gjNew} new` : ""}`], ["wall", "heart", `Prayer wall${fresh ? ` · ${fresh} new` : ""}`], ["proof", "camera", "Proofs"]].map(([v, i, l]) => `<button role="tab" aria-selected="${tab === v}" class="${tab === v ? "on" : ""}" data-act="gtab" data-id="${gid}" data-v="${v}">${ic(i)} ${l}</button>`).join("")}</div>`;
+  const cNew = tab === "chat" ? 0 : gNew(gid);
+  const seg = `<div class="seg" role="tablist">${[["crew", "users", "Crew"], ["chat", "msg", `Chat${cNew ? ` · ${cNew} new` : ""}`], ["wins", "thumb", `Wins${gjNew ? ` · ${gjNew} new` : ""}`], ["wall", "heart", `Prayer wall${fresh ? ` · ${fresh} new` : ""}`], ["proof", "camera", "Proofs"]].map(([v, i, l]) => `<button role="tab" aria-selected="${tab === v}" class="${tab === v ? "on" : ""}" data-act="gtab" data-id="${gid}" data-v="${v}">${ic(i)} ${l}</button>`).join("")}</div>`;
   return `<section class="card" id="crew-${gid}">
     <div class="row spread"><div><p class="tiny muted">Crew · code <span class="mono" style="color:var(--accent)">${esc(g.code)}</span></p><h2>${esc(g.name)}</h2></div><button class="btn sm" data-act="invite" data-id="${gid}">${ic("copy")} Invite</button></div>
     ${seg}
-    ${tab === "wall" ? wallView(gid) : tab === "wins" ? winsView(gid, members) : tab === "proof" ? (shots.length ? `<div class="wall">${shots.map(s => `<figure class="shot" style="margin:0"><img src="${esc(proofSrc(s))}" alt="Proof photo from ${esc(s.who || "a crew member")}" loading="lazy"><div><b>${esc(s.who || "Someone")}</b> · ${esc(KINDS[s.kind]?.label || "")} · ${short(s.date)}</div></figure>`).join("")}</div>` : `<div class="empty">No photos yet. Snap one after your next workout or Bible time.</div>`) : `
+    ${tab === "wall" ? wallView(gid) : tab === "chat" ? crewChat(gid) : tab === "wins" ? winsView(gid, members) : tab === "proof" ? (shots.length ? `<div class="wall">${shots.map(s => `<figure class="shot" style="margin:0"><img src="${esc(proofSrc(s))}" alt="Proof photo from ${esc(s.who || "a crew member")}" loading="lazy"><div><b>${esc(s.who || "Someone")}</b> · ${esc(KINDS[s.kind]?.label || "")} · ${short(s.date)}</div></figure>`).join("")}</div>` : `<div class="empty">No photos yet. Snap one after your next workout or Bible time.</div>`) : `
     <div class="stack">${members.map((m, i) => `<button class="person" data-act="peek" data-id="${m.id}" aria-label="See ${esc(m.p.name || "this person")}'s week"><span class="rank">${i + 1}</span>${av(m.p)}<div class="grow stack" style="gap:4px"><b>${esc(m.p.name || "Someone")}${m.id === S.uid ? " (you)" : ""}</b><span class="small muted">${m.p.stats?.climb?.trial ? `<span style="color:var(--accent);font-weight:700">Trial week</span> · ` : ""}Lv ${m.p.stats?.level || 1} · ${ic("flame")} ${m.p.stats?.streak || 0} wk${seenTxt(m.p) ? ` · ${seenTxt(m.p)}` : ""}</span></div>${miniMusts(m.w)}</button>`).join("")}</div>
     <div><button class="linkish" data-act="gleave" data-id="${gid}">${S.armDel === "g" + gid ? "Tap again to leave this crew" : "Leave crew"}</button></div>`}
   </section>`;
@@ -908,6 +977,7 @@ function peekSheet(id) {
   const g = p.goal?.wk === monday(t) && p.goal.text ? p.goal : null, td = st.todo?.date === t ? st.todo : null, R = S.rules;
   const run = st.climb?.run || 0, shots = (S.crewProofs[id] || []).slice(0, 6);
   return `<div class="row">${av(p, true)}<div class="grow"><h2>${esc(p.name || "Someone")}</h2><p class="small muted">Lv ${st.level || 1} · ${ic("flame")} ${st.streak || 0} wk streak · best ${st.best || 0}${seenTxt(p) ? ` · ${seenTxt(p)}` : ""}</p></div></div>
+    ${id !== S.uid && !S.ro ? `<button class="btn primary block" data-act="dm" data-id="${id}">${ic("msg")} Message ${esc(p.name || "")}</button>` : ""}
     <div class="stack" style="gap:6px">${climbMeter({ run, need: R.levelWeeks + R.trialWeeks })}<p class="small muted">${st.climb?.trial ? `<b style="color:var(--accent)">On ${pro(p).his} trial week</b> for Level ${(st.level || 1) + 1}. Pray for ${pro(p).him}.` : `${Math.min(run, R.levelWeeks)}/${R.levelWeeks} weeks toward ${pro(p).his} next trial.`}</p></div>
     ${g ? `<div class="note"><p class="tiny muted">Goal of the week</p><p><b style="${g.done ? "text-decoration:line-through;color:var(--muted)" : ""}">${esc(g.text)}</b>${g.done ? ` <span style="color:var(--good)">Done</span>` : ""}</p></div>` : ""}
     ${td && td.total ? `<p class="small">To-do today: <b>${td.done}/${td.total}</b> done</p>` : ""}
@@ -1330,10 +1400,12 @@ addEventListener("scroll", () => S.tour != null && renderTour(), { passive: true
 
 function renderSheet() {
   const el = document.getElementById("sheet"), s = S.sheet;
+  if (S.db) watchDm();
   if (!s) return patch(el, "");
   if (s.photo) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Proof photo" data-stop><span class="grab"></span><div class="row spread"><h2>Proof</h2><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div><img class="bigphoto" src="${esc(s.photo)}" alt="Proof photo"></div></div>`);
   if (s.video) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="How to use the app" data-stop><span class="grab"></span><div class="row spread"><h2>How to use the app</h2><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div><video src="tutorial.mp4" controls playsinline autoplay style="width:100%;max-height:72vh;border-radius:14px;background:#000"></video></div></div>`);
   if (s.feed) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Crew activity" data-stop><span class="grab"></span>${feedSheet()}</div></div>`);
+  if (s.dm) { patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Chat with ${esc(S.people[s.dm]?.name || "crew member")}" data-stop><span class="grab"></span>${dmSheet(s.dm)}</div></div>`); return scrollChats(); }
   if (s.peek) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(S.people[s.peek]?.name || "Crew member")}" data-stop><span class="grab"></span><div class="row spread"><p class="tiny muted">Crew</p><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div>${peekSheet(s.peek)}</div></div>`);
   const d = KINDS[s.kind], t = today(), y = addD(t, -1);
   const keep = { note: document.getElementById("lg-note")?.value, min: document.getElementById("lg-min")?.value };
@@ -1491,7 +1563,8 @@ document.addEventListener("click", e => {
     case "feedgo": {
       const [where, x] = a.dataset.v.split(":"); S.sheet = null; renderSheet();
       if (where === "peek") { S.sheet = { peek: x }; loadCrewProofs(); return renderSheet(); }
-      if (where === "gwall" || where === "gwins") { S.gtab[x] = where.slice(1); go("crew"); return document.getElementById("crew-" + x)?.scrollIntoView({ block: "start" }); }
+      if (where === "dm") { S.sheet = { dm: x }; return renderSheet(); }
+      if (where === "gwall" || where === "gwins" || where === "gchat") { S.gtab[x] = where.slice(1); go("crew"); return document.getElementById("crew-" + x)?.scrollIntoView({ block: "start" }); }
       return go(where);
     }
     case "anndone": try { localStorage.setItem("eoe-ann", a.dataset.v); } catch {} return render();
@@ -1500,6 +1573,12 @@ document.addEventListener("click", e => {
       const g = a.dataset.g, x = S.cwall[g]?.find(p => p.id === id); if (!x || S.ro) return;
       const F = firebase.firestore.FieldValue, on = (x.amen || []).includes(S.uid);
       return q(() => S.db.doc(`groups/${g}/posts/${id}`).update({ amen: on ? F.arrayRemove(S.uid) : F.arrayUnion(S.uid) }));
+    }
+    case "dm": S.sheet = { dm: id }; renderSheet(); return setTimeout(() => document.getElementById("dm-input")?.focus({ preventScroll: true }), 50);
+    case "chdel": {
+      if (S.armDel !== "m" + id) { S.armDel = "m" + id; return render(); }
+      S.armDel = null;
+      return q(() => S.db.doc(`groups/${a.dataset.g}/chat/${id}`).delete());
     }
     case "gj": {
       const g = a.dataset.g, cid = `${id}_${S.uid}`, has = (S.cheers[g] || []).some(c => c.id === cid); if (S.ro) return;
@@ -1586,6 +1665,20 @@ document.addEventListener("submit", async e => {
     const g = S.profile.goal, wk = monday(today()), same = g?.wk === wk;
     inp.value = ""; S.goalEdit = false;
     return q(async () => { await S.db.doc(`people/${S.uid}`).update({ goal: { wk, text, done: same && g.text === text ? !!g.done : false } }); toast("Goal set. Go get it."); });
+  }
+  if (kind === "gchat") {
+    const g = f.dataset.g, inp = document.getElementById("gc-" + g), text = inp.value.trim(); if (!text) return;
+    inp.value = "";
+    return q(() => S.db.doc(`groups/${g}/chat/${rid(12)}`).set({ by: S.uid, name: S.profile.name || "", text: text.slice(0, 1000), ts: Date.now() }));
+  }
+  if (kind === "dm") {
+    const to = f.dataset.to, inp = document.getElementById("dm-input"), text = inp.value.trim().slice(0, 1000); if (!text) return;
+    inp.value = "";
+    const id = dmId(to), ts = Date.now();
+    return q(async () => {
+      await S.db.doc(`dms/${id}/msgs/${rid(12)}`).set({ by: S.uid, text, ts });
+      await S.db.doc(`dms/${id}`).set({ u: id.split("_"), last: { by: S.uid, name: S.profile.name || "", text: text.slice(0, 140), ts } });
+    });
   }
   if (kind === "cmt") {
     const g = f.dataset.g, k = f.dataset.k, inp = document.getElementById(`cm-${g}-${k}`), text = inp.value.trim(); if (!text) return;
