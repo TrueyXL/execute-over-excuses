@@ -166,6 +166,13 @@ textarea.input { min-height: 84px; resize: vertical; }
 .pick label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
 .post { display: grid; gap: 8px; padding: 14px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--line); border-left: 4px solid var(--accent); min-width: 0; }
 .post.k-prayer { border-left-color: var(--spirit); } .post.k-learned { border-left-color: var(--learn); } .post.k-word { border-left-color: var(--good); }
+.bell { position: relative; }
+.bell .dot { position: absolute; top: -5px; right: -5px; min-width: 19px; height: 19px; padding: 0 5px; border-radius: 99px; background: var(--accent); color: var(--accent-ink); font-size: 11px; font-weight: 800; display: grid; place-items: center; border: 2px solid var(--bg); }
+.brand .row { gap: 8px; }
+.ann { border: 1.5px solid var(--accent); background: var(--accent-soft); }
+.thumb { display: block; width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 12px; border: 1px solid var(--line); }
+.feed .item { align-items: center; }
+.feed .item.new b::after { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-left: 6px; vertical-align: middle; }
 .post p { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
 .chip.btnish { cursor: pointer; min-height: 34px; padding: 4px 12px; }
 .trialbox { padding: 12px 14px; border-radius: 14px; border: 1.5px dashed var(--accent); background: var(--accent-soft); }
@@ -286,6 +293,8 @@ const P = {
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
   moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/>',
   back: '<path d="m15 18-6-6 6-6"/>',
+  bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>',
+  mega: '<path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
 };
 const ic = (n, cls = "") => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${P[n] || ""}</svg>`;
 
@@ -323,6 +332,7 @@ const S = {
   profile: undefined, days: {}, plans: {}, notes: [], myProofs: [], people: {}, groups: {}, rules: { ...DEF_RULES },
   view: "today", sheet: null, sel: null, selData: null, crewProofs: {}, armDel: null, mine: null,
   calMonth: null, calSel: null, gcal: {}, gcalOn: false, gbusy: false, coachOK: false,
+  cwall: {}, gtab: {}, alertTop: 0,
 };
 const views = ["today", "calendar", "plan", "crew", "coach", "me"];
 const COACH_HASH = "4e072c27f29c879fd3c99e86451be75ebc3eaa13ef7e77d3478dab0a7c47bc7a";
@@ -442,6 +452,7 @@ let statsTimer = 0; const queueStats = () => { if (!statsTimer) statsTimer = set
 /* ===== boot ===== */
 let unsubs = [];
 async function boot() {
+  try { navigator.serviceWorker?.register("sw.js"); } catch {}
   try { const t = localStorage.getItem("exe-theme"); if (t) document.documentElement.dataset.theme = t; } catch {}
   const h = location.hash.slice(1); if (views.includes(h)) S.view = h;
   render();
@@ -451,7 +462,7 @@ async function boot() {
   S.db = firebase.firestore();
   S.auth.getRedirectResult().catch(e => authErr(e));
   S.auth.onAuthStateChanged(u => {
-    unsubs.forEach(f => f()); unsubs = []; S.wallUnsub?.(); S.wallUnsub = null; S.wallSide = null; S.wall = null; beatAt = 0;
+    unsubs.forEach(f => f()); unsubs = []; watchCrews([]); beatAt = 0; S.alertTop = Date.now();
     if (!u) { Object.assign(S, { uid: null, profile: undefined, days: {}, plans: {}, notes: [], myProofs: [], people: {}, groups: {}, status: "noid" }); return render(); }
     S.uid = u.uid; S.isOwner = !!u.email && u.email.toLowerCase() === ADMIN_EMAIL && u.emailVerified;
     S.status = "loading"; render();
@@ -460,20 +471,72 @@ async function boot() {
 }
 function listen() {
   const db = S.db, me = `people/${S.uid}`, on = (ref, fn) => unsubs.push(ref.onSnapshot(fn, dbErr));
-  on(db.doc(me), s => { S.profile = s.exists ? s.data() : null; S.status = "ready"; computeMine(); if (S.profile) { watchWall(S.isOwner && S.wallPick || sideOf(S.profile)); beat(); } render(); queueStats(); });
+  on(db.doc(me), s => { S.profile = s.exists ? s.data() : null; S.status = "ready"; computeMine(); if (S.profile) { watchCrews(S.profile.groups || []); beat(); } render(); queueStats(); });
   on(db.collection(`${me}/days`), s => { S.days = {}; s.docs.forEach(d => S.days[d.id] = d.data()); computeMine(); render(); queueStats(); });
   on(db.collection(`${me}/plans`), s => { S.plans = {}; s.docs.forEach(d => S.plans[d.id] = d.data()); render(); queueStats(); });
   on(db.collection(`${me}/notes`), s => { S.notes = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => b.ts - a.ts); render(); });
   on(db.collection(`${me}/proofs`).orderBy("ts", "desc").limit(24), s => { S.myProofs = s.docs.map(d => ({ id: d.id, ...d.data() })); render(); });
-  on(db.collection("people"), s => { S.people = {}; s.docs.forEach(d => S.people[d.id] = d.data()); render(); });
+  on(db.collection("people"), s => { S.people = {}; s.docs.forEach(d => S.people[d.id] = d.data()); alertNew(); render(); });
   on(db.collection("groups"), s => { S.groups = {}; s.docs.forEach(d => S.groups[d.id] = d.data()); render(); });
-  on(db.doc("config/feature"), s => { S.feature = s.exists ? s.data() : {}; render(); });
+  on(db.doc("config/feature"), s => { S.feature = s.exists ? s.data() : {}; alertNew(); render(); });
   on(db.doc("config/rules"), s => { S.rules = { ...DEF_RULES, ...(s.exists ? s.data() : {}) }; computeMine(); render(); queueStats(); });
 }
-function watchWall(side) {
-  if (S.wallSide === side) return;
-  S.wallUnsub?.(); S.wallSide = side; S.wall = null;
-  S.wallUnsub = S.db.collection(`walls/${side}/posts`).orderBy("ts", "desc").limit(60).onSnapshot(s => { S.wall = s.docs.map(d => ({ id: d.id, ...d.data() })); render(); }, e => { console.warn("wall", e); S.wall = []; render(); });
+/* One live prayer wall per crew you're in. */
+let crewUnsubs = {};
+function watchCrews(gids) {
+  for (const g of Object.keys(crewUnsubs)) if (!gids.includes(g)) { crewUnsubs[g](); delete crewUnsubs[g]; delete S.cwall[g]; }
+  for (const g of gids) if (!crewUnsubs[g]) crewUnsubs[g] = S.db.collection(`groups/${g}/posts`).orderBy("ts", "desc").limit(60).onSnapshot(s => { S.cwall[g] = s.docs.map(d => ({ id: d.id, ...d.data() })); alertNew(); render(); }, e => { console.warn("wall", e); S.cwall[g] = []; render(); });
+}
+
+/* ===== notifications ===== */
+const NOTE_KEY = () => "eoe-read-" + S.uid;
+const lastRead = () => { try { return +localStorage.getItem(NOTE_KEY()) || 0; } catch { return 0; } };
+function crewIds() {
+  const gs = S.profile?.groups || [];
+  return Object.entries(S.people).filter(([id, p]) => id !== S.uid && (p.groups || []).some(g => gs.includes(g))).map(([id]) => id);
+}
+function logLine(l) { const d = KINDS[l.kind] || {}; return `${d.label || "something"}${l.type ? ` · ${l.type}` : ""}${l.min ? ` · ${+l.min} min` : ""}`; }
+/* Everything worth a ping: crewmates' logs, new crew wall posts, and the coach's announcement. Last 7 days. */
+function feed() {
+  const since = Date.now() - 7 * 864e5, out = [];
+  for (const id of crewIds()) { const p = S.people[id]; for (const l of p.stats?.recent || []) if (l.ts > since) out.push({ key: `l${id}${l.ts}`, ts: l.ts, who: id, icon: KINDS[l.kind]?.icon || "check", area: KINDS[l.kind]?.area, title: `${p.name || "Someone"} logged ${logLine(l)}`, go: ["peek", id] }); }
+  for (const [g, posts] of Object.entries(S.cwall)) for (const x of posts || []) if (x.by !== S.uid && x.ts > since) {
+    const nm = x.anon ? "Someone" : S.people[x.by]?.name || x.name || "Someone", kl = { prayer: "posted a prayer request", learned: "shared what they learned" }[x.kind] || "posted a word";
+    out.push({ key: `w${x.id}`, ts: x.ts, who: x.anon ? null : x.by, icon: x.kind === "prayer" ? "heart" : "flame", area: x.kind === "prayer" ? "spirit" : "learn", title: `${nm} ${kl} in ${S.groups[g]?.name || "your crew"}`, sub: x.text, go: ["gwall", g] });
+  }
+  const a = S.feature?.announce; if (a?.text && a.ts > since) out.push({ key: `a${a.ts}`, ts: a.ts, icon: "mega", area: "build", title: "Announcement from your coach", sub: a.text, go: ["today"] });
+  return out.sort((x, y) => y.ts - x.ts).slice(0, 40);
+}
+const unread = () => { const r = lastRead(); return feed().filter(x => x.ts > r).length; };
+/* Live ping for anything newer than this session's start (or the last ping). */
+function alertNew() {
+  if (!S.profile || !S.uid) return;
+  const fresh = feed().filter(x => x.ts > S.alertTop && x.ts <= Date.now() + 6e4 && !(S.isOwner && x.key[0] === "a"));
+  if (!fresh.length) return;
+  S.alertTop = Math.max(...fresh.map(x => x.ts));
+  const top = fresh[0], msg = fresh.length > 1 ? `${top.title} (+${fresh.length - 1} more)` : top.title;
+  if (!document.hidden) toast(msg);
+  sysNotify(fresh.length > 1 ? `${fresh.length} new from your crew` : top.title, top.sub || (fresh.length > 1 ? top.title : "Tap to open Execute"));
+}
+const canNotify = () => "Notification" in window;
+async function sysNotify(title, body) {
+  if (!canNotify() || Notification.permission !== "granted" || !document.hidden) return;
+  const opts = { body: (body || "").slice(0, 140), icon: "icon-192.png", badge: "icon-192.png", tag: "eoe-crew" };
+  try { const r = await navigator.serviceWorker?.getRegistration(); if (r) return r.showNotification(title, opts); } catch {}
+  try { const n = new Notification(title, opts); n.onclick = () => { window.focus(); n.close(); }; } catch {}
+}
+async function askNotify() {
+  if (!canNotify()) return toast("This browser can't show notifications. On iPhone, add the app to your home screen first.");
+  const r = await Notification.requestPermission();
+  toast(r === "granted" ? "Notifications on. You'll get pinged when your crew logs." : "Notifications are blocked. Turn them on in your browser settings.");
+  render(); if (S.sheet?.feed) renderSheet();
+}
+function feedSheet() {
+  const items = feed(), r = S.sheet.read ?? 0, perm = canNotify() ? Notification.permission : "none";
+  return `<div class="row spread"><h2>Your crew</h2><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div>
+    ${perm === "default" ? `<div class="note stack" style="gap:8px"><p class="small">Get a ping on this phone when someone in your crew logs or posts.</p><div><button class="btn sm primary" data-act="notifyon">${ic("bell")} Turn on notifications</button></div></div>` : perm === "denied" ? `<p class="small muted">Phone notifications are blocked for this site. You can turn them on in your browser settings.</p>` : ""}
+    ${items.length ? `<div class="list feed">${items.map(x => `<button class="item person ${x.ts > r ? "new" : ""}" data-act="feedgo" data-v="${esc(x.go.join(":"))}">${x.who ? av(S.people[x.who]) : `<span class="avatar a-${x.area || "build"}">${ic(x.icon)}</span>`}<div class="grow stack" style="gap:2px;min-width:0;text-align:left"><b style="overflow-wrap:anywhere">${esc(x.title)}</b>${x.sub ? `<span class="small muted" style="overflow-wrap:anywhere">${esc(x.sub.length > 90 ? x.sub.slice(0, 90) + "…" : x.sub)}</span>` : ""}</div><span class="small muted" style="flex:none">${ago(x.ts)}</span></button>`).join("")}</div>`
+      : `<div class="empty">Nothing yet. When someone in your crew logs a workout, prayer or lesson, it shows up here.</div>`}`;
 }
 function dbErr(e) { console.warn("db", e); if (e?.code === "permission-denied" && S.status === "loading") { S.status = "nodb"; render(); } }
 function authErr(e) {
@@ -498,7 +561,7 @@ function render() {
   else if (!S.profile) body = onboardView();
   else body = ({ today: todayView, calendar: calendarView, plan: planView, crew: crewView, coach: S.isOwner ? (coachOpen() ? coachView : coachLockView) : todayView, me: meView }[S.view] || todayView)();
   patch(root, `<main class="app ${wide ? "wide" : ""}">${brandBar()}${body}</main>${S.profile && S.uid ? navBar() : ""}`);
-  if (S.sheet?.peek) renderSheet();
+  if (S.sheet?.peek || S.sheet?.feed) renderSheet();
 }
 /* Live data re-renders often: skip identical HTML, and keep whatever the person is typing (value, focus, cursor). */
 function patch(el, html) {
@@ -516,7 +579,7 @@ function patch(el, html) {
 }
 function brandBar() {
   const dark = (document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark")) === "dark";
-  return `<header class="brand"><div class="logo">Execute <b>&gt;</b> <s>Excuses</s></div><button class="icon-btn" data-act="theme" aria-label="Switch to ${dark ? "light" : "dark"} mode">${ic(dark ? "sun" : "moon")}</button></header>`;
+  return `<header class="brand"><div class="logo">Execute <b>&gt;</b> <s>Excuses</s></div><div class="row">${S.profile && S.uid ? (n => `<button class="icon-btn bell" data-act="feed" aria-label="Crew activity${n ? `, ${n} new` : ""}">${ic("bell")}${n ? `<span class="dot">${n > 9 ? "9+" : n}</span>` : ""}</button>`)(unread()) : ""}<button class="icon-btn" data-act="theme" aria-label="Switch to ${dark ? "light" : "dark"} mode">${ic(dark ? "sun" : "moon")}</button></div></header>`;
 }
 function navBar() {
   const items = [["today", "target", "Today"], ["calendar", "cal", "Calendar"], ["plan", "check", "Plan"], ["crew", "users", "Crew"], ...(S.isOwner ? [["coach", "shield", "Coach"]] : []), ["me", "user", "Me"]];
@@ -587,6 +650,7 @@ function todayView() {
   const sDone = pr.length || wd.length, bDone = bd.length;
   const unseen = S.notes.filter(n => !n.seen);
   return `${hud()}
+  ${annCard()}
   ${goalCard()}
   ${unseen.map(n => `<section class="note stack"><p class="tiny" style="color:var(--accent)">From your coach · ${short(iso(new Date(n.ts)))}</p><p>${esc(n.text)}</p><div><button class="btn sm" data-act="seen" data-id="${n.id}">${ic("check")} Got it</button></div></section>`).join("")}
   <section class="card">
@@ -623,12 +687,21 @@ function leaders(n = 3) {
   return Object.entries(S.people).filter(([, p]) => sideOf(p) === side && p.stats?.weekId === cur && p.stats.week?.xp > 0)
     .map(([id, p]) => ({ id, p, xp: p.stats.week.xp })).sort((a, b) => b.xp - a.xp).slice(0, n);
 }
+const ytId = u => (u || "").match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/)?.[1] || "";
+function annCard() {
+  const a = S.feature?.announce; if (!a?.text) return "";
+  let gone = 0; try { gone = +localStorage.getItem("eoe-ann") || 0; } catch {}
+  if (gone >= a.ts) return "";
+  return `<section class="card ann"><div class="row spread"><p class="tiny" style="color:var(--accent)">${ic("mega")} Announcement · ${ago(a.ts)}</p><button class="linkish small" data-act="anndone" data-v="${a.ts}">Got it</button></div><p style="white-space:pre-wrap;overflow-wrap:anywhere"><b>${esc(a.text)}</b></p></section>`;
+}
 function spotlight() {
-  const f = S.feature || {}, pod = f.podcast || {}, url = safeUrl(pod.url), prize = f.prize?.text, top = leaders();
+  const f = S.feature || {}, pod = f.podcast || {}, url = safeUrl(pod.url), prize = f.prize?.text, top = leaders(), yt = ytId(url);
   if (!pod.title && !prize) return "";
   return `<section class="card">
-    ${pod.title ? `<div class="stack" style="gap:6px"><p class="tiny muted">Podcast of the week</p><h3>${esc(pod.title)}</h3>${pod.note ? `<p class="small muted">${esc(pod.note)}</p>` : ""}
-      <div class="row wrap" style="gap:8px">${url ? `<a class="btn sm primary" href="${esc(url)}" target="_blank" rel="noopener">${ic("send")} Listen</a>` : ""}<button class="btn sm" data-act="podlearn">${ic("bulb")} Log what I learned</button></div></div>` : ""}
+    ${pod.title ? `<div class="stack" style="gap:8px"><p class="tiny muted">${ic("bulb")} Learn something this week · suggestion</p>
+      ${yt && url ? `<a href="${esc(url)}" target="_blank" rel="noopener" aria-label="Watch ${esc(pod.title)}"><img class="thumb" src="https://i.ytimg.com/vi/${yt}/hqdefault.jpg" alt="" loading="lazy"></a>` : ""}
+      <h3 style="overflow-wrap:anywhere">${esc(pod.title)}</h3>${pod.note ? `<p class="small muted">${esc(pod.note)}</p>` : ""}
+      <div class="row wrap" style="gap:8px">${url ? `<a class="btn sm primary" href="${esc(url)}" target="_blank" rel="noopener">${ic("send")} Watch or listen</a>` : ""}<button class="btn sm" data-act="podlearn">${ic("bulb")} Log what I learned</button></div></div>` : ""}
     ${prize ? `<div class="stack" style="gap:6px;${pod.title ? "border-top:1px solid var(--line);padding-top:12px" : ""}"><p class="tiny muted">The prize</p><p><b>${esc(prize)}</b></p>
       ${top.length ? `<p class="tiny muted">This week's leaders</p><div class="list">${top.map((x, i) => `<div class="item" style="align-items:center"><span class="rank">${i + 1}</span>${av(x.p)}<b class="grow">${esc(x.p.name || "Someone")}${x.id === S.uid ? " (you)" : ""}</b><span class="mono small">${x.xp} XP</span></div>`).join("")}</div>` : `<p class="small muted">Nobody has XP this week yet. Be first.</p>`}</div>` : ""}
   </section>`;
@@ -718,10 +791,9 @@ function miniMusts(w) {
 }
 const initial = n => esc((n || "?").trim().charAt(0) || "?");
 function crewView() {
-  const mine = (S.profile.groups || []).filter(g => S.groups[g]), tab = S.crewTab || "wall";
-  const seg = `<div class="seg" role="tablist"><button role="tab" aria-selected="${tab === "wall"}" class="${tab === "wall" ? "on" : ""}" data-act="crewtab" data-v="wall">${ic("heart")} Prayer wall</button><button role="tab" aria-selected="${tab === "crews"}" class="${tab === "crews" ? "on" : ""}" data-act="crewtab" data-v="crews">${ic("users")} My crews</button></div>`;
-  if (tab === "wall") return `<section class="card"><p class="tiny muted">Iron sharpens iron</p><h1>Prayer wall</h1><p class="small muted">Drop a prayer request, something you learned, or a word for ${women() ? "the sisters" : "the mandem"}. Everyone on the ${women() ? "women's" : "men's"} side sees it.</p>${seg}</section>${wallView()}`;
-  return `<section class="card"><p class="tiny muted">Iron sharpens iron</p><h1>Your crew</h1><p class="small muted">Group up with your ${women() ? "sisters" : "brothers"}. Tap anyone to see what they're doing this week.</p>${seg}</section>
+  const mine = (S.profile.groups || []).filter(g => S.groups[g]);
+  return `<section class="card"><p class="tiny muted">Iron sharpens iron</p><h1>Your crew</h1><p class="small muted">Group up with your ${women() ? "sisters" : "brothers"}. Tap anyone to see what they're doing this week. Each crew has its own prayer wall.</p></section>
+  ${mine.length ? "" : `<div class="empty">You're not in a crew yet. Start one or join with a code below.</div>`}
   ${mine.map(groupCard).join("")}
   ${S.ro ? "" : `<section class="card"><h3>Start a crew</h3><form class="row" data-form="gnew"><input id="g-name" class="input grow" maxlength="40" placeholder="Crew name, e.g. ${women() ? "Morning Sisters" : "Morning Men"}" aria-label="Crew name"><button class="btn primary" type="submit">Create</button></form></section>
   <section class="card"><h3>Join a crew</h3><form class="row" data-form="gjoin"><input id="g-code" class="input grow mono" maxlength="6" placeholder="6-letter code" aria-label="Crew code" autocapitalize="characters" style="text-transform:uppercase"><button class="btn" type="submit">Join</button></form></section>`}`;
@@ -731,33 +803,34 @@ function groupCard(gid) {
   const members = Object.entries(S.people).filter(([, p]) => (p.groups || []).includes(gid)).map(([id, p]) => ({ id, p, w: personWeek(p) }))
     .sort((a, b) => b.w.mustsDone - a.w.mustsDone || b.w.xp - a.w.xp);
   const shots = members.flatMap(m => (S.crewProofs[m.id] || []).map(x => ({ ...x, who: m.p.name }))).sort((a, b) => b.ts - a.ts).slice(0, 12);
-  return `<section class="card">
+  const tab = S.gtab[gid] || "crew", r = lastRead(), fresh = (S.cwall[gid] || []).filter(x => x.by !== S.uid && x.ts > r).length;
+  const seg = `<div class="seg" role="tablist">${[["crew", "users", "Crew"], ["wall", "heart", `Prayer wall${fresh ? ` · ${fresh} new` : ""}`], ["proof", "camera", "Proofs"]].map(([v, i, l]) => `<button role="tab" aria-selected="${tab === v}" class="${tab === v ? "on" : ""}" data-act="gtab" data-id="${gid}" data-v="${v}">${ic(i)} ${l}</button>`).join("")}</div>`;
+  return `<section class="card" id="crew-${gid}">
     <div class="row spread"><div><p class="tiny muted">Crew · code <span class="mono" style="color:var(--accent)">${esc(g.code)}</span></p><h2>${esc(g.name)}</h2></div><button class="btn sm" data-act="invite" data-id="${gid}">${ic("copy")} Invite</button></div>
+    ${seg}
+    ${tab === "wall" ? wallView(gid) : tab === "proof" ? (shots.length ? `<div class="wall">${shots.map(s => `<figure class="shot" style="margin:0"><img src="${esc(proofSrc(s))}" alt="Proof photo from ${esc(s.who || "a crew member")}" loading="lazy"><div><b>${esc(s.who || "Someone")}</b> · ${esc(KINDS[s.kind]?.label || "")} · ${short(s.date)}</div></figure>`).join("")}</div>` : `<div class="empty">No photos yet. Snap one after your next workout or Bible time.</div>`) : `
     <div class="stack">${members.map((m, i) => `<button class="person" data-act="peek" data-id="${m.id}" aria-label="See ${esc(m.p.name || "this person")}'s week"><span class="rank">${i + 1}</span>${av(m.p)}<div class="grow stack" style="gap:4px"><b>${esc(m.p.name || "Someone")}${m.id === S.uid ? " (you)" : ""}</b><span class="small muted">${m.p.stats?.climb?.trial ? `<span style="color:var(--accent);font-weight:700">Trial week</span> · ` : ""}Lv ${m.p.stats?.level || 1} · ${ic("flame")} ${m.p.stats?.streak || 0} wk${seenTxt(m.p) ? ` · ${seenTxt(m.p)}` : ""}</span></div>${miniMusts(m.w)}</button>`).join("")}</div>
-    <h3 style="margin-top:6px">Proof wall</h3>
-    ${shots.length ? `<div class="wall">${shots.map(s => `<figure class="shot" style="margin:0"><img src="${esc(proofSrc(s))}" alt="Proof photo from ${esc(s.who || "a crew member")}" loading="lazy"><div><b>${esc(s.who || "Someone")}</b> · ${esc(KINDS[s.kind]?.label || "")} · ${short(s.date)}</div></figure>`).join("")}</div>` : `<div class="empty">No photos yet. Snap one after your next workout or Bible time.</div>`}
-    <div><button class="linkish" data-act="gleave" data-id="${gid}">${S.armDel === "g" + gid ? "Tap again to leave this crew" : "Leave crew"}</button></div>
+    <div><button class="linkish" data-act="gleave" data-id="${gid}">${S.armDel === "g" + gid ? "Tap again to leave this crew" : "Leave crew"}</button></div>`}
   </section>`;
 }
 const WALL_KINDS = { prayer: ["Prayer request", "Praying"], learned: ["What I learned", "Amen"], word: ["A word for the crew", "Amen"] };
-function wallView() {
-  const posts = S.wall, k = S.wallKind || "prayer", pick = S.isOwner ? S.wallSide : null;
-  const form = S.ro ? "" : `<section class="card"><h3>Drop something</h3>
+function wallView(gid) {
+  const posts = S.cwall[gid], k = S.wallKind || "prayer";
+  const form = S.ro ? "" : `<div class="stack" style="gap:10px">
     <div class="seg" role="group" aria-label="Post type">${Object.entries(WALL_KINDS).map(([v, [l]]) => `<button class="${k === v ? "on" : ""}" data-act="wallkind" data-v="${v}">${l}</button>`).join("")}</div>
-    <form class="stack" data-form="wall" style="gap:10px"><textarea id="wall-text" class="input" maxlength="600" placeholder="${k === "prayer" ? "What can we pray with you about?" : k === "learned" ? "What did you learn this week? A verse, a lesson, a skill." : "Encourage your crew."}" aria-label="Your post"></textarea>
-      <label class="row small" style="gap:8px"><input id="wall-anon" type="checkbox"> Post without my name</label>
-      <button class="btn primary" type="submit">${ic("send")} Post</button></form></section>`;
-  const sw = pick ? `<section class="card"><p class="small muted">Coach: you can see both walls.</p><div class="seg">${["men", "women"].map(v => `<button class="${pick === v ? "on" : ""}" data-act="wallside" data-v="${v}">${v === "men" ? "Men's wall" : "Women's wall"}</button>`).join("")}</div></section>` : "";
-  const list = posts == null ? `<p class="muted small">Loading…</p>` : posts.length ? posts.map(post).join("") : `<div class="empty">Nothing here yet. Be the first to drop a prayer request or a lesson.</div>`;
-  return `${sw}${form}<section class="stack" style="gap:10px" aria-label="Posts">${list}</section>`;
+    <form class="stack" data-form="wall" data-g="${gid}" style="gap:10px"><textarea id="wall-text-${gid}" class="input" maxlength="600" placeholder="${k === "prayer" ? "What can the crew pray with you about?" : k === "learned" ? "What did you learn this week? A verse, a lesson, a skill." : "Encourage your crew."}" aria-label="Your post"></textarea>
+      <label class="row small" style="gap:8px"><input id="wall-anon-${gid}" type="checkbox"> Post without my name</label>
+      <button class="btn primary" type="submit">${ic("send")} Post to the crew</button></form></div>`;
+  const list = posts == null ? `<p class="muted small">Loading…</p>` : posts.length ? posts.map(x => post(x, gid)).join("") : `<div class="empty">Nothing here yet. Be the first to drop a prayer request or a lesson.</div>`;
+  return `${form}<div class="stack" style="gap:10px" aria-label="Posts">${list}</div>`;
 }
-function post(x) {
+function post(x, gid) {
   const who = S.people[x.by], name = esc(who?.name || x.name || "Someone"), amen = x.amen || [], on = amen.includes(S.uid);
   const label = x.anon ? (S.isOwner ? `Anonymous <span class="muted">(${name})</span>` : "Anonymous") : name;
   const [kl, verb] = WALL_KINDS[x.kind] || WALL_KINDS.word;
-  const del = (x.by === S.uid || S.isOwner) && !S.ro ? `<button class="linkish" data-act="wdel" data-id="${x.id}" aria-label="Delete post">${S.armDel === "w" + x.id ? "Tap to delete" : ic("trash")}</button>` : "";
+  const del = (x.by === S.uid || S.isOwner) && !S.ro ? `<button class="linkish" data-act="wdel" data-g="${gid}" data-id="${x.id}" aria-label="Delete post">${S.armDel === "w" + x.id ? "Tap to delete" : ic("trash")}</button>` : "";
   return `<article class="post k-${esc(x.kind)}"><div class="row spread" style="align-items:flex-start"><div class="row" style="gap:10px;min-width:0">${x.anon ? `<span class="avatar">?</span>` : av(who || { name: x.name })}<div style="min-width:0"><b>${label}</b><p class="tiny muted">${kl} · ${ago(x.ts)}</p></div></div>${del}</div>
-    <p>${esc(x.text)}</p><div><button class="chip btnish ${on ? "on" : ""}" data-act="amen" data-id="${x.id}" aria-pressed="${on}">${ic(x.kind === "prayer" ? "heart" : "flame")} ${verb}${amen.length ? ` · ${amen.length}` : ""}</button></div></article>`;
+    <p>${esc(x.text)}</p><div><button class="chip btnish ${on ? "on" : ""}" data-act="amen" data-g="${gid}" data-id="${x.id}" aria-pressed="${on}">${ic(x.kind === "prayer" ? "heart" : "flame")} ${verb}${amen.length ? ` · ${amen.length}` : ""}</button></div></article>`;
 }
 function peekSheet(id) {
   const p = S.people[id]; if (!p) return "";
@@ -1001,9 +1074,11 @@ async function loadPerson(id) {
 }
 function featureEditor() {
   const f = S.feature || {}, pod = f.podcast || {};
-  return `<section class="card"><h3>Podcast of the week & prize</h3><p class="small muted">Shows on everyone's Today tab. Leave a box empty to hide it.</p>
+  return `<section class="card"><h3>Announcement, learn suggestion & prize</h3><p class="small muted">Shows on everyone's Today tab. Leave a box empty to hide it. A new announcement pings everyone who has the app open.</p>
     <form class="stack" data-form="feature" style="gap:10px">
-      <div class="field"><label for="ft-title">Podcast title</label><input id="ft-title" class="input" maxlength="100" value="${esc(pod.title || "")}" placeholder="e.g. TGL · One Step, Part 1"></div>
+      <div class="field"><label for="ft-ann">Announcement</label><textarea id="ft-ann" class="input" maxlength="400" placeholder="e.g. Prayer night Friday 7PM. Bring a friend.">${esc(f.announce?.text || "")}</textarea></div>
+      <p class="tiny muted" style="margin-top:4px">Learn something this week</p>
+      <div class="field"><label for="ft-title">Suggestion title (podcast, video, book)</label><input id="ft-title" class="input" maxlength="100" value="${esc(pod.title || "")}" placeholder="e.g. TGL · One Step, Part 1"></div>
       <div class="field"><label for="ft-url">Link</label><input id="ft-url" class="input" type="url" maxlength="300" value="${esc(pod.url || "")}" placeholder="https://"></div>
       <div class="field"><label for="ft-note">Why listen (optional)</label><input id="ft-note" class="input" maxlength="160" value="${esc(pod.note || "")}"></div>
       <div class="field"><label for="ft-prize">Prize</label><textarea id="ft-prize" class="input" maxlength="200" placeholder="e.g. Most XP this week wins lunch with the coach.">${esc(f.prize?.text || "")}</textarea></div>
@@ -1038,6 +1113,7 @@ function meView() {
       ${S.ro ? "" : `<button class="btn primary" type="submit">Save</button>`}
     </form></section>
   ${rulesCard()}
+  ${canNotify() ? `<section class="card"><h3>Crew notifications</h3>${Notification.permission === "granted" ? `<p class="small">On. You get a ping when someone in your crew logs, posts on the prayer wall, or your coach makes an announcement.</p>` : Notification.permission === "denied" ? `<p class="small muted">Blocked for this site. Turn them on in your browser's site settings.</p>` : `<p class="small">Get a ping when someone in your crew logs or posts.</p><div><button class="btn sm primary" data-act="notifyon">${ic("bell")} Turn on notifications</button></div>`}<p class="tiny muted">Works while the app is open or in the background. On iPhone, add it to your home screen first.</p></section>` : ""}
   <section class="card"><h3>Put it on your home screen</h3>
     <div class="stack small"><p><b>iPhone:</b> open the link in Safari, tap Share, then <b>Add to Home Screen</b>.</p><p><b>Samsung / Android:</b> open the link in Chrome or Samsung Internet, tap the menu (⋮ or ☰), then <b>Add to Home screen</b>.</p>
     <div class="row"><input class="input grow mono small" value="${SHORT_LINK}" readonly aria-label="App link" id="me-link"><button class="btn" data-act="copy" data-text="${SHORT_LINK}">${ic("copy")}</button></div></div></section>
@@ -1064,6 +1140,7 @@ async function openEdit(date, id) {
 function renderSheet() {
   const el = document.getElementById("sheet"), s = S.sheet;
   if (!s) return patch(el, "");
+  if (s.feed) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Crew activity" data-stop><span class="grab"></span>${feedSheet()}</div></div>`);
   if (s.peek) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(S.people[s.peek]?.name || "Crew member")}" data-stop><span class="grab"></span><div class="row spread"><p class="tiny muted">Crew</p><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div>${peekSheet(s.peek)}</div></div>`);
   const d = KINDS[s.kind], t = today(), y = addD(t, -1);
   const keep = { note: document.getElementById("lg-note")?.value, min: document.getElementById("lg-min")?.value };
@@ -1073,6 +1150,7 @@ function renderSheet() {
     ${s.edit ? `<p class="small muted">Logged ${nice(s.date)}</p><div class="field"><label>Category</label><div class="seg">${Object.entries(KINDS).map(([k, x]) => `<button class="${s.kind === k ? "on" : ""}" data-act="skind" data-v="${k}">${x.label}</button>`).join("")}</div></div>` : `<div class="seg" role="group" aria-label="Day"><button class="${s.date === t ? "on" : ""}" data-act="sdate" data-v="${t}">Today</button><button class="${s.date === y ? "on" : ""}" data-act="sdate" data-v="${y}">Yesterday</button></div>`}
     ${d.types ? `<div class="field"><label>Type</label><div class="seg">${d.types.map(x => `<button class="${s.type === x ? "on" : ""}" data-act="stype" data-v="${x}">${x}</button>`).join("")}</div></div>` : ""}
     ${d.min ? `<div class="field"><label for="lg-min">Minutes</label><div class="seg">${[10, 15, 30, 45, 60, 90].map(m => `<button class="${+s.min === m ? "on" : ""}" data-act="smin" data-v="${m}">${m}</button>`).join("")}</div><input id="lg-min" class="input mono" type="number" inputmode="numeric" min="1" max="600" value="${esc(keep.min ?? s.min)}"></div>` : ""}
+    ${s.kind === "learn" && S.feature?.podcast?.title ? `<div class="note row spread" style="gap:10px"><p class="small" style="min-width:0;overflow-wrap:anywhere">This week's suggestion: <b>${esc(S.feature.podcast.title)}</b></p><button class="btn sm" data-act="usesug">Use it</button></div>` : ""}
     <div class="field"><label for="lg-note">${esc(d.note)} <span style="color:var(--accent)">(required)</span></label><textarea id="lg-note" class="input" maxlength="600" placeholder="${esc(d.ph)}">${esc(keep.note ?? s.note)}</textarea></div>
     ${d.photo ? `<div class="field"><label>Proof photo <span class="muted">(+${PHOTO_XP} XP)</span></label>
       ${s.url ? `<img class="preview" src="${s.url}" alt="Your photo"><button class="btn sm ghost" data-act="nophoto">${ic("x")} Remove photo</button>` : s.oldProof && !s.dropOld ? `${s.oldSrc ? `<img class="preview" src="${esc(s.oldSrc)}" alt="Your saved photo">` : `<p class="small muted">Photo saved.</p>`}<div class="row"><label class="btn grow" for="lg-cam">${ic("camera")} Retake</label><label class="btn grow" for="lg-pick">${ic("image")} Replace</label><button class="btn ghost danger" data-act="dropold" aria-label="Remove photo">${ic("trash")}</button></div>` : `<div class="row">
@@ -1203,19 +1281,27 @@ document.addEventListener("click", e => {
     }
     case "sel": return loadPerson(id);
     case "peek": S.sheet = { peek: id }; loadCrewProofs(); return renderSheet();
-    case "crewtab": S.crewTab = a.dataset.v; return render();
+    case "gtab": S.gtab[id] = a.dataset.v; if (a.dataset.v === "proof") loadCrewProofs(); return render();
     case "wallkind": S.wallKind = a.dataset.v; return render();
-    case "wallside": S.wallPick = a.dataset.v; watchWall(a.dataset.v); return render();
+    case "feed": { const r = lastRead(); S.sheet = { feed: true, read: r }; try { localStorage.setItem(NOTE_KEY(), String(Date.now())); } catch {} render(); return renderSheet(); }
+    case "notifyon": return askNotify();
+    case "feedgo": {
+      const [where, x] = a.dataset.v.split(":"); S.sheet = null; renderSheet();
+      if (where === "peek") { S.sheet = { peek: x }; loadCrewProofs(); return renderSheet(); }
+      if (where === "gwall") { S.gtab[x] = "wall"; go("crew"); return document.getElementById("crew-" + x)?.scrollIntoView({ block: "start" }); }
+      return go(where);
+    }
+    case "anndone": try { localStorage.setItem("eoe-ann", a.dataset.v); } catch {} return render();
     case "coachside": S.coachSide = a.dataset.v; return render();
     case "amen": {
-      const x = S.wall?.find(p => p.id === id); if (!x || S.ro) return;
+      const g = a.dataset.g, x = S.cwall[g]?.find(p => p.id === id); if (!x || S.ro) return;
       const F = firebase.firestore.FieldValue, on = (x.amen || []).includes(S.uid);
-      return q(() => S.db.doc(`walls/${S.wallSide}/posts/${id}`).update({ amen: on ? F.arrayRemove(S.uid) : F.arrayUnion(S.uid) }));
+      return q(() => S.db.doc(`groups/${g}/posts/${id}`).update({ amen: on ? F.arrayRemove(S.uid) : F.arrayUnion(S.uid) }));
     }
     case "wdel": {
       if (S.armDel !== "w" + id) { S.armDel = "w" + id; return render(); }
       S.armDel = null; toast("Post removed");
-      return q(() => S.db.doc(`walls/${S.wallSide}/posts/${id}`).delete());
+      return q(() => S.db.doc(`groups/${a.dataset.g}/posts/${id}`).delete());
     }
     case "goaldone": {
       const g = S.profile.goal; if (!g) return;
@@ -1223,7 +1309,8 @@ document.addEventListener("click", e => {
       return q(() => S.db.doc(`people/${S.uid}`).update({ goal: { ...g, done: !g.done } }));
     }
     case "goaledit": S.goalEdit = true; render(); return document.getElementById("goal-text")?.focus();
-    case "podlearn": return openLog("learn", `Podcast: ${S.feature?.podcast?.title || ""}. `);
+    case "podlearn": return openLog("learn", `${S.feature?.podcast?.title || ""}: `);
+    case "usesug": { const t = S.feature?.podcast?.title || "", el = document.getElementById("lg-note"); if (el && !el.value.includes(t)) { el.value = `${t}: ${el.value}`; el.focus(); } return; }
     case "google": return google();
     case "authmode": S.authMode = S.authMode === "up" ? "in" : "up"; return render();
     case "reset": {
@@ -1283,15 +1370,16 @@ document.addEventListener("submit", async e => {
     return q(async () => { await S.db.doc(`people/${S.uid}`).update({ goal: { wk, text, done: same && g.text === text ? !!g.done : false } }); toast("Goal set. Go get it."); });
   }
   if (kind === "wall") {
-    const inp = document.getElementById("wall-text"), text = inp.value.trim(); if (text.length < 3) return toast("Write a little more first.");
-    const anon = document.getElementById("wall-anon").checked, side = S.wallSide || sideOf(S.profile), kindP = S.wallKind || "prayer";
-    inp.value = ""; document.getElementById("wall-anon").checked = false;
-    return q(async () => { await S.db.doc(`walls/${side}/posts/${rid(12)}`).set({ by: S.uid, name: anon ? "" : S.profile.name || "", kind: kindP, text, anon, ts: Date.now(), amen: [] }); toast(kindP === "prayer" ? "Posted. The crew will pray with you." : "Posted"); });
+    const g = f.dataset.g, inp = document.getElementById("wall-text-" + g), text = inp.value.trim(); if (text.length < 3) return toast("Write a little more first.");
+    const anon = document.getElementById("wall-anon-" + g).checked, kindP = S.wallKind || "prayer";
+    inp.value = ""; document.getElementById("wall-anon-" + g).checked = false;
+    return q(async () => { await S.db.doc(`groups/${g}/posts/${rid(12)}`).set({ by: S.uid, name: anon ? "" : S.profile.name || "", kind: kindP, text, anon, ts: Date.now(), amen: [] }); toast(kindP === "prayer" ? "Posted. The crew will pray with you." : "Posted"); });
   }
   if (kind === "feature") {
     const v = id => document.getElementById(id).value.trim(), url = v("ft-url");
     if (url && !safeUrl(url)) return toast("The link must start with https://");
-    return q(async () => { await S.db.doc("config/feature").set({ podcast: { title: v("ft-title"), url, note: v("ft-note") }, prize: { text: v("ft-prize") }, updated: Date.now() }); toast("Saved. Everyone sees it now."); });
+    const at = v("ft-ann"), old = S.feature?.announce, announce = at ? { text: at, ts: old?.text === at ? old.ts : Date.now() } : null;
+    return q(async () => { await S.db.doc("config/feature").set({ announce, podcast: { title: v("ft-title"), url, note: v("ft-note") }, prize: { text: v("ft-prize") }, updated: Date.now() }); toast("Saved. Everyone sees it now."); });
   }
   if (kind === "gnew") {
     const name = document.getElementById("g-name").value.trim(); if (!name) return;

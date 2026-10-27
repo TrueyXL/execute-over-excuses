@@ -19,10 +19,23 @@ service cloud.firestore {
         allow read, write: if signedIn() && (request.auth.uid == uid || isAdmin());
       }
     }
+    function inCrew(gid) {
+      return gid in get(/databases/$(database)/documents/people/$(request.auth.uid)).data.get('groups', []);
+    }
     match /groups/{gid} {
       allow read: if signedIn();
       allow create: if signedIn() && request.resource.data.by == request.auth.uid;
       allow update, delete: if signedIn() && (resource.data.by == request.auth.uid || isAdmin());
+      // Each crew's prayer wall: only that crew's members (and the coach) read and post.
+      match /posts/{pid} {
+        allow read: if signedIn() && (isAdmin() || inCrew(gid));
+        allow create: if signedIn() && request.resource.data.by == request.auth.uid && (isAdmin() || inCrew(gid))
+          && request.resource.data.text is string && request.resource.data.text.size() <= 600;
+        // Members can tap Praying/Amen (only the amen list may change); authors and the coach can edit or delete.
+        allow update: if signedIn() && (resource.data.by == request.auth.uid || isAdmin()
+          || (inCrew(gid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['amen'])));
+        allow delete: if signedIn() && (resource.data.by == request.auth.uid || isAdmin());
+      }
     }
     // Prayer walls: one per side. You read and post only on your own side's wall (coach sees both).
     function mySide() {
