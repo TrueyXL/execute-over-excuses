@@ -36,6 +36,15 @@ service cloud.firestore {
           || (inCrew(gid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['amen'])));
         allow delete: if signedIn() && (resource.data.by == request.auth.uid || isAdmin());
       }
+      // Good job taps (one per person per log, id = log_uid) and comments on crewmates' logs.
+      match /cheers/{cid} {
+        allow read: if signedIn() && (isAdmin() || inCrew(gid));
+        allow create: if signedIn() && request.resource.data.by == request.auth.uid && (isAdmin() || inCrew(gid))
+          && request.resource.data.log is string && request.resource.data.to is string
+          && ((request.resource.data.t == 'gj' && cid == request.resource.data.log + '_' + request.auth.uid)
+            || (request.resource.data.t == 'c' && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 300));
+        allow delete: if signedIn() && (resource.data.by == request.auth.uid || resource.data.to == request.auth.uid || isAdmin());
+      }
     }
     match /config/{doc} {
       allow read: if signedIn();
