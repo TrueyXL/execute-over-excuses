@@ -186,6 +186,19 @@ textarea.input { min-height: 84px; resize: vertical; }
 .cmts { display: grid; gap: 6px; padding-left: 10px; border-left: 2px solid var(--line); }
 .cmts p { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
 .cheerline { display: flex; gap: 6px; flex-wrap: wrap; }
+button.mustbtn { width: 100%; background: none; border: 0; padding: 4px 6px; margin: -4px -6px; border-radius: 12px; cursor: pointer; font: inherit; color: inherit; box-sizing: content-box; }
+button.mustbtn:hover { background: var(--surface-2); }
+.mustbtn .chev svg { transform: rotate(180deg); width: 16px; height: 16px; }
+.shot { padding: 0; cursor: zoom-in; text-align: left; font: inherit; color: inherit; position: relative; }
+.shot .likes { position: absolute; top: 8px; right: 8px; padding: 2px 8px; border-radius: 99px; background: rgba(0,0,0,.6); color: #fff; font-size: 12px; font-weight: 700; display: inline-flex; gap: 4px; align-items: center; }
+.shot .likes svg { width: 13px; height: 13px; }
+.photowrap { position: relative; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+.burst svg { width: 96px; height: 96px; filter: drop-shadow(0 4px 16px rgba(0,0,0,.5)); }
+@keyframes burst { 0% { opacity: 0; transform: scale(.4); } 20% { opacity: 1; transform: scale(1.15); } 60% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1); } }
+.catday { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-top: 4px; }
+.seenby { font-size: 11px; color: var(--muted); align-self: flex-end; margin: -2px 6px 2px; display: inline-flex; gap: 3px; align-items: center; }
+.seenby svg { width: 12px; height: 12px; }
+.burst { position: fixed; display: grid; place-items: center; pointer-events: none; color: #fff; z-index: 100; animation: burst .8s ease forwards; }
 .chatlog { display: flex; flex-direction: column; gap: 6px; max-height: 52vh; min-height: 120px; overflow-y: auto; padding: 4px 2px; overscroll-behavior: contain; }
 .bub { max-width: 82%; align-self: flex-start; padding: 8px 12px; border-radius: 16px 16px 16px 4px; background: var(--surface-2); border: 1px solid var(--line); overflow-wrap: anywhere; white-space: pre-wrap; }
 .bub.me { align-self: flex-end; border-radius: 16px 16px 4px 16px; background: var(--accent); color: var(--accent-ink); border-color: transparent; }
@@ -370,7 +383,7 @@ const S = {
   profile: undefined, days: {}, plans: {}, notes: [], myProofs: [], people: {}, groups: {}, rules: { ...DEF_RULES },
   view: "today", sheet: null, sel: null, selData: null, crewProofs: {}, armDel: null, mine: null,
   calMonth: null, calSel: null, gstore: {}, gbusy: false, coachOK: false,
-  cwall: {}, gchat: {}, dms: [], dmMsgs: null, cheers: {}, cOpen: null, gtab: {}, alertTop: 0,
+  cwall: {}, gchat: {}, greads: {}, dms: [], dmMsgs: null, cheers: {}, cOpen: null, gtab: {}, alertTop: 0,
 };
 const views = ["today", "calendar", "plan", "crew", "coach", "me"];
 const COACH_HASH = "4e072c27f29c879fd3c99e86451be75ebc3eaa13ef7e77d3478dab0a7c47bc7a";
@@ -433,6 +446,10 @@ function computeMine() {
   S.mine = { weeks, thisW, xp, lvl: climb(weeks, cur, R), streak, best, last: dates[dates.length - 1] || "", healing: best >= R.healWeeks || !!S.profile?.unlocked?.healing };
   return S.mine;
 }
+/* What the crew sees of a log. Prayer notes stay between the person and the coach. */
+function pubLog(l, date, note) {
+  return { kind: l.kind, date, ts: l.ts || 0, ...(l.min ? { min: l.min } : {}), ...(l.type ? { type: l.type } : {}), ...(l.proof ? { proof: l.proof } : {}), ...(note && l.note && l.kind !== "prayer" ? { note: l.note.slice(0, 200) } : {}) };
+}
 function summary() {
   const m = S.mine, w = m.thisW, t = today(), todo = S.plans["d" + t]?.items || [];
   return {
@@ -441,7 +458,8 @@ function summary() {
     history: m.weeks.slice(-8).map(x => ({ mon: x.mon, done: x.mustsDone })),
     climb: { run: m.lvl.run, trial: m.lvl.trial },
     todo: { date: t, done: todo.filter(i => i.done).length, total: todo.length },
-    recent: Object.values(S.days).flatMap(d => (d.logs || []).map(l => ({ kind: l.kind, date: d.date, ts: l.ts || 0, ...(l.min ? { min: l.min } : {}), ...(l.type ? { type: l.type } : {}) }))).sort((a, b) => b.ts - a.ts).slice(0, 10),
+    recent: Object.values(S.days).flatMap(d => (d.logs || []).map(l => pubLog(l, d.date, false))).sort((a, b) => b.ts - a.ts).slice(0, 10),
+    wk: Object.values(S.days).filter(d => d.date >= w.mon).flatMap(d => (d.logs || []).map(l => pubLog(l, d.date, true))).sort((a, b) => a.ts - b.ts).slice(0, 80),
   };
 }
 
@@ -524,13 +542,47 @@ function listen() {
 /* One live prayer wall and one live Good job / comment feed per crew you're in. */
 let crewUnsubs = {};
 function watchCrews(gids) {
-  for (const g of Object.keys(crewUnsubs)) if (!gids.includes(g)) { crewUnsubs[g](); delete crewUnsubs[g]; delete S.cwall[g]; delete S.cheers[g]; delete S.gchat[g]; }
+  for (const g of Object.keys(crewUnsubs)) if (!gids.includes(g)) { crewUnsubs[g](); delete crewUnsubs[g]; delete S.cwall[g]; delete S.cheers[g]; delete S.gchat[g]; delete S.greads[g]; }
   for (const g of gids) if (!crewUnsubs[g]) {
     const a = S.db.collection(`groups/${g}/posts`).orderBy("ts", "desc").limit(60).onSnapshot(s => { S.cwall[g] = s.docs.map(d => ({ id: d.id, ...d.data() })); alertNew(); render(); }, e => { console.warn("wall", e); S.cwall[g] = []; render(); });
     const b = S.db.collection(`groups/${g}/cheers`).orderBy("ts", "desc").limit(400).onSnapshot(s => { S.cheers[g] = s.docs.map(d => ({ id: d.id, ...d.data() })); alertNew(); render(); }, e => { console.warn("cheers", e); S.cheers[g] = []; render(); });
     const c = S.db.collection(`groups/${g}/chat`).orderBy("ts", "desc").limit(80).onSnapshot(s => { S.gchat[g] = s.docs.map(d => ({ id: d.id, ...d.data() })).reverse(); alertNew(); render(); }, e => { console.warn("chat", e); S.gchat[g] = []; render(); });
-    crewUnsubs[g] = () => { a(); b(); c(); };
+    const r = S.db.collection(`groups/${g}/reads`).onSnapshot(s => { S.greads[g] = Object.fromEntries(s.docs.map(d => [d.id, d.data().ts || 0])); render(); }, e => { console.warn("reads", e); S.greads[g] = {}; });
+    crewUnsubs[g] = () => { a(); b(); c(); r(); };
   }
+}
+
+/* ===== a must-do category: everything logged in it that week ===== */
+function catLogs(who, area, mon) {
+  const kinds = AREA_KINDS[area] || [], end = addD(mon, 6), inWk = (d) => d >= mon && d <= end;
+  let logs;
+  if (who === S.uid) logs = Object.values(S.days).filter(d => inWk(d.date)).flatMap(d => (d.logs || []).map(l => ({ ...l, date: d.date })));
+  else if (S.isOwner && who === S.sel && S.selData?.days) logs = Object.values(S.selData.days).filter(d => inWk(d.date)).flatMap(d => (d.logs || []).map(l => ({ ...l, date: d.date })));
+  else { const st = S.people[who]?.stats || {}; logs = (st.wk || st.recent || []).filter(l => inWk(l.date)); }
+  return logs.filter(l => kinds.includes(l.kind)).sort((a, b) => b.ts - a.ts);
+}
+const AREA_NAME = { spirit: "Time with God", build: "Build", body: "Gym or sport", stretch: "Stretch", learn: "Learn something new" };
+const AREA_ICON = { spirit: "sunrise", build: "brief", body: "dumb", stretch: "pulse", learn: "bulb" };
+function catSheet(c) {
+  const p = c.who === S.uid ? S.profile : S.people[c.who] || {}, logs = catLogs(c.who, c.area, c.mon), have = allProofs();
+  needProofs(c.who, logs.map(l => l.proof).filter(Boolean));
+  const old = c.who !== S.uid && !(S.isOwner && c.who === S.sel) && !S.people[c.who]?.stats?.wk;
+  let day = "";
+  const rows = logs.map(l => { const d = KINDS[l.kind] || {}, pf = l.proof && have[l.proof], hd = l.date !== day ? (day = l.date, `<p class="catday">${nice(l.date)}</p>`) : "";
+    return `${hd}<div class="item"><span class="a-${d.area}">${ic(d.icon || "check")}</span><div class="grow stack" style="gap:2px;min-width:0"><b>${esc(d.label || "")}${l.type ? ` · ${esc(l.type)}` : ""}${l.min ? ` · ${+l.min} min` : ""}</b>${l.note ? `<span class="small muted" style="overflow-wrap:anywhere">${esc(l.note)}</span>` : ""}<span class="tiny muted">${new Date(l.ts).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span></div>${pf ? `<button class="thumbbtn" data-act="pic" data-id="${esc(l.proof)}" data-o="${c.who}" aria-label="Open photo"><img class="thumb" src="${esc(proofSrc(pf))}" alt="Proof photo" loading="lazy"></button>` : l.proof ? `<span class="thumb" style="display:grid;place-items:center">${ic("image")}</span>` : ""}</div>`; }).join("");
+  return `<div class="row spread"><div class="row" style="gap:10px"><span class="a-${c.area}" style="width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--surface-2)">${ic(AREA_ICON[c.area])}</span><div><h2>${AREA_NAME[c.area]}</h2><p class="tiny muted">${c.who === S.uid ? "You" : esc(p.name || "Someone")} · week of ${short(c.mon)}</p></div></div><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div>
+    ${logs.length ? `<div class="list">${rows}</div>` : `<div class="empty">Nothing logged here ${c.mon === monday(today()) ? "yet this week" : "that week"}.</div>`}
+    ${old && logs.length ? `<p class="tiny muted">Showing ${esc(p.name || "their")} latest logs. The full week shows once ${esc(p.name || "they")} open${p.name ? "s" : ""} the updated app.</p>` : ""}`;
+}
+function photoSheet(s) {
+  const x = allProofs()[s.pid], src = x ? proofSrc(x) : s.src || "";
+  const key = photoKey(s.owner, s.pid), g = sharedCrew(s.owner), gjs = cheersFor(key), by = [...new Set(gjs.map(c => c.by))], on = by.includes(S.uid), mine = s.owner === S.uid;
+  const names = by.map(u => u === S.uid ? "You" : S.people[u]?.name || gjs.find(c => c.by === u)?.name || "Someone");
+  const who = mine ? "You" : S.people[s.owner]?.name || "Someone";
+  return `<div class="row spread"><div class="row" style="gap:10px;min-width:0">${av(mine ? S.profile : S.people[s.owner] || {})}<div style="min-width:0"><b>${esc(who)}</b>${x ? `<p class="tiny muted">${esc(KINDS[x.kind]?.label || "")} · ${short(x.date)}</p>` : ""}</div></div><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div>
+    <div class="photowrap" data-act="pictap" data-k="${key}" data-g="${g || ""}" data-to="${s.owner}">${src ? `<img class="bigphoto" src="${esc(src)}" alt="Proof photo" draggable="false">` : `<p class="muted small">Loading…</p>`}</div>
+    <div class="acts row" style="gap:8px;flex-wrap:wrap">${g && !mine && !S.ro ? `<button class="chip btnish gj ${on ? "on" : ""}" data-act="gj" data-g="${g}" data-id="${key}" data-to="${s.owner}" aria-pressed="${on}">${ic("thumb")} Good job${by.length ? ` · ${by.length}` : ""}</button>` : by.length ? `<span class="chip on">${ic("thumb")} ${by.length} good job${by.length > 1 ? "s" : ""}</span>` : ""}</div>
+    ${names.length ? `<p class="tiny muted" style="margin:0">${esc(names.slice(0, 4).join(", "))}${names.length > 4 ? ` and ${names.length - 4} more` : ""} said good job</p>` : g && !mine ? `<p class="tiny muted" style="margin:0">Double-tap the photo to say good job.</p>` : ""}`;
 }
 
 /* ===== chat: one group chat per crew, plus private 1-on-1 threads (dms/<uidA_uidB>, sorted ids) ===== */
@@ -538,15 +590,35 @@ const dmId = other => [S.uid, other].sort().join("_");
 const SEEN_KEY = () => "eoe-seen-" + S.uid;
 const seenAll = () => { try { return JSON.parse(localStorage.getItem(SEEN_KEY()) || "{}"); } catch { return {}; } };
 const seen = id => seenAll()[id] || 0;
-function markSeen(id) { const m = seenAll(), last = chatLast(id); if (!last || m[id] >= last) return; m[id] = last; try { localStorage.setItem(SEEN_KEY(), JSON.stringify(m)); } catch {} }
+/* Tell the others you've read up to the newest message (only while the chat is on screen). */
+const readSent = {};
+function sendRead(id) {
+  if (document.hidden || !S.db || S.ro) return;
+  const last = chatLast(id); if (!last) return;
+  const isG = id.startsWith("g:"), mine = isG ? S.greads[id.slice(2)]?.[S.uid] || 0 : S.dms.find(d => d.id === id)?.read?.[S.uid] || 0;
+  if (mine >= last || readSent[id] >= last) return;
+  readSent[id] = last;
+  q(() => isG ? S.db.doc(`groups/${id.slice(2)}/reads/${S.uid}`).set({ ts: last }) : S.db.doc(`dms/${id}`).update({ [`read.${S.uid}`]: last }));
+}
+function markSeen(id) { sendRead(id); const m = seenAll(), last = chatLast(id); if (!last || m[id] >= last) return; m[id] = last; try { localStorage.setItem(SEEN_KEY(), JSON.stringify(m)); } catch {} }
 function chatLast(id) { return id[0] === "g" && id[1] === ":" ? Math.max(0, ...(S.gchat[id.slice(2)] || []).map(m => m.ts)) : S.dms.find(d => d.id === id)?.last?.ts || 0; }
 const gNew = g => (S.gchat[g] || []).filter(m => m.by !== S.uid && m.ts > seen("g:" + g)).length;
 const dmNew = d => d.last && d.last.by !== S.uid && d.last.ts > seen(d.id);
 const chatOpen = id => !document.hidden && (S.sheet?.dm && dmId(S.sheet.dm) === id || id[0] === "g" && S.view === "crew" && S.gtab[id.slice(2)] === "chat");
+function receipt(msgs, group, k) {
+  const myLast = [...msgs].reverse().find(m => m.by === S.uid); if (!myLast) return null;
+  if (group) {
+    const reads = S.greads[group] || {}, who = Object.entries(reads).filter(([u, ts]) => u !== S.uid && ts >= myLast.ts).map(([u]) => S.people[u]?.name || "Someone");
+    return { id: myLast.id, text: who.length ? `Seen by ${who.length > 3 ? `${who.slice(0, 3).join(", ")} +${who.length - 3}` : who.join(", ")}` : "Sent" };
+  }
+  const d = S.dms.find(x => x.id === k), other = d?.u?.find(u => u !== S.uid);
+  return { id: myLast.id, text: (d?.read?.[other] || 0) >= myLast.ts ? "Seen" : "Sent" };
+}
 function chatLog(msgs, group, k) {
   if (msgs == null) return `<div class="chatlog"><p class="muted small">Loading…</p></div>`;
   if (!msgs.length) return `<div class="chatlog"><div class="empty">${group ? "No messages yet. Say what's up to the crew." : "No messages yet. Say hi."}</div></div>`;
   let day = "", out = "";
+  const rc = receipt(msgs, group, k);
   msgs.forEach((m, i) => {
     const dt = iso(new Date(m.ts)), me = m.by === S.uid, prev = msgs[i - 1], next = msgs[i + 1];
     if (dt !== day) { day = dt; out += `<div class="chatday">${dt === today() ? "Today" : dt === addD(today(), -1) ? "Yesterday" : nice(dt)}</div>`; }
@@ -554,6 +626,7 @@ function chatLog(msgs, group, k) {
     const nm = S.people[m.by]?.name || m.name || "Someone";
     out += `<div class="bub ${me ? "me" : ""}">${group && !me && first ? `<span class="by">${esc(nm)}</span>` : ""}${esc(m.text)}</div>`;
     if (lastOf) out += `<div class="bubmeta ${me ? "me" : ""}">${new Date(m.ts).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}${(me || S.isOwner) && !S.ro && group ? ` · <button class="linkish" style="font-size:11px;min-height:0;padding:0" data-act="chdel" data-g="${group}" data-id="${m.id}">${S.armDel === "m" + m.id ? "tap to delete" : "delete"}</button>` : ""}</div>`;
+    if (rc && rc.id === m.id) out += `<div class="seenby">${rc.text === "Sent" ? "Sent" : `${ic("check")} ${esc(rc.text)}`}</div>`;
   });
   return `<div class="chatlog" data-k="${k}" data-n="${msgs.length}" aria-live="polite">${out}</div>`;
 }
@@ -666,7 +739,7 @@ function render() {
   else if (!S.profile) body = onboardView();
   else body = ({ today: todayView, calendar: calendarView, plan: planView, crew: crewView, coach: S.isOwner ? (coachOpen() ? coachView : coachLockView) : todayView, me: meView }[S.view] || todayView)();
   patch(root, `<main class="app ${wide ? "wide" : ""}">${brandBar()}${body}</main>${S.profile && S.uid ? navBar() : ""}`);
-  if (S.sheet?.peek || S.sheet?.feed || S.sheet?.dm) renderSheet();
+  if (S.sheet?.peek || S.sheet?.feed || S.sheet?.dm || S.sheet?.pic || S.sheet?.cat) renderSheet();
   scrollChats();
   if (S.tour != null) renderTour(); else maybeTour();
 }
@@ -814,7 +887,8 @@ function spotlight() {
       ${top.length ? `<p class="tiny muted">This week's leaders</p><div class="list">${top.map((x, i) => `<div class="item" style="align-items:center"><span class="rank">${i + 1}</span>${av(x.p)}<b class="grow">${esc(x.p.name || "Someone")}${x.id === S.uid ? " (you)" : ""}</b><span class="mono small">${x.xp} XP</span></div>`).join("")}</div>` : `<p class="small muted">Nobody has XP this week yet. Be first.</p>`}</div>` : ""}
   </section>`;
 }
-function mustRows(w) {
+const AREA_KINDS = { spirit: ["prayer", "word"], build: ["build"], body: ["train"], stretch: ["stretch"], learn: ["learn"] };
+function mustRows(w, who) {
   const R = S.rules;
   const rows = [
     ["spirit", "sunrise", "Time with God", `${w.spiritDays}/${R.spiritDays} days`, w.spiritDays, R.spiritDays],
@@ -823,7 +897,7 @@ function mustRows(w) {
     ["stretch", "pulse", "Stretch", `${w.stretch}/${R.stretch}`, w.stretch, R.stretch],
     ["learn", "bulb", "Learn something new", `${w.learn}/${R.learn}`, w.learn, R.learn],
   ];
-  return rows.map(([a, i, l, t, n, of]) => `<div class="must a-${a}"><span class="badge">${ic(i)}</span><div class="stack" style="gap:4px;min-width:0"><span style="color:var(--fg);font-weight:600">${l}</span><div class="pips">${[...Array(of)].map((_, k) => `<i class="pip ${k < n ? "on" : ""}"></i>`).join("")}</div></div><span class="mono small" style="color:${n >= of ? "var(--good)" : "var(--muted)"}">${n >= of ? "Done" : t}</span></div>`).join("");
+  return rows.map(([a, i, l, t, n, of]) => `<button class="must mustbtn a-${a}" data-act="cat" data-id="${who || S.uid}" data-v="${a}" data-w="${w.mon}" aria-label="See ${l} logs"><span class="badge">${ic(i)}</span><div class="stack" style="gap:4px;min-width:0;text-align:left"><span style="color:var(--fg);font-weight:600">${l}</span><div class="pips">${[...Array(of)].map((_, k) => `<i class="pip ${k < n ? "on" : ""}"></i>`).join("")}</div></div><span class="row" style="gap:6px"><span class="mono small" style="color:${n >= of ? "var(--good)" : "var(--muted)"}">${n >= of ? "Done" : t}</span><span class="muted chev">${ic("back")}</span></span></button>`).join("");
 }
 function weekStatus(w) {
   const t = today(), R = S.rules;
@@ -853,6 +927,37 @@ function healCard() {
   if (m.healing) return `<section class="card"><div class="row"><span class="badge a-stretch" style="width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:var(--surface-2)">${ic("heart")}</span><div class="grow"><h3>Healing · unlocked</h3><p class="small muted">You earned it with ${R.healWeeks} consistent weeks. This category opens soon.</p></div></div></section>`;
   return `<section class="card locked"><div class="row"><span style="width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:var(--surface-2);border:1px solid var(--line)">${ic("lock")}</span><div class="grow"><h3>Healing · locked</h3><p class="small muted">Finish ${R.healWeeks} consistent weeks in a row to unlock it.</p></div><span class="mono">${n}/${R.healWeeks}</span></div><div class="lockmeter">${[...Array(R.healWeeks)].map((_, i) => `<i class="${i < n ? "on" : ""}"></i>`).join("")}</div></section>`;
 }
+/* Every proof photo we've seen, by id: owner, src, kind, date. */
+S.proofCache = {};
+function allProofs() {
+  const out = { ...S.proofCache };
+  for (const x of S.myProofs || []) out[x.id] = { ...x, owner: S.uid };
+  if (S.sel) for (const x of S.selData?.proofs || []) out[x.id] = { ...x, owner: S.sel };
+  for (const [o, xs] of Object.entries(S.crewProofs || {})) for (const x of xs) out[x.id] = { ...x, owner: o };
+  return out;
+}
+const proofFetching = new Set();
+function needProofs(owner, ids) {
+  const have = allProofs(), miss = ids.filter(id => id && !have[id] && !proofFetching.has(id));
+  if (!miss.length || !S.db) return;
+  miss.forEach(id => proofFetching.add(id));
+  Promise.all(miss.map(id => S.db.doc(`people/${owner}/proofs/${id}`).get().then(d => { if (d.exists) S.proofCache[id] = { id, ...d.data(), owner }; }).catch(() => {}))).then(() => { render(); if (S.sheet) renderSheet(); });
+}
+/* The log a photo belongs to, so photo likes and log Good jobs are the same thing. */
+function photoKey(owner, pid) {
+  const logs = owner === S.uid ? Object.values(S.days).flatMap(d => d.logs || []) : [...(S.people[owner]?.stats?.wk || []), ...(S.people[owner]?.stats?.recent || [])];
+  const l = logs.find(x => x.proof === pid);
+  return l?.ts ? `${owner}_${l.ts}` : `${owner}_p${pid}`;
+}
+function sharedCrew(owner) {
+  const mine = (S.profile?.groups || []).filter(g => S.groups[g]);
+  return owner === S.uid ? mine[0] : mine.find(g => (S.people[owner]?.groups || []).includes(g));
+}
+const cheersFor = key => Object.values(S.cheers).flat().filter(c => c && c.log === key && c.t === "gj");
+function shotTile(x, owner, caption) {
+  const n = new Set(cheersFor(photoKey(owner, x.id)).map(c => c.by)).size;
+  return `<button class="shot" data-act="pic" data-id="${esc(x.id)}" data-o="${esc(owner)}" aria-label="Open photo"><img src="${esc(proofSrc(x))}" alt="Proof photo" loading="lazy">${n ? `<span class="likes">${ic("thumb")} ${n}</span>` : ""}<div>${caption}</div></button>`;
+}
 function proofSrc(p) { return p?.asset ? `/_blob/${p.asset}` : p?.data || ""; }
 function cheerTally(l) {
   const key = `${S.uid}_${l.ts}`, all = Object.entries(S.cheers).flatMap(([g, cs]) => (cs || []).filter(c => c.log === key).map(c => ({ ...c, g })));
@@ -864,7 +969,7 @@ function logList(logs, date, mine) {
   if (!logs.length) return `<div class="empty">Nothing logged yet. Tap a button above to log your first win.</div>`;
   const proofs = Object.fromEntries((mine ? S.myProofs : (S.selData?.proofs || [])).map(p => [p.id, p]));
   return `<div class="list">${logs.slice().reverse().map(l => { const d = KINDS[l.kind] || {}, pf = l.proof && proofs[l.proof];
-    return `<div class="item"><span class="a-${d.area}">${ic(d.icon || "check")}</span><div class="grow stack" style="gap:2px;min-width:0"><b>${esc(d.label)}${l.type ? ` · ${esc(l.type)}` : ""}${l.min ? ` · ${+l.min} min` : ""}</b>${mine ? cheerTally(l) : ""}${l.note ? `<span class="small muted" style="overflow-wrap:anywhere">${esc(l.note)}</span>` : ""}</div>${pf ? `<button class="thumbbtn" data-act="photo" data-id="${esc(l.proof)}" aria-label="View proof photo"><img class="thumb" src="${esc(proofSrc(pf))}" alt="Proof photo" loading="lazy"></button>` : l.proof ? `<span class="thumb" style="display:grid;place-items:center">${ic("image")}</span>` : ""}${mine && !S.ro ? `<button class="linkish" data-act="edit" data-date="${date}" data-id="${l.id}" aria-label="Edit">${ic("pencil")}</button><button class="linkish" data-act="del" data-date="${date}" data-id="${l.id}" aria-label="Delete">${S.armDel === l.id ? "Tap to delete" : ic("trash")}</button>` : ""}</div>`; }).join("")}</div>`;
+    return `<div class="item"><span class="a-${d.area}">${ic(d.icon || "check")}</span><div class="grow stack" style="gap:2px;min-width:0"><b>${esc(d.label)}${l.type ? ` · ${esc(l.type)}` : ""}${l.min ? ` · ${+l.min} min` : ""}</b>${mine ? cheerTally(l) : ""}${l.note ? `<span class="small muted" style="overflow-wrap:anywhere">${esc(l.note)}</span>` : ""}</div>${pf ? `<button class="thumbbtn" data-act="pic" data-id="${esc(l.proof)}" data-o="${mine ? S.uid : esc(S.sel || "")}" aria-label="View proof photo"><img class="thumb" src="${esc(proofSrc(pf))}" alt="Proof photo" loading="lazy"></button>` : l.proof ? `<span class="thumb" style="display:grid;place-items:center">${ic("image")}</span>` : ""}${mine && !S.ro ? `<button class="linkish" data-act="edit" data-date="${date}" data-id="${l.id}" aria-label="Edit">${ic("pencil")}</button><button class="linkish" data-act="del" data-date="${date}" data-id="${l.id}" aria-label="Delete">${S.armDel === l.id ? "Tap to delete" : ic("trash")}</button>` : ""}</div>`; }).join("")}</div>`;
 }
 
 /* ----- Plan ----- */
@@ -918,7 +1023,7 @@ function groupCard(gid) {
   const g = S.groups[gid];
   const members = Object.entries(S.people).filter(([, p]) => (p.groups || []).includes(gid)).map(([id, p]) => ({ id, p, w: personWeek(p) }))
     .sort((a, b) => b.w.mustsDone - a.w.mustsDone || b.w.xp - a.w.xp);
-  const shots = members.flatMap(m => (S.crewProofs[m.id] || []).map(x => ({ ...x, who: m.p.name }))).sort((a, b) => b.ts - a.ts).slice(0, 12);
+  const shots = members.flatMap(m => (S.crewProofs[m.id] || []).map(x => ({ ...x, who: m.p.name, owner: m.id }))).sort((a, b) => b.ts - a.ts).slice(0, 12);
   const tab = S.gtab[gid] || "crew", r = lastRead(), fresh = (S.cwall[gid] || []).filter(x => x.by !== S.uid && x.ts > r).length;
   const gjNew = (S.cheers[gid] || []).filter(c => c.to === S.uid && c.by !== S.uid && c.ts > r).length;
   const cNew = tab === "chat" ? 0 : gNew(gid);
@@ -926,7 +1031,7 @@ function groupCard(gid) {
   return `<section class="card" id="crew-${gid}">
     <div class="row spread"><div><p class="tiny muted">Crew · code <span class="mono" style="color:var(--accent)">${esc(g.code)}</span></p><h2>${esc(g.name)}</h2></div><button class="btn sm" data-act="invite" data-id="${gid}">${ic("copy")} Invite</button></div>
     ${seg}
-    ${tab === "wall" ? wallView(gid) : tab === "chat" ? crewChat(gid) : tab === "wins" ? winsView(gid, members) : tab === "proof" ? (shots.length ? `<div class="wall">${shots.map(s => `<figure class="shot" style="margin:0"><img src="${esc(proofSrc(s))}" alt="Proof photo from ${esc(s.who || "a crew member")}" loading="lazy"><div><b>${esc(s.who || "Someone")}</b> · ${esc(KINDS[s.kind]?.label || "")} · ${short(s.date)}</div></figure>`).join("")}</div>` : `<div class="empty">No photos yet. Snap one after your next workout or Bible time.</div>`) : `
+    ${tab === "wall" ? wallView(gid) : tab === "chat" ? crewChat(gid) : tab === "wins" ? winsView(gid, members) : tab === "proof" ? (shots.length ? `<div class="wall">${shots.map(s => shotTile(s, s.owner, `<b>${esc(s.who || "Someone")}</b> · ${esc(KINDS[s.kind]?.label || "")} · ${short(s.date)}`)).join("")}</div>` : `<div class="empty">No photos yet. Snap one after your next workout or Bible time.</div>`) : `
     <div class="stack">${members.map((m, i) => `<button class="person" data-act="peek" data-id="${m.id}" aria-label="See ${esc(m.p.name || "this person")}'s week"><span class="rank">${i + 1}</span>${av(m.p)}<div class="grow stack" style="gap:4px"><b>${esc(m.p.name || "Someone")}${m.id === S.uid ? " (you)" : ""}</b><span class="small muted">${m.p.stats?.climb?.trial ? `<span style="color:var(--accent);font-weight:700">Trial week</span> · ` : ""}Lv ${m.p.stats?.level || 1} · ${ic("flame")} ${m.p.stats?.streak || 0} wk${seenTxt(m.p) ? ` · ${seenTxt(m.p)}` : ""}</span></div>${miniMusts(m.w)}</button>`).join("")}</div>
     <div><button class="linkish" data-act="gleave" data-id="${gid}">${S.armDel === "g" + gid ? "Tap again to leave this crew" : "Leave crew"}</button></div>`}
   </section>`;
@@ -942,10 +1047,12 @@ function winCard(gid, w, cs) {
   const p = S.people[w.who] || {}, d = KINDS[w.kind] || {}, mine = w.who === S.uid;
   const gjs = cs.filter(c => c.t === "gj"), cms = cs.filter(c => c.t === "c").sort((a, b) => a.ts - b.ts), on = gjs.some(c => c.by === S.uid);
   const names = gjs.map(c => c.by === S.uid ? "You" : S.people[c.by]?.name || c.name || "Someone"), open = S.cOpen === w.key;
-  const nm = c => esc(S.people[c.by]?.name || c.name || "Someone");
+  const nm = c => esc(S.people[c.by]?.name || c.name || "Someone"), pf = w.proof && allProofs()[w.proof];
+  if (w.proof && !pf) needProofs(w.who, [w.proof]);
   const gjBtn = mine || S.ro ? (gjs.length ? `<span class="chip on">${ic("thumb")} ${gjs.length} good job${gjs.length > 1 ? "s" : ""}</span>` : "")
     : `<button class="chip btnish gj ${on ? "on" : ""}" data-act="gj" data-g="${gid}" data-id="${w.key}" data-to="${w.who}" aria-pressed="${on}">${ic("thumb")} Good job${gjs.length ? ` · ${gjs.length}` : ""}</button>`;
   return `<article class="win"><div class="row" style="gap:10px;min-width:0">${av(p)}<div class="grow" style="min-width:0"><b>${esc(p.name || "Someone")}${mine ? " (you)" : ""}</b><p class="small" style="margin:0"><span class="a-${d.area}">${ic(d.icon || "check")}</span> ${esc(logLine(w))}</p></div><span class="small muted" style="flex:none">${ago(w.ts)}</span></div>
+    ${pf ? `<button class="thumbbtn" style="width:100%" data-act="pic" data-id="${esc(w.proof)}" data-o="${w.who}" aria-label="Open photo"><img class="ytthumb" style="aspect-ratio:4/3" src="${esc(proofSrc(pf))}" alt="Proof photo" loading="lazy"></button>` : ""}
     ${names.length ? `<p class="tiny muted" style="margin:0">${esc(names.slice(0, 3).join(", "))}${names.length > 3 ? ` and ${names.length - 3} more` : ""} said good job</p>` : ""}
     <div class="acts">${gjBtn}${S.ro ? "" : `<button class="chip btnish ${open ? "on" : ""}" data-act="cmt" data-id="${w.key}">${ic("chat")} ${cms.length ? cms.length : "Comment"}</button>`}</div>
     ${cms.length ? `<div class="cmts">${cms.map(c => `<div class="row spread" style="align-items:flex-start;gap:8px"><p class="small"><b>${nm(c)}</b> ${esc(c.text)} <span class="tiny muted">· ${ago(c.ts)}</span></p>${(c.by === S.uid || mine || S.isOwner) && !S.ro ? `<button class="linkish" data-act="cdel" data-g="${gid}" data-id="${c.id}" aria-label="Delete comment">${S.armDel === "c" + c.id ? "Tap to delete" : ic("trash")}</button>` : ""}</div>`).join("")}</div>` : ""}
@@ -981,10 +1088,10 @@ function peekSheet(id) {
     <div class="stack" style="gap:6px">${climbMeter({ run, need: R.levelWeeks + R.trialWeeks })}<p class="small muted">${st.climb?.trial ? `<b style="color:var(--accent)">On ${pro(p).his} trial week</b> for Level ${(st.level || 1) + 1}. Pray for ${pro(p).him}.` : `${Math.min(run, R.levelWeeks)}/${R.levelWeeks} weeks toward ${pro(p).his} next trial.`}</p></div>
     ${g ? `<div class="note"><p class="tiny muted">Goal of the week</p><p><b style="${g.done ? "text-decoration:line-through;color:var(--muted)" : ""}">${esc(g.text)}</b>${g.done ? ` <span style="color:var(--good)">Done</span>` : ""}</p></div>` : ""}
     ${td && td.total ? `<p class="small">To-do today: <b>${td.done}/${td.total}</b> done</p>` : ""}
-    <div class="row spread"><h3>This week</h3>${weekStatus(wObj)}</div>${strip(wObj)}<div class="stack" style="gap:12px">${mustRows(wObj)}</div>
+    <div class="row spread"><h3>This week</h3>${weekStatus(wObj)}</div>${strip(wObj)}<div class="stack" style="gap:12px">${mustRows(wObj, id)}</div>
     <h3>What ${pro(p).his === "her" ? "she's" : "he's"} been doing</h3>
     ${st.recent?.length ? `<div class="list">${st.recent.map(l => { const d = KINDS[l.kind] || {}; return `<div class="item"><span class="a-${d.area}">${ic(d.icon || "check")}</span><div class="grow"><b>${esc(d.label || "")}${l.type ? ` · ${esc(l.type)}` : ""}${l.min ? ` · ${+l.min} min` : ""}</b></div><span class="small muted">${l.ts ? ago(l.ts) : short(l.date)}</span></div>`; }).join("")}</div>` : `<div class="empty">Nothing logged yet.</div>`}
-    ${shots.length ? `<h3>Proof photos</h3><div class="wall">${shots.map(s => `<figure class="shot" style="margin:0"><img src="${esc(proofSrc(s))}" alt="Proof photo" loading="lazy"><div>${esc(KINDS[s.kind]?.label || "")} · ${short(s.date)}</div></figure>`).join("")}</div>` : ""}`;
+    ${shots.length ? `<h3>Proof photos</h3><div class="wall">${shots.map(s => shotTile(s, id, `${esc(KINDS[s.kind]?.label || "")} · ${short(s.date)}`)).join("")}</div>` : ""}`;
 }
 let crewLoaded = 0;
 async function loadCrewProofs() {
@@ -1264,12 +1371,12 @@ function personDetail() {
   return `<section class="card"><div class="row">${av(p, true)}<div class="grow"><h2>${esc(p.name || "Someone")}</h2><p class="small muted mono">${sideOf(p) === "women" ? "Women" : "Men"} · Lv ${p.stats?.level || 1}${p.stats?.climb?.trial ? " (trial week)" : ""} · ${(p.stats?.xp || 0).toLocaleString()} XP · ${ic("flame")} ${p.stats?.streak || 0} wk streak · best ${p.stats?.best || 0}</p>${seenTxt(p) ? `<p class="small muted">${seenTxt(p)}</p>` : ""}</div></div>
     ${p.why ? `<div class="note"><p class="tiny muted">${pr.His} why</p><p>${esc(p.why)}</p></div>` : ""}
     ${g ? `<div class="note"><p class="tiny muted">Goal of the week${g.done ? " · done" : ""}</p><p>${esc(g.text)}</p></div>` : ""}</section>
-  <section class="card"><div class="row spread"><h3>This week</h3>${weekStatus(wObj)}</div>${strip(wObj)}<div class="stack" style="gap:12px">${mustRows(wObj)}</div></section>
+  <section class="card"><div class="row spread"><h3>This week</h3>${weekStatus(wObj)}</div>${strip(wObj)}<div class="stack" style="gap:12px">${mustRows(wObj, S.sel)}</div></section>
   <section class="card"><h3>Send a word</h3><form class="stack" data-form="note"><textarea id="n-text" class="input" maxlength="500" placeholder="Encourage ${pr.him}, call ${pr.him} up, or hold ${pr.him} to ${pr.his} word." aria-label="Message"></textarea><button class="btn primary" type="submit">${ic("send")} Send to ${esc(p.name || pr.him)}</button></form>
     ${d?.notes?.length ? `<div class="list">${d.notes.slice(0, 5).map(n => `<div class="item"><div class="grow stack" style="gap:2px"><span class="small muted">${short(iso(new Date(n.ts)))} · ${n.seen ? "Seen" : "Not seen yet"}</span><span>${esc(n.text)}</span></div></div>`).join("")}</div>` : ""}</section>
   <section class="card"><h3>${pr.His} plan</h3>${!d ? `<p class="muted small">Loading…</p>` : todo.length || plan.length || mplan.length ? `<div class="list">${[...todo.map(i => ({ ...i, s: "Today" })), ...plan.map(i => ({ ...i, s: "Week" })), ...mplan.map(i => ({ ...i, s: "Month" }))].map(i => `<div class="item"><span class="chip">${i.s}</span><span class="grow" style="${i.done ? "text-decoration:line-through;color:var(--muted)" : ""}">${esc(i.text)}</span>${i.done ? `<span style="color:var(--good)">${ic("check")}</span>` : ""}</div>`).join("")}</div>` : `<div class="empty">No to-do or plan written for today, this week or this month.</div>`}</section>
   <section class="card"><h3>Recent log</h3>${!d ? `<p class="muted small">Loading…</p>` : recent.length ? recent.map(day => `<div class="stack" style="gap:4px"><p class="tiny muted">${nice(day)} · +${dayXP(d.days[day])} XP</p>${logList(d.days[day].logs || [], day, false)}</div>`).join("") : `<div class="empty">No logs yet.</div>`}</section>
-  <section class="card"><h3>Proof photos</h3>${d?.proofs?.length ? `<div class="wall">${d.proofs.map(s => `<figure class="shot" style="margin:0"><img src="${esc(proofSrc(s))}" alt="Proof photo" loading="lazy"><div>${esc(KINDS[s.kind]?.label || "")} · ${short(s.date)}</div></figure>`).join("")}</div>` : `<div class="empty">No photos yet.</div>`}</section>
+  <section class="card"><h3>Proof photos</h3>${d?.proofs?.length ? `<div class="wall">${d.proofs.map(s => shotTile(s, S.sel, `${esc(KINDS[s.kind]?.label || "")} · ${short(s.date)}`)).join("")}</div>` : `<div class="empty">No photos yet.</div>`}</section>
   <section class="card"><h3>Last 8 weeks</h3>${historyList((p.stats?.history || []).slice().reverse())}</section>`;
 }
 async function loadPerson(id) {
@@ -1335,7 +1442,7 @@ function meView() {
     <div class="row"><input class="input grow mono small" value="${SHORT_LINK}" readonly aria-label="App link" id="me-link"><button class="btn" data-act="copy" data-text="${SHORT_LINK}">${ic("copy")}</button></div></div></section>
   ${S.isOwner ? `<section class="card"><h3>Invite people</h3><p class="small">Send anyone the link above. They sign in with Google or email, pick the men's or women's side, and show up in your Coach tab right away.</p></section>` : ""}
   <section class="card"><div class="row spread"><span class="small muted" style="overflow-wrap:anywhere">Signed in as ${esc(S.auth?.currentUser?.email || "")}</span><button class="btn sm" data-act="signout">Sign out</button></div></section>
-  <section class="card"><h3>Your proof photos</h3>${S.myProofs.length ? `<div class="wall">${S.myProofs.map(s => `<figure class="shot" style="margin:0"><img src="${esc(proofSrc(s))}" alt="Your proof photo" loading="lazy"><div>${esc(KINDS[s.kind]?.label || "")} · ${short(s.date)}</div></figure>`).join("")}</div>` : `<div class="empty">Your gym and Word photos will show here.</div>`}</section>`;
+  <section class="card"><h3>Your proof photos</h3>${S.myProofs.length ? `<div class="wall">${S.myProofs.map(s => shotTile(s, S.uid, `${esc(KINDS[s.kind]?.label || "")} · ${short(s.date)}`)).join("")}</div>` : `<div class="empty">Your gym and Word photos will show here.</div>`}</section>`;
 }
 
 /* ===== log sheet ===== */
@@ -1402,6 +1509,8 @@ function renderSheet() {
   const el = document.getElementById("sheet"), s = S.sheet;
   if (S.db) watchDm();
   if (!s) return patch(el, "");
+  if (s.pic) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Proof photo" data-stop><span class="grab"></span>${photoSheet(s.pic)}</div></div>`);
+  if (s.cat) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${AREA_NAME[s.cat.area]}" data-stop><span class="grab"></span>${catSheet(s.cat)}</div></div>`);
   if (s.photo) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Proof photo" data-stop><span class="grab"></span><div class="row spread"><h2>Proof</h2><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div><img class="bigphoto" src="${esc(s.photo)}" alt="Proof photo"></div></div>`);
   if (s.video) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="How to use the app" data-stop><span class="grab"></span><div class="row spread"><h2>How to use the app</h2><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div><video src="tutorial.mp4" controls playsinline autoplay style="width:100%;max-height:72vh;border-radius:14px;background:#000"></video></div></div>`);
   if (s.feed) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Crew activity" data-stop><span class="grab"></span>${feedSheet()}</div></div>`);
@@ -1505,7 +1614,7 @@ document.addEventListener("click", e => {
       const t = curDark ? "light" : "dark"; document.documentElement.dataset.theme = t; try { localStorage.setItem("exe-theme", t); } catch {} return render();
     }
     case "log": return openLog(a.dataset.kind);
-    case "close": if (s?.url) URL.revokeObjectURL(s.url); document.querySelector("#sheet video")?.pause(); S.sheet = null; return renderSheet();
+    case "close": if (s?.url) URL.revokeObjectURL(s.url); document.querySelector("#sheet video")?.pause(); S.sheet = s?.back || null; return renderSheet();
     case "sdate": s.date = a.dataset.v; return renderSheet();
     case "stype": s.type = a.dataset.v; return renderSheet();
     case "smin": s.min = +a.dataset.v; const mi = document.getElementById("lg-min"); if (mi) mi.value = s.min; return renderSheet();
@@ -1573,6 +1682,16 @@ document.addEventListener("click", e => {
       const g = a.dataset.g, x = S.cwall[g]?.find(p => p.id === id); if (!x || S.ro) return;
       const F = firebase.firestore.FieldValue, on = (x.amen || []).includes(S.uid);
       return q(() => S.db.doc(`groups/${g}/posts/${id}`).update({ amen: on ? F.arrayRemove(S.uid) : F.arrayUnion(S.uid) }));
+    }
+    case "cat": S.sheet = { cat: { who: id, area: a.dataset.v, mon: a.dataset.w }, back: S.sheet?.peek ? S.sheet : null }; return renderSheet();
+    case "pic": { const o = a.dataset.o || S.uid; S.sheet = { pic: { pid: id, owner: o }, back: S.sheet && !S.sheet.pic ? S.sheet : null }; needProofs(o, [id]); return renderSheet(); }
+    case "pictap": {
+      const now = Date.now(); if (now - (S.lastTap || 0) > 350) { S.lastTap = now; return; }
+      S.lastTap = 0; const g = a.dataset.g, k = a.dataset.k, to = a.dataset.to; if (!g || to === S.uid || S.ro) return;
+      const r = a.getBoundingClientRect(), b = document.createElement("div"); b.className = "burst"; b.innerHTML = ic("thumb");
+      Object.assign(b.style, { left: r.left + "px", top: r.top + "px", width: r.width + "px", height: r.height + "px" }); document.body.appendChild(b); setTimeout(() => b.remove(), 850);
+      const cid = `${k}_${S.uid}`; if ((S.cheers[g] || []).some(c => c.id === cid)) return;
+      return q(() => S.db.doc(`groups/${g}/cheers/${cid}`).set({ t: "gj", log: k, to, by: S.uid, name: S.profile.name || "", ts: Date.now() }));
     }
     case "dm": S.sheet = { dm: id }; renderSheet(); return setTimeout(() => document.getElementById("dm-input")?.focus({ preventScroll: true }), 50);
     case "chdel": {
@@ -1677,7 +1796,7 @@ document.addEventListener("submit", async e => {
     const id = dmId(to), ts = Date.now();
     return q(async () => {
       await S.db.doc(`dms/${id}/msgs/${rid(12)}`).set({ by: S.uid, text, ts });
-      await S.db.doc(`dms/${id}`).set({ u: id.split("_"), last: { by: S.uid, name: S.profile.name || "", text: text.slice(0, 140), ts } });
+      await S.db.doc(`dms/${id}`).set({ u: id.split("_"), last: { by: S.uid, name: S.profile.name || "", text: text.slice(0, 140), ts }, read: { [S.uid]: ts } }, { merge: true });
     });
   }
   if (kind === "cmt") {
