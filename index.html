@@ -792,8 +792,8 @@ function planCard(id, title, ph, empty = "No targets yet. Add your first one bel
   const timed = id[0] === "d", items = (S.plans[id]?.items || []).slice(), done = items.filter(i => i.done).length;
   if (timed) items.sort((a, b) => (a.time || "99").localeCompare(b.time || "99"));
   return `<section class="card"${timed ? ' data-tour="todo"' : ""}><div class="row spread"><h3>${title}</h3><span class="mono small muted">${done}/${items.length}</span></div>${extra}
-    ${items.length ? `<div class="list">${items.map(i => `<div class="item" style="align-items:center"><button class="check" style="background:${i.done ? "var(--good)" : "transparent"};border-color:${i.done ? "var(--good)" : "var(--line)"};color:var(--bg)" data-act="ptoggle" data-plan="${id}" data-id="${i.id}" aria-label="${i.done ? "Mark not done" : "Mark done"}" ${S.ro ? "disabled" : ""}>${i.done ? ic("check") : ""}</button>${i.time ? `<span class="tchip">${fmtTime(i.time)}</span>` : ""}<span class="grow" style="${i.done ? "text-decoration:line-through;color:var(--muted)" : ""};overflow-wrap:anywhere">${esc(i.text)}</span>${S.ro ? "" : `<button class="linkish" data-act="pdel" data-plan="${id}" data-id="${i.id}" aria-label="Remove">${ic("x")}</button>`}</div>`).join("")}</div>` : `<div class="empty">${empty}</div>`}
-    ${S.ro ? "" : `<form class="row wrap" data-form="padd" data-plan="${id}"><input id="pa-${id}" class="input grow" maxlength="120" placeholder="${esc(ph)}" aria-label="New target" style="min-width:160px">${timed ? `<input id="pt-${id}" class="input mono" type="time" aria-label="Time (optional, puts it on Google Calendar)" title="Optional time" style="width:120px">` : ""}<button class="btn primary" type="submit" aria-label="Add">${ic("plus")}</button></form>${timed ? `<p class="tiny muted">Add a time and it goes on your Google Calendar too.</p>` : ""}`}
+    ${items.length ? `<div class="list">${items.map(i => `<div class="item" style="align-items:center"><button class="check" style="background:${i.done ? "var(--good)" : "transparent"};border-color:${i.done ? "var(--good)" : "var(--line)"};color:var(--bg)" data-act="ptoggle" data-plan="${id}" data-id="${i.id}" aria-label="${i.done ? "Mark not done" : "Mark done"}" ${S.ro ? "disabled" : ""}>${i.done ? ic("check") : ""}</button><span class="grow" style="${i.done ? "text-decoration:line-through;color:var(--muted)" : ""};overflow-wrap:anywhere">${esc(i.text)}</span>${S.ro ? "" : `<button class="linkish" data-act="pdel" data-plan="${id}" data-id="${i.id}" aria-label="Remove">${ic("x")}</button>`}</div>`).join("")}</div>` : `<div class="empty">${empty}</div>`}
+    ${S.ro ? "" : `<form class="row" data-form="padd" data-plan="${id}"><input id="pa-${id}" class="input grow" maxlength="120" placeholder="${esc(ph)}" aria-label="New target"><button class="btn primary" type="submit" aria-label="Add">${ic("plus")}</button></form>`}
   </section>`;
 }
 function historyList(h) {
@@ -946,7 +946,7 @@ function syncCard() {
   const google = (S.auth?.currentUser?.providerData || []).some(p => p.providerId === "google.com"), live = !!gtok();
   return `<section class="card"><h3>Sync with your phone calendar</h3>
     <div class="rt"><div class="row"><span>${ic("cal")}</span><b class="grow">Google Calendar</b>${S.profile?.gcal?.synced ? `<span class="status ${live ? "good" : "warn"}">${live ? "Connected" : "Synced " + short(iso(new Date(S.profile.gcal.synced)))}</span>` : ""}</div>
-      <p class="small muted">Brings all your Google Calendar events into this calendar and keeps them here, even on another phone. Puts your routine and any to-do with a time on Google, with reminders. It updates by itself each time you open the Calendar tab while connected. Samsung phones signed in to Google get it automatically.${google ? "" : " You'll pick a Google account to connect."}</p>
+      <p class="small muted">Brings all your Google Calendar events into this calendar and keeps them here, even on another phone. Puts your routine on Google, with reminders. It updates by itself each time you open the Calendar tab while connected. Samsung phones signed in to Google get it automatically.${google ? "" : " You'll pick a Google account to connect."}</p>
       <button class="btn primary" data-act="gcal" ${S.gbusy ? "disabled" : ""}>${S.gbusy ? "Syncing…" : S.profile?.gcal?.synced ? "Sync now" : "Connect Google Calendar"}</button>
       <p class="small muted">If Google says the app isn't verified yet, tap <b>Advanced</b>, then <b>Go to Execute Over Excuses</b>.</p></div>
     <div class="rt"><div class="row"><span>${ic("cal")}</span><b class="grow">iPhone or Samsung calendar</b></div>
@@ -1243,7 +1243,7 @@ const TOUR = [
   { sel: ".pad", title: "Log it", text: "Tap what you did. A short note is required. Add a proof photo for bonus XP." },
   { sel: "[data-tour=week]", title: "Every week", text: "Gym or sport 3 times, stretch once, learn something new once. Do it all and the week counts as consistent." },
   { sel: "[data-tour=goal]", title: "Goal of the week", text: "One goal you'll hit by Sunday. Your crew can see it." },
-  { sel: "[data-tour=todo]", title: "Today's to-do", text: "Write what you'll get done today. Add a time and it also goes on your Google Calendar." },
+  { sel: "[data-tour=todo]", title: "Today's to-do", text: "Write what you'll get done today and tick it off as you go." },
   { sel: ".bell", title: "Crew activity", text: "See when your crew logs or posts. Turn on notifications to get a ping." },
   { sel: "[data-nav=calendar]", title: "Calendar", text: "Your routine and your Google Calendar events in one place." },
   { sel: "[data-nav=plan]", title: "Plan", text: "Write your targets for this week and this month." },
