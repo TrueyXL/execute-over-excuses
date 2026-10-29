@@ -528,7 +528,7 @@ async function boot() {
 }
 function listen() {
   const db = S.db, me = `people/${S.uid}`, on = (ref, fn) => unsubs.push(ref.onSnapshot(fn, dbErr));
-  on(db.doc(me), s => { S.profile = s.exists ? s.data() : null; S.status = "ready"; computeMine(); if (S.profile) { watchCrews(S.profile.groups || []); beat(); } render(); queueStats(); });
+  on(db.doc(me), s => { S.profile = s.exists ? s.data() : null; S.status = "ready"; computeMine(); if (S.profile) { watchCrews(S.profile.groups || []); beat(); if (S.pushOn === undefined) { S.pushOn = false; enablePush(false); } } render(); queueStats(); });
   on(db.collection(`${me}/days`), s => { S.days = {}; s.docs.forEach(d => S.days[d.id] = d.data()); computeMine(); render(); queueStats(); });
   on(db.collection(`${me}/gcal`), s => { S.gstore = {}; s.docs.forEach(d => S.gstore[d.id.slice(1)] = d.data()); render(); });
   on(db.collection(`${me}/plans`), s => { S.plans = {}; s.docs.forEach(d => S.plans[d.id] = d.data()); render(); queueStats(); });
@@ -696,6 +696,7 @@ function alertNew() {
   S.alertTop = Math.max(...fresh.map(x => x.ts));
   const top = fresh[0], msg = fresh.length > 1 ? `${top.title} (+${fresh.length - 1} more)` : top.title;
   if (!document.hidden) { toast(msg); chime(); }
+  if (S.pushOn && fresh.every(x => "mdcw".includes(x.key[0]))) return;
   sysNotify(fresh.length > 1 ? `${fresh.length} new from your crew` : top.title, top.sub || (fresh.length > 1 ? top.title : "Tap to open Execute"));
 }
 /* A short two-note chime + buzz for crew alerts while the app is open. Phones only allow sound after the first tap. */
@@ -721,10 +722,35 @@ async function sysNotify(title, body) {
   try { const r = await navigator.serviceWorker?.getRegistration(); if (r) return r.showNotification(title, opts); } catch {}
   try { const n = new Notification(title, opts); n.onclick = () => { window.focus(); n.close(); }; } catch {}
 }
+/* Real push (works with the app closed): the phone subscribes, our Cloudflare Worker sends. */
+const PUSH_URL = "https://eoe-push.eoe-push.workers.dev", VAPID_PUBLIC = "BNDqgsLuF0bn0i2h355Cdm4iSv3MSIwPqsPQyr_418HSt2JDQC6oo7FBrFnXjActWsIMGyLq0eGKlB49p1-ma7U";
+const pushReady = () => !!PUSH_URL && "PushManager" in window && "serviceWorker" in navigator;
+const unb64u = s => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), c => c.charCodeAt(0));
+async function pushCall(path, body) {
+  if (!PUSH_URL || !S.auth?.currentUser) return null;
+  try { const t = await S.auth.currentUser.getIdToken(), r = await fetch(PUSH_URL + path, { method: "POST", headers: { Authorization: "Bearer " + t, "Content-Type": "application/json" }, body: JSON.stringify(body) }); return r.ok ? r.json() : null; }
+  catch { return null; }
+}
+const pingPush = (type, o) => { if (PUSH_URL) pushCall("/notify", { type, ...o }); };
+async function enablePush(test) {
+  if (!pushReady() || !canNotify() || Notification.permission !== "granted") return false;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: unb64u(VAPID_PUBLIC) });
+    const key = "eoe-push-" + S.uid;
+    let saved = ""; try { saved = localStorage.getItem(key) || ""; } catch {}
+    if (test || saved !== sub.endpoint) { if (!await pushCall("/sub", { sub: sub.toJSON() })) return false; try { localStorage.setItem(key, sub.endpoint); } catch {} }
+    S.pushOn = true;
+    if (test) await pushCall("/test", {});
+    return true;
+  } catch (e) { console.warn("push", e); return false; }
+}
 async function askNotify() {
   if (!canNotify()) return toast("This browser can't show notifications. On iPhone, add the app to your home screen first.");
   const r = await Notification.requestPermission();
-  toast(r === "granted" ? "Notifications on. You'll get pinged when your crew logs." : "Notifications are blocked. Turn them on in your browser settings.");
+  const live = r === "granted" && await enablePush(true);
+  toast(r === "granted" ? (live ? "Notifications on. You'll hear it even when the app is closed." : "Notifications on. You'll get pinged when your crew logs.") : "Notifications are blocked. Turn them on in your browser settings.");
   render(); if (S.sheet?.feed) renderSheet();
 }
 function feedSheet() {
@@ -1733,7 +1759,7 @@ document.addEventListener("click", e => {
       const r = a.getBoundingClientRect(), b = document.createElement("div"); b.className = "burst"; b.innerHTML = ic("thumb");
       Object.assign(b.style, { left: r.left + "px", top: r.top + "px", width: r.width + "px", height: r.height + "px" }); document.body.appendChild(b); setTimeout(() => b.remove(), 850);
       const cid = `${k}_${S.uid}`; if ((S.cheers[g] || []).some(c => c.id === cid)) return;
-      return q(() => S.db.doc(`groups/${g}/cheers/${cid}`).set({ t: "gj", log: k, to, by: S.uid, name: S.profile.name || "", ts: Date.now() }));
+      return q(async () => { await S.db.doc(`groups/${g}/cheers/${cid}`).set({ t: "gj", log: k, to, by: S.uid, name: S.profile.name || "", ts: Date.now() }); pingPush("cheer", { gid: g, id: cid }); });
     }
     case "dm": S.sheet = { dm: id }; renderSheet(); return setTimeout(() => document.getElementById("dm-input")?.focus({ preventScroll: true }), 50);
     case "chdel": {
@@ -1744,7 +1770,7 @@ document.addEventListener("click", e => {
     case "gj": {
       const g = a.dataset.g, cid = `${id}_${S.uid}`, has = (S.cheers[g] || []).some(c => c.id === cid); if (S.ro) return;
       const ref = S.db.doc(`groups/${g}/cheers/${cid}`);
-      return q(() => has ? ref.delete() : ref.set({ t: "gj", log: id, to: a.dataset.to, by: S.uid, name: S.profile.name || "", ts: Date.now() }));
+      return q(async () => { if (has) return ref.delete(); await ref.set({ t: "gj", log: id, to: a.dataset.to, by: S.uid, name: S.profile.name || "", ts: Date.now() }); pingPush("cheer", { gid: g, id: cid }); });
     }
     case "cmt": S.cOpen = S.cOpen === id ? null : id; render(); return S.cOpen && document.querySelector(`[data-form="cmt"][data-k="${id}"] input`)?.focus();
     case "cdel": {
@@ -1830,27 +1856,32 @@ document.addEventListener("submit", async e => {
   if (kind === "gchat") {
     const g = f.dataset.g, inp = document.getElementById("gc-" + g), text = inp.value.trim(); if (!text) return;
     inp.value = "";
-    return q(() => S.db.doc(`groups/${g}/chat/${rid(12)}`).set({ by: S.uid, name: S.profile.name || "", text: text.slice(0, 1000), ts: Date.now() }));
+    const mid = rid(12);
+    return q(async () => { await S.db.doc(`groups/${g}/chat/${mid}`).set({ by: S.uid, name: S.profile.name || "", text: text.slice(0, 1000), ts: Date.now() }); pingPush("chat", { gid: g, id: mid }); });
   }
   if (kind === "dm") {
     const to = f.dataset.to, inp = document.getElementById("dm-input"), text = inp.value.trim().slice(0, 1000); if (!text) return;
     inp.value = "";
     const id = dmId(to), ts = Date.now();
     return q(async () => {
-      await S.db.doc(`dms/${id}/msgs/${rid(12)}`).set({ by: S.uid, text, ts });
+      const mid = rid(12);
+      await S.db.doc(`dms/${id}/msgs/${mid}`).set({ by: S.uid, text, ts });
       await S.db.doc(`dms/${id}`).set({ u: id.split("_"), last: { by: S.uid, name: S.profile.name || "", text: text.slice(0, 140), ts }, read: { [S.uid]: ts } }, { merge: true });
+      pingPush("dm", { pid: id, id: mid });
     });
   }
   if (kind === "cmt") {
     const g = f.dataset.g, k = f.dataset.k, inp = document.getElementById(`cm-${g}-${k}`), text = inp.value.trim(); if (!text) return;
     inp.value = "";
-    return q(() => S.db.doc(`groups/${g}/cheers/${rid(12)}`).set({ t: "c", log: k, to: f.dataset.to, by: S.uid, name: S.profile.name || "", text: text.slice(0, 300), ts: Date.now() }));
+    const cid = rid(12);
+    return q(async () => { await S.db.doc(`groups/${g}/cheers/${cid}`).set({ t: "c", log: k, to: f.dataset.to, by: S.uid, name: S.profile.name || "", text: text.slice(0, 300), ts: Date.now() }); pingPush("cheer", { gid: g, id: cid }); });
   }
   if (kind === "wall") {
     const g = f.dataset.g, inp = document.getElementById("wall-text-" + g), text = inp.value.trim(); if (text.length < 3) return toast("Write a little more first.");
     const anon = document.getElementById("wall-anon-" + g).checked, kindP = S.wallKind || "prayer";
     inp.value = ""; document.getElementById("wall-anon-" + g).checked = false;
-    return q(async () => { await S.db.doc(`groups/${g}/posts/${rid(12)}`).set({ by: S.uid, name: anon ? "" : S.profile.name || "", kind: kindP, text, anon, ts: Date.now(), amen: [] }); toast(kindP === "prayer" ? "Posted. The crew will pray with you." : "Posted"); });
+    const pid = rid(12);
+    return q(async () => { await S.db.doc(`groups/${g}/posts/${pid}`).set({ by: S.uid, name: anon ? "" : S.profile.name || "", kind: kindP, text, anon, ts: Date.now(), amen: [] }); pingPush("post", { gid: g, id: pid }); toast(kindP === "prayer" ? "Posted. The crew will pray with you." : "Posted"); });
   }
   if (kind === "feature") {
     const v = id => document.getElementById(id).value.trim(), url = v("ft-url");
