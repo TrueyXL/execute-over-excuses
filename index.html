@@ -341,6 +341,7 @@ const P = {
   back: '<path d="m15 18-6-6 6-6"/>',
   bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>',
   msg: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+  down: '<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>',
   thumb: '<path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/>',
   chat: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
   mega: '<path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
@@ -572,6 +573,7 @@ function catSheet(c) {
     return `${hd}<div class="item"><span class="a-${d.area}">${ic(d.icon || "check")}</span><div class="grow stack" style="gap:2px;min-width:0"><b>${esc(d.label || "")}${l.type ? ` · ${esc(l.type)}` : ""}${l.min ? ` · ${+l.min} min` : ""}</b>${l.note ? `<span class="small muted" style="overflow-wrap:anywhere">${esc(l.note)}</span>` : ""}<span class="tiny muted">${new Date(l.ts).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span></div>${pf ? `<button class="thumbbtn" data-act="pic" data-id="${esc(l.proof)}" data-o="${c.who}" aria-label="Open photo"><img class="thumb" src="${esc(proofSrc(pf))}" alt="Proof photo" loading="lazy"></button>` : l.proof ? `<span class="thumb" style="display:grid;place-items:center">${ic("image")}</span>` : ""}</div>`; }).join("");
   return `<div class="row spread"><div class="row" style="gap:10px"><span class="a-${c.area}" style="width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--surface-2)">${ic(AREA_ICON[c.area])}</span><div><h2>${AREA_NAME[c.area]}</h2><p class="tiny muted">${c.who === S.uid ? "You" : esc(p.name || "Someone")} · week of ${short(c.mon)}</p></div></div><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div>
     ${logs.length ? `<div class="list">${rows}</div>` : `<div class="empty">Nothing logged here ${c.mon === monday(today()) ? "yet this week" : "that week"}.</div>`}
+    ${c.area === "body" ? `<div class="note row spread" style="gap:10px"><p class="small" style="min-width:0">Need a plan? 45-minute Push, Pull, Legs with photos.</p>${planPdf("btn sm")}</div>` : ""}
     ${old && logs.length ? `<p class="tiny muted">Showing ${esc(p.name || "their")} latest logs. The full week shows once ${esc(p.name || "they")} open${p.name ? "s" : ""} the updated app.</p>` : ""}`;
 }
 function photoSheet(s) {
@@ -693,13 +695,29 @@ function alertNew() {
   if (!fresh.length) return;
   S.alertTop = Math.max(...fresh.map(x => x.ts));
   const top = fresh[0], msg = fresh.length > 1 ? `${top.title} (+${fresh.length - 1} more)` : top.title;
-  if (!document.hidden) toast(msg);
+  if (!document.hidden) { toast(msg); chime(); }
   sysNotify(fresh.length > 1 ? `${fresh.length} new from your crew` : top.title, top.sub || (fresh.length > 1 ? top.title : "Tap to open Execute"));
+}
+/* A short two-note chime + buzz for crew alerts while the app is open. Phones only allow sound after the first tap. */
+let actx = null;
+const soundOn = v => { try { if (v === undefined) return localStorage.getItem("eoe-sound") !== "off"; localStorage.setItem("eoe-sound", v ? "on" : "off"); } catch {} return v ?? true; };
+document.addEventListener("pointerdown", () => { try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === "suspended") actx.resume(); } catch {} }, { capture: true });
+function chime() {
+  if (!soundOn()) return;
+  try { navigator.vibrate?.([120, 60, 120]); } catch {}
+  if (!actx || actx.state !== "running") return;
+  const t = actx.currentTime;
+  [[880, 0], [1320, .13]].forEach(([f, d]) => {
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = "sine"; o.frequency.value = f; o.connect(g); g.connect(actx.destination);
+    g.gain.setValueAtTime(0, t + d); g.gain.linearRampToValueAtTime(.25, t + d + .015); g.gain.exponentialRampToValueAtTime(.001, t + d + .45);
+    o.start(t + d); o.stop(t + d + .5);
+  });
 }
 const canNotify = () => "Notification" in window;
 async function sysNotify(title, body) {
   if (!canNotify() || Notification.permission !== "granted" || !document.hidden) return;
-  const opts = { body: (body || "").slice(0, 140), icon: "icon-192.png", badge: "icon-192.png", tag: "eoe-crew" };
+  const opts = { body: (body || "").slice(0, 140), icon: "icon-192.png", badge: "icon-192.png", tag: "eoe-crew", renotify: true, silent: !soundOn(), vibrate: [200, 100, 200] };
   try { const r = await navigator.serviceWorker?.getRegistration(); if (r) return r.showNotification(title, opts); } catch {}
   try { const n = new Notification(title, opts); n.onclick = () => { window.focus(); n.close(); }; } catch {}
 }
@@ -713,6 +731,7 @@ function feedSheet() {
   const items = feed(), r = S.sheet.read ?? 0, perm = canNotify() ? Notification.permission : "none";
   return `<div class="row spread"><h2>Your crew</h2><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div>
     ${perm === "default" ? `<div class="note stack" style="gap:8px"><p class="small">Get a ping on this phone when someone in your crew logs or posts.</p><div><button class="btn sm primary" data-act="notifyon">${ic("bell")} Turn on notifications</button></div></div>` : perm === "denied" ? `<p class="small muted">Phone notifications are blocked for this site. You can turn them on in your browser settings.</p>` : ""}
+    <label class="row small" style="gap:8px"><input type="checkbox" data-act="soundtoggle" ${soundOn() ? "checked" : ""}> Play a sound for new crew activity</label>
     ${items.length ? `<div class="list feed">${items.map(x => `<button class="item person ${x.ts > r ? "new" : ""}" data-act="feedgo" data-v="${esc(x.go.join(":"))}">${x.who ? av(S.people[x.who]) : `<span class="avatar a-${x.area || "build"}">${ic(x.icon)}</span>`}<div class="grow stack" style="gap:2px;min-width:0;text-align:left"><b style="overflow-wrap:anywhere">${esc(x.title)}</b>${x.sub ? `<span class="small muted" style="overflow-wrap:anywhere">${esc(x.sub.length > 90 ? x.sub.slice(0, 90) + "…" : x.sub)}</span>` : ""}</div><span class="small muted" style="flex:none">${ago(x.ts)}</span></button>`).join("")}</div>`
       : `<div class="empty">Nothing yet. When someone in your crew logs a workout, prayer or lesson, it shows up here.</div>`}`;
 }
@@ -853,6 +872,7 @@ function todayView() {
     ${Object.entries(KINDS).map(([k, d]) => `<button class="act a-${d.area}" data-act="log" data-kind="${k}">${ic(d.icon)}<span>${d.label}</span><small>+${d.xp} XP</small></button>`).join("")}
   </section>
   ${weekCard(m.thisW, true)}
+  ${m.thisW.train < S.rules.train ? gymCard(true) : ""}
   ${healCard()}
   <section class="card"><div class="row spread"><h3>Today's log</h3><span class="mono small muted">+${dayXP(day)} XP</span></div>${logList(day?.logs || [], t, true)}</section>`;
 }
@@ -922,6 +942,24 @@ function weekCard(w, title) {
     <div class="stack" style="gap:12px">${mustRows(w)}</div>
   </section>`;
 }
+/* The 45-minute Push / Pull / Legs plan (full version with photos in workout-plan.pdf). */
+const GYM_PLAN = [
+  ["push", "Push", "Chest · shoulders · triceps", ["Bench press 4×6–8", "Dumbbell shoulder press 3×8–10", "Incline dumbbell press 3×10", "Side lateral raise 3×12–15", "Triceps rope pushdown 3×10–12", "Push-ups 2×max"]],
+  ["pull", "Pull", "Back · rear shoulders · biceps", ["Lat pulldown 4×8–10", "Bent-over barbell row 3×8", "Seated cable row 3×10–12", "Face pull 3×15", "Dumbbell curl 3×10–12", "Hammer curl 2×12"]],
+  ["legs", "Leg", "Quads · hamstrings · glutes · calves", ["Back squat 4×6–8", "Romanian deadlift 3×8–10", "Dumbbell lunges 3×10 each", "Leg press 3×12", "Lying leg curl 3×12", "Standing calf raise 3×15"]],
+];
+const planPdf = (cls = "btn primary") => `<a class="${cls}" href="workout-plan.pdf" download="Execute-45-min-gym-plan.pdf" target="_blank" rel="noopener">${ic("down")} Download the PDF</a>`;
+function gymCard(compact) {
+  const open = S.gymDay || "push", d = GYM_PLAN.find(x => x[0] === open);
+  if (compact) return `<section class="card row" style="gap:12px;align-items:center"><span class="a-body" style="width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:var(--surface-2);flex:none">${ic("dumb")}</span><div class="grow" style="min-width:0"><h3>Need a workout?</h3><p class="small muted">45 minutes: Push, Pull, Legs. With photos.</p></div><button class="btn sm" data-act="gymplan">Open</button></section>`;
+  return `<section class="card" id="gymplan"><p class="tiny muted">${ic("dumb")} Suggested gym plan</p><h2>45 minutes · 3 days a week</h2>
+    <p class="small muted">Push on Monday, Pull on Wednesday, Legs on Friday (any 3 days with a rest day between). 5 min warm-up, 36 min workout, 4 min cool-down.</p>
+    <div class="seg" role="tablist">${GYM_PLAN.map(([k, l]) => `<button role="tab" aria-selected="${open === k}" class="${open === k ? "on" : ""}" data-act="gymday" data-v="${k}">${l} day</button>`).join("")}</div>
+    <p class="small"><b>${d[1]} day</b> · <span class="muted">${d[2]}</span></p>
+    <ol class="small" style="margin:0;padding-left:20px;display:grid;gap:4px">${d[3].map(x => `<li>${esc(x)}</li>`).join("")}</ol>
+    <p class="tiny muted">The PDF has photos of every exercise, form tips, rest times, no-gym swaps and boxes to track your weights.</p>
+    <div>${planPdf()}</div></section>`;
+}
 function healCard() {
   const m = S.mine, R = S.rules, n = Math.min(m.streak, R.healWeeks);
   if (m.healing) return `<section class="card"><div class="row"><span class="badge a-stretch" style="width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:var(--surface-2)">${ic("heart")}</span><div class="grow"><h3>Healing · unlocked</h3><p class="small muted">You earned it with ${R.healWeeks} consistent weeks. This category opens soon.</p></div></div></section>`;
@@ -978,6 +1016,7 @@ function planView() {
   return `<section class="card"><p class="tiny muted">Execution plan</p><h1>Plan the work.<br>Work the plan.</h1><p class="small muted">Write what you will execute this week and this month. Your coach can see it.</p></section>
   ${planCard(wk, `This week · ${short(monday(t))}–${short(addD(monday(t), 6))}`, "e.g. Send 20 proposals, finish chapter 4, meal prep Sunday")}
   ${planCard(mo, `This month · ${MON[+t.slice(5, 7) - 1]}`, "e.g. Save 500 $, launch the website, read Proverbs")}
+  ${gymCard()}
   ${healCard()}
   <section class="card"><h3>Your weeks</h3>${historyList(m.weeks.slice(-8).reverse().map(w => ({ mon: w.mon, done: w.mustsDone })))}</section>`;
 }
@@ -1658,6 +1697,9 @@ document.addEventListener("click", e => {
     }
     case "sel": return loadPerson(id);
     case "peek": S.sheet = { peek: id }; loadCrewProofs(); return renderSheet();
+    case "gymday": S.gymDay = a.dataset.v; return render();
+    case "gymplan": go("plan"); return setTimeout(() => document.getElementById("gymplan")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+    case "soundtoggle": soundOn(!soundOn()); if (soundOn()) chime(); return renderSheet();
     case "gtab": S.gtab[id] = a.dataset.v; if (a.dataset.v === "proof") loadCrewProofs(); return render();
     case "wallkind": S.wallKind = a.dataset.v; return render();
     case "feed": { const r = lastRead(); S.sheet = { feed: true, read: r }; try { localStorage.setItem(NOTE_KEY(), String(Date.now())); } catch {} render(); return renderSheet(); }
