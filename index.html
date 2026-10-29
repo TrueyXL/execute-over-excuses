@@ -511,7 +511,7 @@ let unsubs = [];
 async function boot() {
   try { navigator.serviceWorker?.register("sw.js"); } catch {}
   try { const t = localStorage.getItem("exe-theme"); if (t) document.documentElement.dataset.theme = t; } catch {}
-  const h = location.hash.slice(1); if (views.includes(h)) S.view = h;
+  const h = location.hash.slice(1); if (views.includes(h)) S.view = h; else readDeep(h);
   render();
   if (!FIREBASE_CONFIG || !window.firebase) { S.status = "nodb"; return render(); }
   firebase.initializeApp(FIREBASE_CONFIG);
@@ -528,7 +528,7 @@ async function boot() {
 }
 function listen() {
   const db = S.db, me = `people/${S.uid}`, on = (ref, fn) => unsubs.push(ref.onSnapshot(fn, dbErr));
-  on(db.doc(me), s => { S.profile = s.exists ? s.data() : null; S.status = "ready"; computeMine(); if (S.profile) { watchCrews(S.profile.groups || []); beat(); if (S.pushOn === undefined) { S.pushOn = false; enablePush(false); } } render(); queueStats(); });
+  on(db.doc(me), s => { S.profile = s.exists ? s.data() : null; S.status = "ready"; computeMine(); if (S.profile) { watchCrews(S.profile.groups || []); beat(); if (S.pushOn === undefined) { S.pushOn = false; enablePush(false); } if (S.deep) setTimeout(openDeep, 300); } render(); queueStats(); });
   on(db.collection(`${me}/days`), s => { S.days = {}; s.docs.forEach(d => S.days[d.id] = d.data()); computeMine(); render(); queueStats(); });
   on(db.collection(`${me}/gcal`), s => { S.gstore = {}; s.docs.forEach(d => S.gstore[d.id.slice(1)] = d.data()); render(); });
   on(db.collection(`${me}/plans`), s => { S.plans = {}; s.docs.forEach(d => S.plans[d.id] = d.data()); render(); queueStats(); });
@@ -1931,7 +1931,22 @@ document.addEventListener("submit", async e => {
     return q(async () => { await S.db.doc("config/rules").set(R); toast("Rules saved"); });
   }
 });
-window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if (views.includes(h) && h !== S.view) go(h); });
+window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if (views.includes(h) && h !== S.view) go(h); else if (readDeep(h)) openDeep(); });
+/* Links from notifications: #chat-<crew id> opens that crew's chat, #dm-<person id> opens your private chat with them. */
+function readDeep(h) {
+  const m = /^(chat|dm)-([A-Za-z0-9_-]{1,64})$/.exec(h || ""); if (!m) return false;
+  S.deep = { kind: m[1], id: m[2] }; S.view = "crew"; return true;
+}
+function openDeep() {
+  const d = S.deep; if (!d || !S.profile) return;
+  S.deep = null;
+  try { history.replaceState(null, "", "#crew"); } catch {}
+  if (d.kind === "chat" && (S.profile.groups || []).includes(d.id)) {
+    S.gtab[d.id] = "chat"; go("crew");
+    return setTimeout(() => { document.getElementById("crew-" + d.id)?.scrollIntoView({ block: "start" }); document.getElementById("gc-" + d.id)?.focus({ preventScroll: true }); }, 80);
+  }
+  if (d.kind === "dm") { go("crew"); S.sheet = { dm: d.id }; renderSheet(); return setTimeout(() => document.getElementById("dm-input")?.focus({ preventScroll: true }), 80); }
+}
 document.addEventListener("keydown", e => { if (e.key === "Escape" && S.tour != null) return endTour(); if (e.key === "Escape" && S.sheet) { S.sheet = null; renderSheet(); } });
 document.addEventListener("visibilitychange", () => { if (!document.hidden) { beat(); render(); } });
 setInterval(() => { beat(); if (S.profile) render(); }, 60000);
