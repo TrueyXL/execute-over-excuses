@@ -204,6 +204,7 @@ a.btn.primary { color: var(--accent-ink); }
 textarea.input { min-height: 84px; resize: vertical; }
 .seg { display: flex; gap: 6px; flex-wrap: wrap; }
 .seg button { border: 1px solid var(--line); background: var(--surface-2); border-radius: 99px; padding: 8px 14px; font-weight: 600; min-height: 40px; }
+.seg.mini { gap: 4px; } .seg.mini button { min-height: 32px; padding: 4px 11px; font-size: 13px; }
 .seg button.on { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
 
 /* Lock tile */
@@ -626,7 +627,7 @@ function catSheet(c) {
   const old = c.who !== S.uid && !(S.isOwner && c.who === S.sel) && !S.people[c.who]?.stats?.wk;
   let day = "";
   const rows = logs.map(l => { const d = KINDS[l.kind] || {}, pf = l.proof && have[l.proof], hd = l.date !== day ? (day = l.date, `<p class="catday">${nice(l.date)}</p>`) : "";
-    return `${hd}<div class="item"><span class="a-${d.area}">${ic(d.icon || "check")}</span><div class="grow stack" style="gap:2px;min-width:0"><b>${esc(d.label || "")}${l.type ? ` · ${esc(l.type)}` : ""}${l.min ? ` · ${+l.min} min` : ""}</b>${l.note ? `<span class="small muted" style="overflow-wrap:anywhere">${esc(l.note)}</span>` : ""}<span class="tiny muted">${new Date(l.ts).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span></div>${pf ? `<button class="thumbbtn" data-act="pic" data-id="${esc(l.proof)}" data-o="${c.who}" aria-label="Open proof"><img class="thumb" src="${esc(proofSrc(pf))}" alt="Proof" loading="lazy">${playBadge(pf)}</button>` : l.proof ? `<span class="thumb" style="display:grid;place-items:center">${ic("image")}</span>` : ""}</div>`; }).join("");
+    return `${hd}<div class="item"><span class="a-${d.area}">${ic(d.icon || "check")}</span><div class="grow stack" style="gap:2px;min-width:0"><b>${esc(d.label || "")}${l.type ? ` · ${esc(l.type)}` : ""}${l.min ? ` · ${fmtMin(l.min)}` : ""}</b>${l.note ? `<span class="small muted" style="overflow-wrap:anywhere">${esc(l.note)}</span>` : ""}<span class="tiny muted">${new Date(l.ts).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span></div>${pf ? `<button class="thumbbtn" data-act="pic" data-id="${esc(l.proof)}" data-o="${c.who}" aria-label="Open proof"><img class="thumb" src="${esc(proofSrc(pf))}" alt="Proof" loading="lazy">${playBadge(pf)}</button>` : l.proof ? `<span class="thumb" style="display:grid;place-items:center">${ic("image")}</span>` : ""}</div>`; }).join("");
   return `<div class="row spread"><div class="row" style="gap:10px"><span class="a-${c.area}" style="width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--surface-2)">${ic(AREA_ICON[c.area])}</span><div><h2>${AREA_NAME[c.area]}</h2><p class="tiny muted">${c.who === S.uid ? "You" : esc(p.name || "Someone")} · week of ${short(c.mon)}</p></div></div><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div>
     ${logs.length ? `<div class="list">${rows}</div>` : `<div class="empty">Nothing logged here ${c.mon === monday(today()) ? "yet this week" : "that week"}.</div>`}
     ${c.area === "body" ? `<div class="note row spread" style="gap:10px"><p class="small" style="min-width:0">Need a plan? 45-minute Push, Pull, Legs with photos.</p>${planPdf("btn sm")}</div>` : ""}
@@ -724,7 +725,9 @@ function crewIds() {
   const gs = S.profile?.groups || [];
   return Object.entries(S.people).filter(([id, p]) => id !== S.uid && (p.groups || []).some(g => gs.includes(g))).map(([id]) => id);
 }
-function logLine(l) { const d = KINDS[l.kind] || {}; return `${d.label || "something"}${l.type ? ` · ${l.type}` : ""}${l.min ? ` · ${+l.min} min` : ""}`; }
+/* 45 → "45 min", 90 → "1 h 30 min", 120 → "2 h". Logs always store minutes. */
+function fmtMin(m) { m = Math.round(+m || 0); const h = Math.floor(m / 60), r = m % 60; return h ? `${h} h${r ? ` ${r} min` : ""}` : `${r} min`; }
+function logLine(l) { const d = KINDS[l.kind] || {}; return `${d.label || "something"}${l.type ? ` · ${l.type}` : ""}${l.min ? ` · ${fmtMin(l.min)}` : ""}`; }
 /* Everything worth a ping: crewmates' logs, new crew wall posts, and the coach's announcement. Last 7 days. */
 function feed() {
   const since = Date.now() - 7 * 864e5, out = [];
@@ -957,12 +960,12 @@ function todayView() {
     <div class="quest ${sDone ? "done" : ""}">
       <span class="check">${sDone ? ic("check") : ""}</span>
       <div class="grow stack" style="gap:4px"><b>Time with God</b><span class="small muted">Prayer or the Word. We strongly recommend both.</span>
-        <div class="row wrap" style="gap:6px"><span class="chip ${pr.length ? "on" : ""}">${ic("sunrise")} Prayer${pr.length ? ` · ${mins(pr)} min` : ""}</span><span class="chip ${wd.length ? "on" : ""}">${ic("book")} Word${wd.length ? ` · ${mins(wd)} min` : ""}</span>${pr.length && wd.length ? `<span class="chip on">+${BOTH_SPIRIT_XP} both</span>` : ""}</div></div>
+        <div class="row wrap" style="gap:6px"><span class="chip ${pr.length ? "on" : ""}">${ic("sunrise")} Prayer${pr.length ? ` · ${fmtMin(mins(pr))}` : ""}</span><span class="chip ${wd.length ? "on" : ""}">${ic("book")} Word${wd.length ? ` · ${fmtMin(mins(wd))}` : ""}</span>${pr.length && wd.length ? `<span class="chip on">+${BOTH_SPIRIT_XP} both</span>` : ""}</div></div>
     </div>
     <div class="quest ${bDone ? "done" : ""}">
       <span class="check">${bDone ? ic("check") : ""}</span>
       <div class="grow stack" style="gap:4px"><b>Build your future</b><span class="small muted">Career, money, business or school.</span>
-        ${bd.length ? `<div class="row wrap" style="gap:6px"><span class="chip on">${ic("brief")} ${mins(bd)} min</span></div>` : ""}</div>
+        ${bd.length ? `<div class="row wrap" style="gap:6px"><span class="chip on">${ic("brief")} ${fmtMin(mins(bd))}</span></div>` : ""}</div>
     </div>
   </section>
   ${todoCard(t)}
@@ -1117,7 +1120,7 @@ function logList(logs, date, mine) {
   if (!logs.length) return `<div class="empty">Nothing logged yet. Tap a button above to log your first win.</div>`;
   const proofs = Object.fromEntries((mine ? S.myProofs : (S.selData?.proofs || [])).map(p => [p.id, p]));
   return `<div class="list">${logs.slice().reverse().map(l => { const d = KINDS[l.kind] || {}, pf = l.proof && proofs[l.proof];
-    return `<div class="item"><span class="a-${d.area}">${ic(d.icon || "check")}</span><div class="grow stack" style="gap:2px;min-width:0"><b>${esc(d.label)}${l.type ? ` · ${esc(l.type)}` : ""}${l.min ? ` · ${+l.min} min` : ""}</b>${mine ? cheerTally(l) : ""}${l.note ? `<span class="small muted" style="overflow-wrap:anywhere">${esc(l.note)}</span>` : ""}</div>${pf ? `<button class="thumbbtn" data-act="pic" data-id="${esc(l.proof)}" data-o="${mine ? S.uid : esc(S.sel || "")}" aria-label="View proof"><img class="thumb" src="${esc(proofSrc(pf))}" alt="Proof" loading="lazy">${playBadge(pf)}</button>` : l.proof ? `<span class="thumb" style="display:grid;place-items:center">${ic("image")}</span>` : ""}${mine && !S.ro ? `<button class="linkish" data-act="edit" data-date="${date}" data-id="${l.id}" aria-label="Edit">${ic("pencil")}</button><button class="linkish" data-act="del" data-date="${date}" data-id="${l.id}" aria-label="Delete">${S.armDel === l.id ? "Tap to delete" : ic("trash")}</button>` : ""}</div>`; }).join("")}</div>`;
+    return `<div class="item"><span class="a-${d.area}">${ic(d.icon || "check")}</span><div class="grow stack" style="gap:2px;min-width:0"><b>${esc(d.label)}${l.type ? ` · ${esc(l.type)}` : ""}${l.min ? ` · ${fmtMin(l.min)}` : ""}</b>${mine ? cheerTally(l) : ""}${l.note ? `<span class="small muted" style="overflow-wrap:anywhere">${esc(l.note)}</span>` : ""}</div>${pf ? `<button class="thumbbtn" data-act="pic" data-id="${esc(l.proof)}" data-o="${mine ? S.uid : esc(S.sel || "")}" aria-label="View proof"><img class="thumb" src="${esc(proofSrc(pf))}" alt="Proof" loading="lazy">${playBadge(pf)}</button>` : l.proof ? `<span class="thumb" style="display:grid;place-items:center">${ic("image")}</span>` : ""}${mine && !S.ro ? `<button class="linkish" data-act="edit" data-date="${date}" data-id="${l.id}" aria-label="Edit">${ic("pencil")}</button><button class="linkish" data-act="del" data-date="${date}" data-id="${l.id}" aria-label="Delete">${S.armDel === l.id ? "Tap to delete" : ic("trash")}</button>` : ""}</div>`; }).join("")}</div>`;
 }
 
 /* ----- Plan ----- */
@@ -1239,7 +1242,7 @@ function peekSheet(id) {
     ${td && td.total ? `<p class="small">To-do today: <b>${td.done}/${td.total}</b> done</p>` : ""}
     <div class="row spread"><h3>This week</h3>${weekStatus(wObj)}</div>${strip(wObj)}<div class="stack" style="gap:12px">${mustRows(wObj, id)}</div>
     <h3>What ${pro(p).his === "her" ? "she's" : "he's"} been doing</h3>
-    ${st.recent?.length ? `<div class="list">${st.recent.map(l => { const d = KINDS[l.kind] || {}; return `<div class="item"><span class="a-${d.area}">${ic(d.icon || "check")}</span><div class="grow"><b>${esc(d.label || "")}${l.type ? ` · ${esc(l.type)}` : ""}${l.min ? ` · ${+l.min} min` : ""}</b></div><span class="small muted">${l.ts ? ago(l.ts) : short(l.date)}</span></div>`; }).join("")}</div>` : `<div class="empty">Nothing logged yet.</div>`}
+    ${st.recent?.length ? `<div class="list">${st.recent.map(l => { const d = KINDS[l.kind] || {}; return `<div class="item"><span class="a-${d.area}">${ic(d.icon || "check")}</span><div class="grow"><b>${esc(d.label || "")}${l.type ? ` · ${esc(l.type)}` : ""}${l.min ? ` · ${fmtMin(l.min)}` : ""}</b></div><span class="small muted">${l.ts ? ago(l.ts) : short(l.date)}</span></div>`; }).join("")}</div>` : `<div class="empty">Nothing logged yet.</div>`}
     ${shots.length ? `<h3>Proof photos</h3><div class="wall">${shots.map(s => shotTile(s, id, `${esc(KINDS[s.kind]?.label || "")} · ${short(s.date)}`)).join("")}</div>` : ""}`;
 }
 let crewLoaded = 0;
@@ -1607,7 +1610,7 @@ function openLog(kind, note = "") {
 }
 async function openEdit(date, id) {
   const l = S.days[date]?.logs?.find(x => x.id === id); if (!l) return;
-  S.sheet = { edit: id, kind: l.kind, date, min: l.min || 30, type: l.type || "", note: l.note || "", file: null, url: "", oldProof: l.proof || "", oldSrc: "", dropOld: false, busy: false };
+  S.sheet = { edit: id, kind: l.kind, date, min: l.min || 30, unit: l.min >= 120 && l.min % 15 === 0 ? "h" : "min", type: l.type || "", note: l.note || "", file: null, url: "", oldProof: l.proof || "", oldSrc: "", dropOld: false, busy: false };
   if (l.proof) {
     const pf = S.myProofs.find(p => p.id === l.proof);
     if (pf) S.sheet.oldSrc = proofSrc(pf);
@@ -1679,7 +1682,10 @@ function renderSheet() {
     <div class="row spread"><div class="row"><span class="a-${d.area}">${ic(d.icon)}</span><h2>${s.edit ? "Edit · " : ""}${esc(d.label)}</h2></div><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div>
     ${s.edit ? `<p class="small muted">Logged ${nice(s.date)}</p><div class="field"><label>Category</label><div class="seg">${Object.entries(KINDS).map(([k, x]) => `<button class="${s.kind === k ? "on" : ""}" data-act="skind" data-v="${k}">${x.label}</button>`).join("")}</div></div>` : `<div class="seg" role="group" aria-label="Day"><button class="${s.date === t ? "on" : ""}" data-act="sdate" data-v="${t}">Today</button><button class="${s.date === y ? "on" : ""}" data-act="sdate" data-v="${y}">Yesterday</button></div>`}
     ${d.types ? `<div class="field"><label>Type</label><div class="seg">${d.types.map(x => `<button class="${s.type === x ? "on" : ""}" data-act="stype" data-v="${x}">${x}</button>`).join("")}</div></div>` : ""}
-    ${d.min ? `<div class="field"><label for="lg-min">Minutes</label><div class="seg">${[10, 15, 30, 45, 60, 90].map(m => `<button class="${+s.min === m ? "on" : ""}" data-act="smin" data-v="${m}">${m}</button>`).join("")}</div><input id="lg-min" class="input mono" type="number" inputmode="numeric" min="1" max="600" value="${esc(keep.min ?? s.min)}"></div>` : ""}
+    ${d.min ? (() => { const h = s.unit === "h", opts = h ? [60, 90, 120, 180, 240, 360] : [10, 15, 30, 45, 60, 90];
+      return `<div class="field"><div class="row spread"><label for="lg-min">${h ? "Hours" : "Minutes"}</label><div class="seg mini" role="group" aria-label="Unit"><button class="${h ? "" : "on"}" data-act="sunit" data-v="min">Minutes</button><button class="${h ? "on" : ""}" data-act="sunit" data-v="h">Hours</button></div></div>
+        <div class="seg">${opts.map(m => `<button class="${+s.min === m ? "on" : ""}" data-act="smin" data-v="${m}">${h ? `${m / 60} h` : m}</button>`).join("")}</div>
+        <input id="lg-min" class="input mono" type="number" inputmode="decimal" min="${h ? .25 : 1}" max="${h ? 24 : 1440}" step="${h ? .25 : 1}" value="${esc(keep.min ?? (h ? +(s.min / 60).toFixed(2) : s.min))}"></div>`; })() : ""}
     ${s.kind === "learn" && S.feature?.podcast?.title ? `<div class="note row spread" style="gap:10px"><p class="small" style="min-width:0;overflow-wrap:anywhere">This week's suggestion: <b>${esc(S.feature.podcast.title)}</b></p><button class="btn sm" data-act="usesug">Use it</button></div>` : ""}
     <div class="field"><label for="lg-note">${esc(d.note)} <span style="color:var(--accent)">(required)</span></label><textarea id="lg-note" class="input" maxlength="600" placeholder="${esc(d.ph)}">${esc(keep.note ?? s.note)}</textarea></div>
     ${d.photo ? `<div class="field"><label>Proof photo or video ${needPic(s.kind) && !s.edit ? `<span style="color:var(--accent)">(required)</span>` : ""} <span class="muted">(+${PHOTO_XP} XP)</span></label>
@@ -1753,7 +1759,8 @@ const toDataURL = b => new Promise((r, j) => { const f = new FileReader(); f.onl
 async function saveLog() {
   const s = S.sheet, d = KINDS[s.kind];
   const note = (document.getElementById("lg-note")?.value || "").trim();
-  const min = d.min ? Math.round(+document.getElementById("lg-min").value) : 0;
+  const raw = d.min ? +document.getElementById("lg-min").value : 0, min = d.min ? Math.round(s.unit === "h" ? raw * 60 : raw) : 0;
+  if (min > 1440) return toast("That's more than a day. Check the time.");
   if (d.min && !(min > 0)) return toast("Enter how many minutes.");
   if (note.length < 3) { document.getElementById("lg-note")?.focus(); return toast("Add a short note first. Say what you did."); }
   if (!s.edit && d.photo && needPic(s.kind) && !s.file) return toast("Add a proof photo or video first.");
@@ -1837,7 +1844,13 @@ document.addEventListener("click", e => {
     case "close": if (s?.url) URL.revokeObjectURL(s.url); document.querySelector("#sheet video")?.pause(); S.sheet = s?.back || null; return renderSheet();
     case "sdate": s.date = a.dataset.v; return renderSheet();
     case "stype": s.type = a.dataset.v; return renderSheet();
-    case "smin": s.min = +a.dataset.v; const mi = document.getElementById("lg-min"); if (mi) mi.value = s.min; return renderSheet();
+    case "smin": { s.min = +a.dataset.v; const mi = document.getElementById("lg-min"); if (mi) mi.value = s.unit === "h" ? s.min / 60 : s.min; return renderSheet(); }
+    case "sunit": {
+      const mi = document.getElementById("lg-min"), was = s.unit === "h", raw = +mi?.value || 0, v = a.dataset.v;
+      if (raw > 0) s.min = Math.round(was ? raw * 60 : raw);
+      s.unit = v; if (mi) mi.value = v === "h" ? +(s.min / 60).toFixed(2) : s.min;
+      return renderSheet();
+    }
     case "edit": return openEdit(a.dataset.date, id);
     case "skind": { s.note = document.getElementById("lg-note")?.value || ""; s.kind = a.dataset.v; s.type = KINDS[s.kind].types?.includes(s.type) ? s.type : (KINDS[s.kind].types?.[0] || ""); return renderSheet(); }
     case "dropold": s.dropOld = true; return renderSheet();
@@ -1964,6 +1977,11 @@ document.addEventListener("click", e => {
     case "gimport": return refreshGcal();
     case "copy": return copy(a.dataset.text);
   }
+});
+document.addEventListener("input", e => {
+  if (e.target.id !== "lg-min" || !S.sheet) return;
+  const v = +e.target.value || 0; S.sheet.min = Math.round(S.sheet.unit === "h" ? v * 60 : v);
+  document.querySelectorAll('#sheet [data-act="smin"]').forEach(b => b.classList.toggle("on", +b.dataset.v === S.sheet.min));
 });
 document.addEventListener("change", async e => {
   if (e.target.id === "lg-cam" || e.target.id === "lg-pick" || e.target.id === "lg-vid") {
