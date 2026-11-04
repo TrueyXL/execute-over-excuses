@@ -14,7 +14,7 @@
 <link rel="icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Barlow:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Barlow:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Sora:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: one phone-width column (wider on desktop), game HUD on top, fixed bottom tab bar, bottom sheets for logging. Dark-first "forge" look. */
 :root {
@@ -39,6 +39,56 @@
   --spirit: #a97c06; --build: #1f6fb2; --body: #c6402a; --stretch: #17876a; --learn: #7246c9;
   --good: #1d8a54; --bad: #c4362f; --shadow: 0 10px 30px rgba(20,23,28,.10); color-scheme: light;
 }
+/* ===== Fresh skins (data-skin): glassy cards, soft glows, rounder shapes, a floating tab bar ===== */
+:root[data-skin="midnight"] {
+  --bg: #0a0b16; --surface: rgba(255,255,255,.055); --surface-2: rgba(255,255,255,.07); --line: rgba(255,255,255,.09); --fg: #f3f4fb; --muted: #969bb6;
+  --accent: #8b7bff; --accent-2: #22d3ee; --accent-ink: #ffffff; --accent-soft: rgba(139,123,255,.18);
+  --spirit: #fbbf24; --build: #60a5fa; --body: #fb7185; --stretch: #34d399; --learn: #c084fc; --good: #34d399; --bad: #f87171;
+  --shadow: 0 20px 50px rgba(0,0,0,.45); --solid: #14152a;
+  --glow: radial-gradient(60% 40% at 10% 0%, rgba(139,123,255,.28), transparent 70%), radial-gradient(50% 35% at 100% 20%, rgba(34,211,238,.18), transparent 70%), radial-gradient(60% 40% at 50% 100%, rgba(251,113,133,.12), transparent 70%);
+  color-scheme: dark;
+}
+:root[data-skin="sunset"] {
+  --bg: #fff5ef; --surface: rgba(255,255,255,.72); --surface-2: rgba(255,240,232,.85); --line: rgba(120,60,40,.12); --fg: #241626; --muted: #7c6774;
+  --accent: #f0574a; --accent-2: #ff9f43; --accent-ink: #ffffff; --accent-soft: rgba(240,87,74,.12);
+  --spirit: #c08400; --build: #2563eb; --body: #e0413a; --stretch: #0f9d76; --learn: #7c3aed; --good: #12925f; --bad: #d63a35;
+  --shadow: 0 18px 40px rgba(150,70,40,.14); --solid: #ffffff;
+  --glow: radial-gradient(60% 40% at 0% 0%, rgba(255,159,67,.30), transparent 70%), radial-gradient(55% 35% at 100% 15%, rgba(240,87,74,.20), transparent 70%), radial-gradient(60% 40% at 60% 100%, rgba(124,58,237,.10), transparent 70%);
+  color-scheme: light;
+}
+:root[data-skin] { --display: "Sora", "Plus Jakarta Sans", system-ui, sans-serif; --body-font: "Plus Jakarta Sans", "Segoe UI", Roboto, sans-serif; }
+:root[data-skin] body { background: var(--glow), var(--bg); background-attachment: fixed; }
+:root[data-skin] h1, :root[data-skin] h2, :root[data-skin] h3, :root[data-skin] .logo { text-transform: none; letter-spacing: -.02em; }
+:root[data-skin] h1 { font-size: 30px; font-weight: 800; line-height: 1.08; } :root[data-skin] h2 { font-size: 21px; font-weight: 700; line-height: 1.15; } :root[data-skin] h3 { font-size: 17px; font-weight: 700; line-height: 1.2; }
+:root[data-skin] .card, :root[data-skin] .hud { border-radius: 26px; backdrop-filter: blur(18px) saturate(1.3); -webkit-backdrop-filter: blur(18px) saturate(1.3); box-shadow: var(--shadow); }
+:root[data-skin] .hud { background: linear-gradient(140deg, color-mix(in srgb, var(--accent) 22%, transparent), color-mix(in srgb, var(--accent-2) 10%, transparent) 60%, var(--surface)); }
+:root[data-skin] .logo { font-weight: 800; font-size: 20px; }
+:root[data-skin] .logo b { line-height: 1; padding: 0 2px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+:root[data-skin] .btn.primary, :root[data-skin] .seg button.on, :root[data-skin] .lvl, :root[data-skin] .pick label:has(input:checked) { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: var(--accent-ink); border-color: transparent; box-shadow: 0 8px 22px color-mix(in srgb, var(--accent) 35%, transparent); }
+:root[data-skin] .btn, :root[data-skin] .input, :root[data-skin] .icon-btn { border-radius: 16px; }
+:root[data-skin] .btn.sm { border-radius: 12px; }
+:root[data-skin] .xpbar i { background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+:root[data-skin] .act { border-radius: 22px; background: var(--surface); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: var(--shadow); gap: 8px; }
+:root[data-skin] .act > .ic { width: 46px; height: 46px; padding: 11px; border-radius: 16px; background: color-mix(in srgb, currentColor 16%, transparent); }
+:root[data-skin] .must .badge, :root[data-skin] .quest { border-radius: 14px; }
+:root[data-skin] .pip { border-radius: 99px; } :root[data-skin] .pip.on { box-shadow: 0 0 10px color-mix(in srgb, currentColor 55%, transparent); }
+:root[data-skin] .nav { left: 12px; right: 12px; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); border: 1px solid var(--line); border-radius: 26px; box-shadow: var(--shadow); background: color-mix(in srgb, var(--solid) 78%, transparent); padding: 4px; }
+:root[data-skin] .nav a { border-radius: 20px; text-transform: none; letter-spacing: 0; font-weight: 600; }
+:root[data-skin] .nav a.on { background: var(--accent-soft); color: var(--accent); }
+:root[data-skin] .app { padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px)); }
+:root[data-skin] .sheet { background: var(--solid); border-radius: 30px 30px 0 0; }
+:root[data-skin] .scrim { background: rgba(5,5,15,.5); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+:root[data-skin] .chip.on, :root[data-skin] .streak { background: var(--accent-soft); }
+:root[data-skin] .bub.me { background: linear-gradient(135deg, var(--accent), var(--accent-2)); }
+:root[data-skin] .ytthumb { border-radius: 18px; }
+:root[data-skin] .sermon { background: linear-gradient(160deg, color-mix(in srgb, var(--spirit) 14%, transparent), var(--surface) 55%); }
+/* Look picker */
+.looks { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.look { display: grid; gap: 4px; justify-items: start; text-align: left; padding: 10px; border-radius: 18px; border: 1.5px solid var(--line); background: var(--surface-2); font: inherit; color: inherit; cursor: pointer; }
+.look.on { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.look .sw { width: 100%; height: 54px; border-radius: 12px; display: flex; align-items: flex-end; gap: 6px; padding: 8px; border: 1px solid rgba(128,128,128,.25); }
+.look .sw i { display: block; height: 14px; border-radius: 99px; flex: 1; } .look .sw i + i { flex: .35; }
+.look b { font-size: 15px; } .look small { font-size: 12px; color: var(--muted); }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 :root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); -webkit-text-size-adjust: 100%; }
 [hidden] { display: none !important; }
@@ -342,6 +392,7 @@ const P = {
   bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>',
   msg: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
   down: '<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>',
+  palette: '<circle cx="13.5" cy="6.5" r="1.5"/><circle cx="17.5" cy="10.5" r="1.5"/><circle cx="8.5" cy="7.5" r="1.5"/><circle cx="6.5" cy="12.5" r="1.5"/><path d="M12 2a10 10 0 0 0 0 20c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2h2.4A5.6 5.6 0 0 0 22 9.8C22 5.5 17.5 2 12 2z"/>',
   thumb: '<path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/>',
   chat: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
   mega: '<path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
@@ -510,7 +561,7 @@ let statsTimer = 0; const queueStats = () => { if (!statsTimer) statsTimer = set
 let unsubs = [];
 async function boot() {
   try { navigator.serviceWorker?.register("sw.js"); } catch {}
-  try { const t = localStorage.getItem("exe-theme"); if (t) document.documentElement.dataset.theme = t; } catch {}
+  applyLook(currentLook());
   const h = location.hash.slice(1); if (views.includes(h)) S.view = h; else readDeep(h);
   render();
   if (!FIREBASE_CONFIG || !window.firebase) { S.status = "nodb"; return render(); }
@@ -696,7 +747,7 @@ function alertNew() {
   S.alertTop = Math.max(...fresh.map(x => x.ts));
   const top = fresh[0], msg = fresh.length > 1 ? `${top.title} (+${fresh.length - 1} more)` : top.title;
   if (!document.hidden) { toast(msg); chime(); }
-  if (S.pushOn && fresh.every(x => "mdcw".includes(x.key[0]))) return;
+  if (S.pushOn && fresh.every(x => "mdcwl".includes(x.key[0]))) return;
   sysNotify(fresh.length > 1 ? `${fresh.length} new from your crew` : top.title, top.sub || (fresh.length > 1 ? top.title : "Tap to open Execute"));
 }
 /* A short two-note chime + buzz for crew alerts while the app is open. Phones only allow sound after the first tap. */
@@ -758,6 +809,7 @@ function feedSheet() {
   return `<div class="row spread"><h2>Your crew</h2><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div>
     ${perm === "default" ? `<div class="note stack" style="gap:8px"><p class="small">Get a ping on this phone when someone in your crew logs or posts.</p><div><button class="btn sm primary" data-act="notifyon">${ic("bell")} Turn on notifications</button></div></div>` : perm === "denied" ? `<p class="small muted">Phone notifications are blocked for this site. You can turn them on in your browser settings.</p>` : ""}
     <label class="row small" style="gap:8px"><input type="checkbox" data-act="soundtoggle" ${soundOn() ? "checked" : ""}> Play a sound for new crew activity</label>
+    ${S.pushOn ? `<label class="row small" style="gap:8px"><input type="checkbox" data-act="logpings" ${S.logPings !== false ? "checked" : ""}> Ping my phone when someone in my crew logs</label>` : ""}
     ${items.length ? `<div class="list feed">${items.map(x => `<button class="item person ${x.ts > r ? "new" : ""}" data-act="feedgo" data-v="${esc(x.go.join(":"))}">${x.who ? av(S.people[x.who]) : `<span class="avatar a-${x.area || "build"}">${ic(x.icon)}</span>`}<div class="grow stack" style="gap:2px;min-width:0;text-align:left"><b style="overflow-wrap:anywhere">${esc(x.title)}</b>${x.sub ? `<span class="small muted" style="overflow-wrap:anywhere">${esc(x.sub.length > 90 ? x.sub.slice(0, 90) + "…" : x.sub)}</span>` : ""}</div><span class="small muted" style="flex:none">${ago(x.ts)}</span></button>`).join("")}</div>`
       : `<div class="empty">Nothing yet. When someone in your crew logs a workout, prayer or lesson, it shows up here.</div>`}`;
 }
@@ -802,9 +854,26 @@ function patch(el, html) {
   for (const [id, k] of Object.entries(keep)) { const x = document.getElementById(id); if (x && el.contains(x)) "c" in k ? x.checked = k.c : x.value = k.v; }
   if (focus) { const x = document.getElementById(focus.id); if (x && el.contains(x)) { x.focus({ preventScroll: true }); try { if (focus.s != null) x.setSelectionRange(focus.s, focus.e); } catch {} } }
 }
+/* Looks: two new "fresh" skins (default Midnight) plus the original layout in dark and light. */
+const LOOKS = [
+  ["midnight", "Midnight", "New · dark", "dark", ["#0b0c18", "#8b7bff", "#22d3ee"]],
+  ["sunset", "Sunset", "New · light", "light", ["#fff4ee", "#f0574a", "#ff9f43"]],
+  ["classic-dark", "Classic dark", "Original look", "dark", ["#0f1114", "#f2a93b", "#1f232a"]],
+  ["classic-light", "Classic light", "Original look", "light", ["#eceef1", "#b46f0c", "#ffffff"]],
+];
+function currentLook() { try { const v = localStorage.getItem("eoe-look"); if (LOOKS.some(l => l[0] === v)) return v; } catch {} return "midnight"; }
+function applyLook(v) {
+  const l = LOOKS.find(x => x[0] === v) || LOOKS[0], el = document.documentElement;
+  el.dataset.theme = l[3];
+  if (v.startsWith("classic")) delete el.dataset.skin; else el.dataset.skin = v;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", l[4][0]);
+}
+function lookPicker() {
+  const cur = currentLook();
+  return `<div class="looks">${LOOKS.map(([k, n, sub, , c]) => `<button class="look ${cur === k ? "on" : ""}" data-act="look" data-v="${k}" aria-pressed="${cur === k}"><span class="sw" style="background:${c[0]}"><i style="background:linear-gradient(135deg,${c[1]},${c[2]})"></i><i style="background:${c[1]}"></i></span><b>${n}</b><small>${sub}</small></button>`).join("")}</div>`;
+}
 function brandBar() {
-  const dark = (document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark")) === "dark";
-  return `<header class="brand"><div class="logo">Execute <b>&gt;</b> <s>Excuses</s></div><div class="row">${S.profile && S.uid ? (n => `<button class="icon-btn bell" data-act="feed" aria-label="Crew activity${n ? `, ${n} new` : ""}">${ic("bell")}${n ? `<span class="dot">${n > 9 ? "9+" : n}</span>` : ""}</button>`)(unread()) : ""}<button class="icon-btn" data-act="theme" aria-label="Switch to ${dark ? "light" : "dark"} mode">${ic(dark ? "sun" : "moon")}</button></div></header>`;
+  return `<header class="brand"><div class="logo">Execute <b>&gt;</b> <s>Excuses</s></div><div class="row">${S.profile && S.uid ? (n => `<button class="icon-btn bell" data-act="feed" aria-label="Crew activity${n ? `, ${n} new` : ""}">${ic("bell")}${n ? `<span class="dot">${n > 9 ? "9+" : n}</span>` : ""}</button>`)(unread()) : ""}<button class="icon-btn" data-act="looks" aria-label="Change the look">${ic("palette")}</button></div></header>`;
 }
 function navBar() {
   const items = [["today", "target", "Today"], ["calendar", "cal", "Calendar"], ["plan", "check", "Plan"], ["crew", "users", "Crew"], ...(S.isOwner ? [["coach", "shield", "Coach"]] : []), ["me", "user", "Me"]];
@@ -893,6 +962,7 @@ function todayView() {
   </section>
   ${todoCard(t)}
   ${todayCalCard(t)}
+  ${sermonCard()}
   ${spotlight()}
   <section class="pad" aria-label="Log something">
     ${Object.entries(KINDS).map(([k, d]) => `<button class="act a-${d.area}" data-act="log" data-kind="${k}">${ic(d.icon)}<span>${d.label}</span><small>+${d.xp} XP</small></button>`).join("")}
@@ -920,6 +990,14 @@ function annCard() {
   let gone = 0; try { gone = +localStorage.getItem("eoe-ann") || 0; } catch {}
   if (gone >= a.ts) return "";
   return `<section class="card ann"><div class="row spread"><p class="tiny" style="color:var(--accent)">${ic("mega")} Announcement · ${ago(a.ts)}</p><button class="linkish small" data-act="anndone" data-v="${a.ts}">Got it</button></div><p style="white-space:pre-wrap;overflow-wrap:anywhere"><b>${esc(a.text)}</b></p></section>`;
+}
+function sermonCard() {
+  const sm = S.feature?.sermon || {}, url = safeUrl(sm.url), yt = ytId(url);
+  if (!sm.title || !url) return "";
+  return `<section class="card sermon"><p class="tiny muted">${ic("book")} Sermon of the week</p>
+    ${yt ? `<a href="${esc(url)}" target="_blank" rel="noopener" aria-label="Watch ${esc(sm.title)}"><img class="ytthumb" src="https://i.ytimg.com/vi/${yt}/hqdefault.jpg" alt="" loading="lazy"></a>` : ""}
+    <h3 style="overflow-wrap:anywhere">${esc(sm.title)}</h3>${sm.by ? `<p class="small muted">${esc(sm.by)}</p>` : ""}${sm.note ? `<p class="small">${esc(sm.note)}</p>` : ""}
+    <div class="row wrap" style="gap:8px"><a class="btn sm primary" href="${esc(url)}" target="_blank" rel="noopener">${ic("send")} Watch the sermon</a><button class="btn sm" data-act="sermonlog">${ic("book")} Log it as The Word</button></div></section>`;
 }
 function spotlight() {
   const f = S.feature || {}, pod = f.podcast || {}, url = safeUrl(pod.url), prize = f.prize?.text, top = leaders(), yt = ytId(url);
@@ -1460,10 +1538,15 @@ async function loadPerson(id) {
   render();
 }
 function featureEditor() {
-  const f = S.feature || {}, pod = f.podcast || {};
-  return `<section class="card"><h3>Announcement, learn suggestion & prize</h3><p class="small muted">Shows on everyone's Today tab. Leave a box empty to hide it. A new announcement pings everyone who has the app open.</p>
+  const f = S.feature || {}, pod = f.podcast || {}, sm = f.sermon || {};
+  return `<section class="card"><h3>Announcement, sermon, learn suggestion & prize</h3><p class="small muted">Shows on everyone's Today tab. Leave a box empty to hide it. A new announcement pings everyone who has the app open.</p>
     <form class="stack" data-form="feature" style="gap:10px">
       <div class="field"><label for="ft-ann">Announcement</label><textarea id="ft-ann" class="input" maxlength="400" placeholder="e.g. Prayer night Friday 7PM. Bring a friend.">${esc(f.announce?.text || "")}</textarea></div>
+      <p class="tiny muted" style="margin-top:4px">Sermon of the week</p>
+      <div class="field"><label for="sm-title">Sermon title</label><input id="sm-title" class="input" maxlength="120" value="${esc(sm.title || "")}" placeholder="e.g. Wisdom and Wonder (Matthew 13)"></div>
+      <div class="field"><label for="sm-by">Preacher or church (optional)</label><input id="sm-by" class="input" maxlength="100" value="${esc(sm.by || "")}"></div>
+      <div class="field"><label for="sm-url">Link</label><input id="sm-url" class="input" type="url" maxlength="300" value="${esc(sm.url || "")}" placeholder="https://"></div>
+      <div class="field"><label for="sm-note">Note (optional)</label><input id="sm-note" class="input" maxlength="160" value="${esc(sm.note || "")}"></div>
       <p class="tiny muted" style="margin-top:4px">Learn something this week</p>
       <div class="field"><label for="ft-title">Suggestion title (podcast, video, book)</label><input id="ft-title" class="input" maxlength="100" value="${esc(pod.title || "")}" placeholder="e.g. TGL · One Step, Part 1"></div>
       <div class="field"><label for="ft-url">Link</label><input id="ft-url" class="input" type="url" maxlength="300" value="${esc(pod.url || "")}" placeholder="https://"></div>
@@ -1499,6 +1582,7 @@ function meView() {
       <div class="field"><label for="pf-why">Your why</label><textarea id="pf-why" class="input" maxlength="300" ${S.ro ? "disabled" : ""}>${esc(p.why || "")}</textarea></div>
       ${S.ro ? "" : `<button class="btn primary" type="submit">Save</button>`}
     </form></section>
+  <section class="card"><h3>Look</h3>${lookPicker()}</section>
   <section class="card"><h3>How to use the app</h3><p class="small muted">A 2-minute video and a quick tour of the Today screen.</p><div class="row wrap" style="gap:8px"><button class="btn primary" data-act="tutvideo">${ic("send")} Watch the video</button><button class="btn" data-act="tourreplay">Replay the tour</button></div></section>
   ${rulesCard()}
   ${canNotify() ? `<section class="card"><h3>Crew notifications</h3>${Notification.permission === "granted" ? `<p class="small">On. You get a ping when someone in your crew logs, posts on the prayer wall, or your coach makes an announcement.</p>` : Notification.permission === "denied" ? `<p class="small muted">Blocked for this site. Turn them on in your browser's site settings.</p>` : `<p class="small">Get a ping when someone in your crew logs or posts.</p><div><button class="btn sm primary" data-act="notifyon">${ic("bell")} Turn on notifications</button></div>`}<p class="tiny muted">Works while the app is open or in the background. On iPhone, add it to your home screen first.</p></section>` : ""}
@@ -1574,6 +1658,7 @@ function renderSheet() {
   const el = document.getElementById("sheet"), s = S.sheet;
   if (S.db) watchDm();
   if (!s) return patch(el, "");
+  if (s.looks) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Look" data-stop><span class="grab"></span><div class="row spread"><h2>Pick your look</h2><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div><p class="small muted">Two fresh looks for this week, or keep the original layout in dark or light.</p>${lookPicker()}</div></div>`);
   if (s.pic) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Proof photo" data-stop><span class="grab"></span>${photoSheet(s.pic)}</div></div>`);
   if (s.cat) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${AREA_NAME[s.cat.area]}" data-stop><span class="grab"></span>${catSheet(s.cat)}</div></div>`);
   if (s.photo) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Proof photo" data-stop><span class="grab"></span><div class="row spread"><h2>Proof</h2><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div><img class="bigphoto" src="${esc(s.photo)}" alt="Proof photo"></div></div>`);
@@ -1637,6 +1722,7 @@ async function saveLog() {
     await (chain = chain.then(() => ref.set({ date: s.date, logs })));
     if (prev) { S.sheet = null; renderSheet(); if (s.url) URL.revokeObjectURL(s.url); return toast(log.proof && !prev.proof ? `Updated · +${PHOTO_XP} XP for the photo` : "Updated", log.proof && !prev.proof ? "xp" : ""); }
     const gain = d.xp + (log.proof ? PHOTO_XP : 0);
+    pingPush("log", { date: s.date, id: log.id });
     S.sheet = null; renderSheet();
     if (s.url) URL.revokeObjectURL(s.url);
     setTimeout(() => { const after = computeMine().lvl; toast(after.n > before ? `Level up! Lv ${after.n} · ${after.name}` : `+${gain} XP`, "xp"); }, 250);
@@ -1674,6 +1760,8 @@ document.addEventListener("click", e => {
   const act = a.dataset.act, id = a.dataset.id, s = S.sheet;
   if (act !== "del" && act !== "gleave" && act !== "wdel" && S.armDel) S.armDel = null;
   switch (act) {
+    case "looks": S.sheet = { looks: true }; return renderSheet();
+    case "look": { const v = a.dataset.v; try { localStorage.setItem("eoe-look", v); } catch {} applyLook(v); render(); return renderSheet(); }
     case "theme": {
       const curDark = (document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark")) === "dark";
       const t = curDark ? "light" : "dark"; document.documentElement.dataset.theme = t; try { localStorage.setItem("exe-theme", t); } catch {} return render();
@@ -1725,10 +1813,11 @@ document.addEventListener("click", e => {
     case "peek": S.sheet = { peek: id }; loadCrewProofs(); return renderSheet();
     case "gymday": S.gymDay = a.dataset.v; return render();
     case "gymplan": go("plan"); return setTimeout(() => document.getElementById("gymplan")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+    case "logpings": S.logPings = a.checked; pushCall("/prefs", { logs: a.checked }).then(r => { if (r) S.logPings = r.logs; }); return;
     case "soundtoggle": soundOn(!soundOn()); if (soundOn()) chime(); return renderSheet();
     case "gtab": S.gtab[id] = a.dataset.v; if (a.dataset.v === "proof") loadCrewProofs(); return render();
     case "wallkind": S.wallKind = a.dataset.v; return render();
-    case "feed": { const r = lastRead(); S.sheet = { feed: true, read: r }; try { localStorage.setItem(NOTE_KEY(), String(Date.now())); } catch {} render(); return renderSheet(); }
+    case "feed": { if (S.pushOn && S.logPings === undefined) pushCall("/prefs", {}).then(r => { if (r) { S.logPings = r.logs; renderSheet(); } }); const r = lastRead(); S.sheet = { feed: true, read: r }; try { localStorage.setItem(NOTE_KEY(), String(Date.now())); } catch {} render(); return renderSheet(); }
     case "notifyon": return askNotify();
     case "tournext": S.tour = Math.min(TOUR.length - 1, S.tour + 1); return renderTour();
     case "tourback": S.tour = Math.max(0, S.tour - 1); return renderTour();
@@ -1789,6 +1878,7 @@ document.addEventListener("click", e => {
       return q(() => S.db.doc(`people/${S.uid}`).update({ goal: { ...g, done: !g.done } }));
     }
     case "goaledit": S.goalEdit = true; render(); return document.getElementById("goal-text")?.focus();
+    case "sermonlog": return openLog("word", `Sermon: ${S.feature?.sermon?.title || ""}. `);
     case "podlearn": return openLog("learn", `${S.feature?.podcast?.title || ""}: `);
     case "usesug": { const t = S.feature?.podcast?.title || "", el = document.getElementById("lg-note"); if (el && !el.value.includes(t)) { el.value = `${t}: ${el.value}`; el.focus(); } return; }
     case "google": return google();
@@ -1886,8 +1976,9 @@ document.addEventListener("submit", async e => {
   if (kind === "feature") {
     const v = id => document.getElementById(id).value.trim(), url = v("ft-url");
     if (url && !safeUrl(url)) return toast("The link must start with https://");
+    if (v("sm-url") && !safeUrl(v("sm-url"))) return toast("The sermon link must start with https://");
     const at = v("ft-ann"), old = S.feature?.announce, announce = at ? { text: at, ts: old?.text === at ? old.ts : Date.now() } : null;
-    return q(async () => { await S.db.doc("config/feature").set({ announce, podcast: { title: v("ft-title"), url, note: v("ft-note") }, prize: { text: v("ft-prize") }, updated: Date.now() }); toast("Saved. Everyone sees it now."); });
+    return q(async () => { await S.db.doc("config/feature").set({ announce, podcast: { title: v("ft-title"), url, note: v("ft-note") }, sermon: { title: v("sm-title"), by: v("sm-by"), url: v("sm-url"), note: v("sm-note") }, prize: { text: v("ft-prize") }, updated: Date.now() }); toast("Saved. Everyone sees it now."); });
   }
   if (kind === "gnew") {
     const name = document.getElementById("g-name").value.trim(); if (!name) return;
