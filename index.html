@@ -208,6 +208,8 @@ textarea.input { min-height: 84px; resize: vertical; }
 .micwrap > .input { padding-right: 48px; }
 .micbtn { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 38px; height: 38px; border-radius: 12px; border: 0; background: transparent; color: var(--muted); display: grid; place-items: center; }
 .micwrap.ta .micbtn { top: 6px; transform: none; }
+.micbtn.busy { color: var(--accent); } .micbtn.busy .ic { animation: micspin 1s ease-in-out infinite; }
+@keyframes micspin { 50% { opacity: .35; transform: scale(1.15); } }
 .micbtn:hover { color: var(--accent); }
 .micbtn.on { color: #fff; background: var(--bad); animation: micpulse 1.2s ease-in-out infinite; }
 @keyframes micpulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--bad) 55%, transparent); } 50% { box-shadow: 0 0 0 8px transparent; } }
@@ -891,37 +893,102 @@ function lookPicker() {
 /* ===== voice typing: a mic in every text box (browser speech recognition: Apple on iPhone, Google in Chrome) ===== */
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 const NO_MIC = /^(g-code|me-link|cp-pass|au-|rt-)/;
-let rec = null, recFor = null;
+let rec = null, recFor = null, micBusy = null, mic = null;
 function micify(root) {
-  if (!SR) return;
+  if (!SR && !(navigator.mediaDevices?.getUserMedia && window.MediaRecorder)) return;
   root.querySelectorAll("textarea.input[id], input.input[id]").forEach(x => {
     if (x.type && !["text", "search", "textarea"].includes(x.type)) return;
     if (NO_MIC.test(x.id) || x.parentElement?.classList.contains("micwrap")) return;
     const w = document.createElement("span"); w.className = "micwrap" + (x.tagName === "TEXTAREA" ? " ta" : "") + (x.classList.contains("grow") ? " grow" : "");
     x.replaceWith(w); w.appendChild(x);
-    const b = document.createElement("button"); b.type = "button"; b.className = "micbtn" + (recFor === x.id ? " on" : ""); b.dataset.act = "mic"; b.dataset.id = x.id;
+    const b = document.createElement("button"); b.type = "button"; b.className = "micbtn" + (recFor === x.id ? " on" : "") + (micBusy === x.id ? " busy" : ""); b.dataset.act = "mic"; b.dataset.id = x.id;
     b.setAttribute("aria-label", recFor === x.id ? "Stop voice typing" : "Voice typing"); b.innerHTML = ic("mic"); w.appendChild(b);
   });
 }
-function micState() { document.querySelectorAll(".micbtn").forEach(b => { const on = b.dataset.id === recFor; b.classList.toggle("on", on); b.setAttribute("aria-label", on ? "Stop voice typing" : "Voice typing"); }); }
-function toggleMic(id) {
-  if (rec) { const was = recFor; try { rec.stop(); } catch {} if (was === id) return; }
-  const el = document.getElementById(id); if (!el || !SR) return;
-  const r = new SR(), start = el.value, sep = start && !/\s$/.test(start) ? " " : "";
+function micState() {
+  document.querySelectorAll(".micbtn").forEach(b => { const on = b.dataset.id === recFor, busy = b.dataset.id === micBusy;
+    b.classList.toggle("on", on); b.classList.toggle("busy", busy); b.setAttribute("aria-label", busy ? "Writing it down" : on ? "Stop voice typing" : "Voice typing"); });
+}
+/* Words Whisper should spell right: crew names and the app's own words. */
+function voiceHint() {
+  const names = [S.profile?.name, ...crewIds().map(i => S.people[i]?.name)].filter(Boolean);
+  return `Execute > Excuses. ${names.length ? names.join(", ") + ". " : ""}Prayer, The Word, Build, Train, Stretch, Learn, prayer wall, push day, pull day, leg day, crew.`;
+}
+function setField(id, text) {
+  const x = document.getElementById(id); if (!x) return;
+  x.value = x.maxLength > 0 ? text.slice(0, x.maxLength) : text; x.dispatchEvent(new Event("input", { bubbles: true }));
+}
+const joinText = (start, add) => { add = add.trim(); if (!add) return start; if (!start) return add.charAt(0).toUpperCase() + add.slice(1); return start + (/\s$/.test(start) ? "" : " ") + add; };
+/* Tap: record (live preview from the phone's own recognition where it works). Tap again or go quiet: Whisper writes it down. */
+async function toggleMic(id) {
+  if (micBusy) return;
+  if (recFor) { const same = recFor === id; if (mic) stopMic(); else { try { rec?.stop(); } catch {} } if (same) return; }
+  const el = document.getElementById(id); if (!el) return;
+  const canRecord = navigator.mediaDevices?.getUserMedia && window.MediaRecorder && PUSH_URL && S.auth?.currentUser;
+  if (!canRecord) return liveOnly(id);
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); }
+  catch { return toast("Allow the microphone to use voice typing (or tap the mic on your keyboard)."); }
+  const mime = ["audio/webm;codecs=opus", "audio/mp4", "audio/webm", "audio/ogg;codecs=opus"].find(t => MediaRecorder.isTypeSupported(t)) || "";
+  const mr = new MediaRecorder(stream, mime ? { mimeType: mime, audioBitsPerSecond: 48000 } : undefined), chunks = [];
+  const m = mic = { id, mr, stream, chunks, start: el.value, preview: "", t0: Date.now() };
+  mr.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+  mr.onstop = () => finishMic(m);
+  mr.start(250); recFor = id; micState(); el.focus({ preventScroll: true });
+  // stop by itself after you go quiet (2 s after talking, 10 s if you never start), max 2 minutes
+  try {
+    const ac = actx || (actx = new (window.AudioContext || window.webkitAudioContext)()); if (ac.state === "suspended") await ac.resume();
+    const an = ac.createAnalyser(); an.fftSize = 1024; ac.createMediaStreamSource(stream).connect(an);
+    const buf = new Uint8Array(an.fftSize); let spoke = false, quiet = Date.now();
+    const tick = () => {
+      if (mic !== m || recFor !== id) return;
+      an.getByteTimeDomainData(buf); let sum = 0; for (const v of buf) sum += (v - 128) ** 2;
+      if (Math.sqrt(sum / buf.length) > 6) { spoke = true; quiet = Date.now(); }
+      const now = Date.now();
+      if ((spoke && now - quiet > 2000) || (!spoke && now - m.t0 > 10000) || now - m.t0 > 120000) return stopMic();
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  } catch {}
+  if (SR) try {   // live words while you talk; Whisper replaces them when you stop
+    const r = new SR(); r.lang = navigator.language || "en-US"; r.continuous = true; r.interimResults = true; let done = "";
+    r.onresult = e => { let live = ""; for (let i = e.resultIndex; i < e.results.length; i++) { const t = e.results[i][0].transcript; if (e.results[i].isFinal) done += t; else live += t; }
+      if (mic === m && recFor === id) { m.preview = done + live; setField(id, joinText(m.start, m.preview)); } };
+    r.onerror = () => {}; r.start(); m.sr = r;
+  } catch {}
+}
+function stopMic() {
+  const m = mic; if (!m) return;
+  recFor = null; micBusy = m.id; micState();
+  try { m.sr?.stop(); } catch {}
+  try { if (m.mr.state !== "inactive") m.mr.stop(); else finishMic(m); } catch { finishMic(m); }
+  m.stream?.getTracks().forEach(t => t.stop());
+}
+async function finishMic(m) {
+  if (m.finished) return; m.finished = true;
+  if (mic === m) mic = null;
+  const blob = new Blob(m.chunks, { type: (m.mr?.mimeType || "audio/webm").split(";")[0] });
+  const miss = () => toast(m.preview ? "Kept what I heard. The sharper voice typing didn't answer." : "Voice typing didn't answer. Try again.");
+  try {
+    if (blob.size < 1500) return;
+    const t = await S.auth.currentUser.getIdToken();
+    const r = await fetch(`${PUSH_URL}/transcribe?hint=${encodeURIComponent(voiceHint())}`, { method: "POST", headers: { Authorization: "Bearer " + t, "Content-Type": blob.type || "audio/webm" }, body: blob });
+    const j = r.ok ? await r.json() : null;
+    if (!j || typeof j.text !== "string") return miss();
+    if (j.text) setField(m.id, joinText(m.start, j.text));
+    else if (!m.preview) toast("Didn't catch that. Tap the mic and try again.");
+  } catch { miss(); }
+  finally { micBusy = null; micState(); }
+}
+/* Fallback when recording isn't possible: the phone's own recognition only. */
+function liveOnly(id) {
+  const el = document.getElementById(id); if (!el || !SR) return toast("Voice typing isn't available here. Tap the mic on your keyboard instead.");
+  const r = new SR(), start = el.value; let done = "";
   r.lang = navigator.language || "en-US"; r.continuous = true; r.interimResults = true;
-  let done = "";
-  r.onresult = e => {
-    let live = "";
-    for (let i = e.resultIndex; i < e.results.length; i++) { const t = e.results[i][0].transcript; if (e.results[i].isFinal) done += t; else live += t; }
-    const x = document.getElementById(id); if (!x) { try { r.stop(); } catch {} return; }
-    let v = start + sep + (done + live).replace(/^\s+/, "");
-    if (!start) v = v.charAt(0).toUpperCase() + v.slice(1);
-    x.value = x.maxLength > 0 ? v.slice(0, x.maxLength) : v;
-    x.dispatchEvent(new Event("input", { bubbles: true }));
-  };
-  r.onerror = e => { if (e.error === "not-allowed" || e.error === "service-not-allowed") toast("Voice typing is blocked here. Allow the microphone, or tap the mic on your keyboard instead."); else if (e.error === "no-speech") toast("Didn't hear anything. Tap the mic and talk."); };
+  r.onresult = e => { let live = ""; for (let i = e.resultIndex; i < e.results.length; i++) { const t = e.results[i][0].transcript; if (e.results[i].isFinal) done += t; else live += t; } setField(id, joinText(start, done + live)); };
+  r.onerror = e => { if (e.error === "not-allowed" || e.error === "service-not-allowed") toast("Voice typing is blocked here. Allow the microphone, or tap the mic on your keyboard instead."); };
   r.onend = () => { if (rec === r) { rec = null; recFor = null; micState(); } };
-  try { r.start(); rec = r; recFor = id; micState(); el.focus({ preventScroll: true }); } catch { toast("Voice typing isn't available here. Tap the mic on your keyboard instead."); }
+  try { r.start(); rec = r; recFor = id; micState(); } catch { toast("Voice typing isn't available here. Tap the mic on your keyboard instead."); }
 }
 function brandBar() {
   return `<header class="brand"><div class="logo">Execute <b>&gt;</b> <s>Excuses</s></div><div class="row">${S.profile && S.uid ? (n => `<button class="icon-btn bell" data-act="feed" aria-label="Crew activity${n ? `, ${n} new` : ""}">${ic("bell")}${n ? `<span class="dot">${n > 9 ? "9+" : n}</span>` : ""}</button>`)(unread()) : ""}<button class="icon-btn" data-act="looks" aria-label="Change the look">${ic("palette")}</button></div></header>`;
