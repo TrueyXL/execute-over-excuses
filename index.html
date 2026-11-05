@@ -204,6 +204,13 @@ a.btn.primary { color: var(--accent-ink); }
 textarea.input { min-height: 84px; resize: vertical; }
 .seg { display: flex; gap: 6px; flex-wrap: wrap; }
 .seg button { border: 1px solid var(--line); background: var(--surface-2); border-radius: 99px; padding: 8px 14px; font-weight: 600; min-height: 40px; }
+.micwrap { position: relative; display: block; width: 100%; min-width: 0; } .micwrap.grow { flex: 1; width: auto; }
+.micwrap > .input { padding-right: 48px; }
+.micbtn { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 38px; height: 38px; border-radius: 12px; border: 0; background: transparent; color: var(--muted); display: grid; place-items: center; }
+.micwrap.ta .micbtn { top: 6px; transform: none; }
+.micbtn:hover { color: var(--accent); }
+.micbtn.on { color: #fff; background: var(--bad); animation: micpulse 1.2s ease-in-out infinite; }
+@keyframes micpulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--bad) 55%, transparent); } 50% { box-shadow: 0 0 0 8px transparent; } }
 .seg.mini { gap: 4px; } .seg.mini button { min-height: 32px; padding: 4px 11px; font-size: 13px; }
 .seg button.on { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
 
@@ -399,6 +406,7 @@ const P = {
   palette: '<circle cx="13.5" cy="6.5" r="1.5"/><circle cx="17.5" cy="10.5" r="1.5"/><circle cx="8.5" cy="7.5" r="1.5"/><circle cx="6.5" cy="12.5" r="1.5"/><path d="M12 2a10 10 0 0 0 0 20c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2h2.4A5.6 5.6 0 0 0 22 9.8C22 5.5 17.5 2 12 2z"/>',
   video: '<rect x="2" y="6" width="14" height="12" rx="2"/><path d="m16 10 6-4v12l-6-4z"/>',
   play: '<path d="M7 4v16l13-8z"/>',
+  mic: '<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v4"/><path d="M8 21h8"/>',
   thumb: '<path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/>',
   chat: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
   mega: '<path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
@@ -858,7 +866,7 @@ function patch(el, html) {
     if (x.type === "checkbox" || x.type === "radio") { if (x.checked !== x.defaultChecked) keep[x.id] = { c: x.checked }; }
     else if (x.value !== x.defaultValue) keep[x.id] = { v: x.value };
   });
-  el.innerHTML = html; el._html = html;
+  el.innerHTML = html; el._html = html; micify(el);
   for (const [id, k] of Object.entries(keep)) { const x = document.getElementById(id); if (x && el.contains(x)) "c" in k ? x.checked = k.c : x.value = k.v; }
   if (focus) { const x = document.getElementById(focus.id); if (x && el.contains(x)) { x.focus({ preventScroll: true }); try { if (focus.s != null) x.setSelectionRange(focus.s, focus.e); } catch {} } }
 }
@@ -879,6 +887,41 @@ function applyLook(v) {
 function lookPicker() {
   const cur = currentLook();
   return `<div class="looks">${LOOKS.map(([k, n, sub, , c]) => `<button class="look ${cur === k ? "on" : ""}" data-act="look" data-v="${k}" aria-pressed="${cur === k}"><span class="sw" style="background:${c[0]}"><i style="background:linear-gradient(135deg,${c[1]},${c[2]})"></i><i style="background:${c[1]}"></i></span><b>${n}</b><small>${sub}</small></button>`).join("")}</div>`;
+}
+/* ===== voice typing: a mic in every text box (browser speech recognition: Apple on iPhone, Google in Chrome) ===== */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const NO_MIC = /^(g-code|me-link|cp-pass|au-|rt-)/;
+let rec = null, recFor = null;
+function micify(root) {
+  if (!SR) return;
+  root.querySelectorAll("textarea.input[id], input.input[id]").forEach(x => {
+    if (x.type && !["text", "search", "textarea"].includes(x.type)) return;
+    if (NO_MIC.test(x.id) || x.parentElement?.classList.contains("micwrap")) return;
+    const w = document.createElement("span"); w.className = "micwrap" + (x.tagName === "TEXTAREA" ? " ta" : "") + (x.classList.contains("grow") ? " grow" : "");
+    x.replaceWith(w); w.appendChild(x);
+    const b = document.createElement("button"); b.type = "button"; b.className = "micbtn" + (recFor === x.id ? " on" : ""); b.dataset.act = "mic"; b.dataset.id = x.id;
+    b.setAttribute("aria-label", recFor === x.id ? "Stop voice typing" : "Voice typing"); b.innerHTML = ic("mic"); w.appendChild(b);
+  });
+}
+function micState() { document.querySelectorAll(".micbtn").forEach(b => { const on = b.dataset.id === recFor; b.classList.toggle("on", on); b.setAttribute("aria-label", on ? "Stop voice typing" : "Voice typing"); }); }
+function toggleMic(id) {
+  if (rec) { const was = recFor; try { rec.stop(); } catch {} if (was === id) return; }
+  const el = document.getElementById(id); if (!el || !SR) return;
+  const r = new SR(), start = el.value, sep = start && !/\s$/.test(start) ? " " : "";
+  r.lang = navigator.language || "en-US"; r.continuous = true; r.interimResults = true;
+  let done = "";
+  r.onresult = e => {
+    let live = "";
+    for (let i = e.resultIndex; i < e.results.length; i++) { const t = e.results[i][0].transcript; if (e.results[i].isFinal) done += t; else live += t; }
+    const x = document.getElementById(id); if (!x) { try { r.stop(); } catch {} return; }
+    let v = start + sep + (done + live).replace(/^\s+/, "");
+    if (!start) v = v.charAt(0).toUpperCase() + v.slice(1);
+    x.value = x.maxLength > 0 ? v.slice(0, x.maxLength) : v;
+    x.dispatchEvent(new Event("input", { bubbles: true }));
+  };
+  r.onerror = e => { if (e.error === "not-allowed" || e.error === "service-not-allowed") toast("Voice typing is blocked here. Allow the microphone, or tap the mic on your keyboard instead."); else if (e.error === "no-speech") toast("Didn't hear anything. Tap the mic and talk."); };
+  r.onend = () => { if (rec === r) { rec = null; recFor = null; micState(); } };
+  try { r.start(); rec = r; recFor = id; micState(); el.focus({ preventScroll: true }); } catch { toast("Voice typing isn't available here. Tap the mic on your keyboard instead."); }
 }
 function brandBar() {
   return `<header class="brand"><div class="logo">Execute <b>&gt;</b> <s>Excuses</s></div><div class="row">${S.profile && S.uid ? (n => `<button class="icon-btn bell" data-act="feed" aria-label="Crew activity${n ? `, ${n} new` : ""}">${ic("bell")}${n ? `<span class="dot">${n > 9 ? "9+" : n}</span>` : ""}</button>`)(unread()) : ""}<button class="icon-btn" data-act="looks" aria-label="Change the look">${ic("palette")}</button></div></header>`;
@@ -1834,6 +1877,7 @@ document.addEventListener("click", e => {
   const act = a.dataset.act, id = a.dataset.id, s = S.sheet;
   if (act !== "del" && act !== "gleave" && act !== "wdel" && S.armDel) S.armDel = null;
   switch (act) {
+    case "mic": return toggleMic(id);
     case "looks": S.sheet = { looks: true }; return renderSheet();
     case "look": { const v = a.dataset.v; try { localStorage.setItem("eoe-look", v); } catch {} applyLook(v); render(); return renderSheet(); }
     case "theme": {
