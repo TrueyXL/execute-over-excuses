@@ -213,6 +213,16 @@ textarea.input { min-height: 84px; resize: vertical; }
 .micbtn:hover { color: var(--accent); }
 .micbtn.on { color: #fff; background: var(--bad); animation: micpulse 1.2s ease-in-out infinite; }
 @keyframes micpulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--bad) 55%, transparent); } 50% { box-shadow: 0 0 0 8px transparent; } }
+.icon-btn.sm { width: 36px; height: 36px; border-radius: 10px; } .icon-btn:disabled { opacity: .35; cursor: default; }
+.timerow { display: grid; grid-template-columns: 22px 78px 1fr auto; align-items: center; gap: 10px; padding: 7px 4px; border: 0; background: none; border-radius: 10px; font: inherit; text-align: left; cursor: pointer; }
+.timerow:hover { background: var(--surface-2); } .timerow .tl { color: var(--fg); font-weight: 600; font-size: 14px; }
+.tbar { height: 10px; border-radius: 99px; background: var(--surface-2); overflow: hidden; } .tbar i { display: block; height: 100%; border-radius: 99px; background: currentColor; transition: width .5s ease; }
+.tv { font-size: 13px; color: var(--fg); text-align: right; display: grid; justify-items: end; min-width: 74px; } .tv small { font-size: 11px; color: var(--muted); }
+.up { color: var(--good) !important; } .down { color: var(--bad) !important; }
+.daybars { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; height: 74px; align-items: end; }
+.daybars div { display: grid; grid-template-rows: 1fr auto; height: 100%; justify-items: center; gap: 4px; }
+.daybars i { align-self: end; width: 70%; min-height: 3px; border-radius: 6px 6px 3px 3px; background: linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 45%, transparent)); }
+.daybars span { font-size: 11px; color: var(--muted); font-weight: 600; }
 .seg.mini { gap: 4px; } .seg.mini button { min-height: 32px; padding: 4px 11px; font-size: 13px; }
 .seg button.on { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
 
@@ -1086,6 +1096,7 @@ function todayView() {
     ${Object.entries(KINDS).map(([k, d]) => `<button class="act a-${d.area}" data-act="log" data-kind="${k}">${ic(d.icon)}<span>${d.label}</span><small>+${d.xp} XP</small></button>`).join("")}
   </section>
   ${weekCard(m.thisW, true)}
+  ${timeCard()}
   ${m.thisW.train < S.rules.train ? gymCard(true) : ""}
   ${healCard()}
   <section class="card"><div class="row spread"><h3>Today's log</h3><span class="mono small muted">+${dayXP(day)} XP</span></div>${logList(day?.logs || [], t, true)}</section>`;
@@ -1243,16 +1254,45 @@ function planView() {
   ${healCard()}
   <section class="card"><h3>Your weeks</h3>${historyList(m.weeks.slice(-8).reverse().map(w => ({ mon: w.mon, done: w.mustsDone })))}</section>`;
 }
-function todoCard(t) {
-  const id = "d" + t, y = "d" + addD(t, -1), have = new Set((S.plans[id]?.items || []).map(i => i.text)), left = (S.plans[y]?.items || []).filter(i => !i.done && !have.has(i.text)).length;
-  const carry = left && !S.ro ? `<button class="btn sm" data-act="pcarry" data-plan="${id}" data-from="${y}">${ic("plus")} Bring ${left} unfinished from yesterday</button>` : "";
-  return planCard(id, "Today's to-do", "e.g. Call the bank, send 5 applications, clean the car", "Nothing on your list yet. Write what you will get done today.", carry);
+/* Time spent per activity, any week (arrows go back week by week). Learn has no minutes, so it shows a count. */
+const TIME_KINDS = ["prayer", "word", "build", "train", "stretch", "learn"];
+function weekMinutes(mon) {
+  const by = Object.fromEntries(TIME_KINDS.map(k => [k, { min: 0, n: 0 }])), perDay = [];
+  for (let i = 0; i < 7; i++) {
+    let dm = 0;
+    for (const l of S.days[addD(mon, i)]?.logs || []) { const b = by[l.kind]; if (!b) continue; b.n++; b.min += +l.min || 0; dm += +l.min || 0; }
+    perDay.push(dm);
+  }
+  return { by, perDay, total: perDay.reduce((a, b) => a + b, 0) };
 }
-function planCard(id, title, ph, empty = "No targets yet. Add your first one below.", extra = "") {
+function timeCard() {
+  const cur = monday(today()), mon = S.timeWk || cur, first = Object.keys(S.days).sort()[0], oldest = first ? monday(first) : cur;
+  const w = weekMinutes(mon), prev = weekMinutes(addD(mon, -7)), diff = w.total - prev.total, top = Math.max(1, ...TIME_KINDS.map(k => w.by[k].min)), dayTop = Math.max(1, ...w.perDay);
+  const label = mon === cur ? "This week" : mon === addD(cur, -7) ? "Last week" : `Week of ${short(mon)}`;
+  const nav = `<div class="row" style="gap:6px"><button class="icon-btn sm" data-act="timewk" data-v="${addD(mon, -7)}" aria-label="Previous week" ${mon <= oldest ? "disabled" : ""}>${ic("back")}</button><button class="icon-btn sm" data-act="timewk" data-v="${addD(mon, 7)}" aria-label="Next week" ${mon >= cur ? "disabled" : ""}><span style="display:grid;transform:rotate(180deg)">${ic("back")}</span></button></div>`;
+  const rows = TIME_KINDS.map(k => { const d = KINDS[k], b = w.by[k], pb = prev.by[k], dd = b.min - pb.min;
+    return `<button class="timerow a-${d.area}" data-act="cat" data-id="${S.uid}" data-v="${d.area}" data-w="${mon}" aria-label="See ${d.label} logs">${ic(d.icon)}<span class="tl">${d.label}</span>
+      <span class="tbar"><i style="width:${k === "learn" ? (b.n ? 100 : 0) : Math.round(100 * b.min / top)}%"></i></span>
+      <span class="tv mono">${k === "learn" ? `${b.n} logged` : b.min ? fmtMin(b.min) : "—"}${k !== "learn" && (b.min || pb.min) ? `<small class="${dd > 0 ? "up" : dd < 0 ? "down" : ""}">${dd > 0 ? "+" : dd < 0 ? "−" : "±"}${fmtMin(Math.abs(dd))}</small>` : ""}</span></button>`; }).join("");
+  return `<section class="card" id="timecard"><div class="row spread"><div><p class="tiny muted">Your time</p><h2>${label}</h2></div>${nav}</div>
+    <div class="row" style="gap:10px;align-items:baseline;flex-wrap:wrap"><b style="font-family:var(--display);font-size:30px;font-weight:800;letter-spacing:-.01em">${w.total ? fmtMin(w.total) : "0 min"}</b><span class="small ${diff > 0 ? "up" : diff < 0 ? "down" : "muted"}">${prev.total || w.total ? `${diff >= 0 ? "+" : "−"}${fmtMin(Math.abs(diff))} vs the week before` : ""}</span></div>
+    <div class="daybars">${w.perDay.map((m, i) => `<div><i style="height:${Math.round(100 * m / dayTop)}%" title="${fmtMin(m)}"></i><span>${DOW[i][0]}</span></div>`).join("")}</div>
+    <div class="stack" style="gap:4px">${rows}</div><p class="tiny muted" style="text-transform:none;letter-spacing:0">Tap an activity to see every log behind it.</p></section>`;
+}
+function todoCard(now) {
+  const t = S.todoDay || now, isToday = t === now;
+  const id = "d" + t, y = "d" + addD(t, -1), have = new Set((S.plans[id]?.items || []).map(i => i.text)), left = (S.plans[y]?.items || []).filter(i => !i.done && !have.has(i.text)).length;
+  const carry = isToday && left && !S.ro ? `<button class="btn sm" data-act="pcarry" data-plan="${id}" data-from="${y}">${ic("plus")} Bring ${left} unfinished from yesterday</button>` : "";
+  const nav = `<span class="row" style="gap:4px"><button class="icon-btn sm" data-act="tododay" data-v="${addD(t, -1)}" aria-label="Previous day" ${t <= addD(now, -30) ? "disabled" : ""}>${ic("back")}</button>${isToday ? "" : `<button class="icon-btn sm" data-act="tododay" data-v="${addD(t, 1)}" aria-label="Next day"><span style="display:grid;transform:rotate(180deg)">${ic("back")}</span></button>`}</span>`;
+  const title = isToday ? "Today's to-do" : t === addD(now, -1) ? "Yesterday's to-do" : `To-do · ${nice(t)}`;
+  return planCard(id, title, "e.g. Call the bank, send 5 applications, clean the car", isToday ? "Nothing on your list yet. Write what you will get done today." : "Nothing was on the list that day.", carry, nav);
+}
+function planCard(id, title, ph, empty = "No targets yet. Add your first one below.", extra = "", nav = "") {
   const timed = id[0] === "d", items = (S.plans[id]?.items || []).slice(), done = items.filter(i => i.done).length;
   if (timed) items.sort((a, b) => (a.time || "99").localeCompare(b.time || "99"));
-  return `<section class="card"${timed ? ' data-tour="todo"' : ""}><div class="row spread"><h3>${title}</h3><span class="mono small muted">${done}/${items.length}</span></div>${extra}
-    ${items.length ? `<div class="list">${items.map(i => `<div class="item" style="align-items:center"><button class="check" style="background:${i.done ? "var(--good)" : "transparent"};border-color:${i.done ? "var(--good)" : "var(--line)"};color:var(--bg)" data-act="ptoggle" data-plan="${id}" data-id="${i.id}" aria-label="${i.done ? "Mark not done" : "Mark done"}" ${S.ro ? "disabled" : ""}>${i.done ? ic("check") : ""}</button><span class="grow" style="${i.done ? "text-decoration:line-through;color:var(--muted)" : ""};overflow-wrap:anywhere">${esc(i.text)}</span>${S.ro ? "" : `<button class="linkish" data-act="pdel" data-plan="${id}" data-id="${i.id}" aria-label="Remove">${ic("x")}</button>`}</div>`).join("")}</div>` : `<div class="empty">${empty}</div>`}
+  return `<section class="card"${timed ? ' data-tour="todo"' : ""}><div class="row spread"><h3>${title}</h3>${nav}<span class="mono small muted">${done}/${items.length}</span></div>${extra}
+    ${items.length ? `<div class="list">${items.map(i => `<div class="item" style="align-items:center"><button class="check" style="background:${i.done ? "var(--good)" : "transparent"};border-color:${i.done ? "var(--good)" : "var(--line)"};color:var(--bg)" data-act="ptoggle" data-plan="${id}" data-id="${i.id}" aria-label="${i.done ? "Mark not done" : "Mark done"}" ${S.ro ? "disabled" : ""}>${i.done ? ic("check") : ""}</button>${S.pedit === id + ":" + i.id && !S.ro ? `<form class="row grow" data-form="pedit" data-plan="${id}" data-id="${i.id}" style="gap:6px"><input id="pe-${id}-${i.id}" class="input grow" maxlength="120" value="${esc(i.text)}" aria-label="Edit item"><button class="btn sm primary" type="submit" aria-label="Save">${ic("check")}</button><button class="btn sm" type="button" data-act="peditx" aria-label="Cancel">${ic("x")}</button></form>`
+      : `<span class="grow" style="${i.done ? "text-decoration:line-through;color:var(--muted)" : ""};overflow-wrap:anywhere">${esc(i.text)}</span>${S.ro ? "" : `<button class="linkish" data-act="pedit" data-plan="${id}" data-id="${i.id}" aria-label="Edit">${ic("pencil")}</button><button class="linkish" data-act="pdel" data-plan="${id}" data-id="${i.id}" aria-label="Remove">${ic("x")}</button>`}`}</div>`).join("")}</div>` : `<div class="empty">${empty}</div>`}
     ${S.ro ? "" : `<form class="row" data-form="padd" data-plan="${id}"><input id="pa-${id}" class="input grow" maxlength="120" placeholder="${esc(ph)}" aria-label="New target"><button class="btn primary" type="submit" aria-label="Add">${ic("plus")}</button></form>`}
   </section>`;
 }
@@ -1790,7 +1830,8 @@ function renderSheet() {
   patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${s.edit ? "Edit" : "Log"} ${esc(d.label)}" data-stop>
     <span class="grab"></span>
     <div class="row spread"><div class="row"><span class="a-${d.area}">${ic(d.icon)}</span><h2>${s.edit ? "Edit · " : ""}${esc(d.label)}</h2></div><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div>
-    ${s.edit ? `<p class="small muted">Logged ${nice(s.date)}</p><div class="field"><label>Category</label><div class="seg">${Object.entries(KINDS).map(([k, x]) => `<button class="${s.kind === k ? "on" : ""}" data-act="skind" data-v="${k}">${x.label}</button>`).join("")}</div></div>` : `<div class="seg" role="group" aria-label="Day"><button class="${s.date === t ? "on" : ""}" data-act="sdate" data-v="${t}">Today</button><button class="${s.date === y ? "on" : ""}" data-act="sdate" data-v="${y}">Yesterday</button></div>`}
+    ${s.edit ? `<p class="small muted">Logged ${nice(s.date)}</p><div class="field"><label>Category</label><div class="seg">${Object.entries(KINDS).map(([k, x]) => `<button class="${s.kind === k ? "on" : ""}" data-act="skind" data-v="${k}">${x.label}</button>`).join("")}</div></div>` : `<div class="seg" role="group" aria-label="Day"><button class="${s.date === t ? "on" : ""}" data-act="sdate" data-v="${t}">Today</button><button class="${s.date === y ? "on" : ""}" data-act="sdate" data-v="${y}">Yesterday</button><button class="${s.date !== t && s.date !== y ? "on" : ""}" data-act="sdate" data-v="pick">Earlier</button></div>
+      ${s.date !== t && s.date !== y || s.pickDay ? `<div class="field"><label for="lg-date">Which day? (up to 7 days back)</label><input id="lg-date" class="input" type="date" min="${addD(t, -7)}" max="${t}" value="${s.date}"></div>` : ""}`}
     ${d.types ? `<div class="field"><label>Type</label><div class="seg">${d.types.map(x => `<button class="${s.type === x ? "on" : ""}" data-act="stype" data-v="${x}">${x}</button>`).join("")}</div></div>` : ""}
     ${d.min ? (() => { const h = s.unit === "h", opts = h ? [60, 90, 120, 180, 240, 360] : [10, 15, 30, 45, 60, 90];
       return `<div class="field"><div class="row spread"><label for="lg-min">${h ? "Hours" : "Minutes"}</label><div class="seg mini" role="group" aria-label="Unit"><button class="${h ? "" : "on"}" data-act="sunit" data-v="min">Minutes</button><button class="${h ? "on" : ""}" data-act="sunit" data-v="h">Hours</button></div></div>
@@ -1953,7 +1994,8 @@ document.addEventListener("click", e => {
     }
     case "log": return openLog(a.dataset.kind);
     case "close": if (s?.url) URL.revokeObjectURL(s.url); document.querySelector("#sheet video")?.pause(); S.sheet = s?.back || null; return renderSheet();
-    case "sdate": s.date = a.dataset.v; return renderSheet();
+    case "timewk": S.timeWk = a.dataset.v; return render();
+    case "sdate": if (a.dataset.v === "pick") { s.pickDay = true; if (s.date === today()) s.date = addD(today(), -2); } else { s.pickDay = false; s.date = a.dataset.v; } return renderSheet();
     case "stype": s.type = a.dataset.v; return renderSheet();
     case "smin": { s.min = +a.dataset.v; const mi = document.getElementById("lg-min"); if (mi) mi.value = s.unit === "h" ? s.min / 60 : s.min; return renderSheet(); }
     case "sunit": {
@@ -1977,6 +2019,9 @@ document.addEventListener("click", e => {
       });
       return toast("Removed");
     }
+    case "tododay": { const v = a.dataset.v; S.todoDay = v >= today() ? null : v; S.pedit = null; return render(); }
+    case "pedit": S.pedit = a.dataset.plan + ":" + id; render(); return setTimeout(() => { const x = document.getElementById(`pe-${a.dataset.plan}-${id}`); if (x) { x.focus(); x.setSelectionRange(x.value.length, x.value.length); } }, 30);
+    case "peditx": S.pedit = null; return render();
     case "ptoggle": case "pdel": {
       const pid = a.dataset.plan, items = (S.plans[pid]?.items || []).map(i => ({ ...i }));
       const next = act === "pdel" ? items.filter(i => i.id !== id) : items.map(i => i.id === id ? { ...i, done: !i.done } : i);
@@ -2089,6 +2134,11 @@ document.addEventListener("click", e => {
     case "copy": return copy(a.dataset.text);
   }
 });
+document.addEventListener("change", e => {
+  if (e.target.id !== "lg-date" || !S.sheet) return;
+  const v = e.target.value, t = today();
+  if (v && v <= t && v >= addD(t, -7)) { S.sheet.date = v; renderSheet(); } else { e.target.value = S.sheet.date; toast("Pick a day from the last 7 days."); }
+});
 document.addEventListener("input", e => {
   if (e.target.id !== "lg-min" || !S.sheet) return;
   const v = +e.target.value || 0; S.sheet.min = Math.round(S.sheet.unit === "h" ? v * 60 : v);
@@ -2126,6 +2176,15 @@ document.addEventListener("submit", async e => {
     const name = document.getElementById("pf-name").value.trim() || S.profile.name, why = document.getElementById("pf-why").value.trim();
     const side = document.querySelector("input[name=pf-side]:checked")?.value || sideOf(S.profile);
     return q(async () => { await S.db.doc(`people/${S.uid}`).update({ name, why, side }); toast("Saved"); });
+  }
+  if (kind === "pedit") {
+    const pid = f.dataset.plan, iid = f.dataset.id, text = document.getElementById(`pe-${pid}-${iid}`)?.value.trim() || "";
+    if (!text) return toast("Write something, or tap ✕ on the item to remove it.");
+    const items = (S.plans[pid]?.items || []).map(i => i.id === iid ? { ...i, text } : i);
+    S.pedit = null; render();
+    q(() => S.db.doc(`people/${S.uid}/plans/${pid}`).set({ items }));
+    if (pid[0] === "d" && items.find(i => i.id === iid)?.time) queueTodoSync();
+    return toast("Updated");
   }
   if (kind === "padd") {
     const pid = f.dataset.plan, inp = document.getElementById("pa-" + pid), text = inp.value.trim(); if (!text) return;
