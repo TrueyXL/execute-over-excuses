@@ -1113,7 +1113,7 @@ function leaders(n = 3) {
   return Object.entries(S.people).filter(([, p]) => sideOf(p) === side && p.stats?.weekId === cur && p.stats.week?.xp > 0)
     .map(([id, p]) => ({ id, p, xp: p.stats.week.xp })).sort((a, b) => b.xp - a.xp).slice(0, n);
 }
-const ytId = u => (u || "").match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/)?.[1] || "";
+const ytId = u => (u || "").match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([\w-]{11})/)?.[1] || "";
 function annCard() {
   const a = S.feature?.announce; if (!a?.text) return "";
   let gone = 0; try { gone = +localStorage.getItem("eoe-ann") || 0; } catch {}
