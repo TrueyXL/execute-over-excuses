@@ -360,6 +360,28 @@ button.mustbtn:hover { background: var(--surface-2); }
 .rules li { display: flex; gap: 10px; align-items: flex-start; }
 .num { width: 64px; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+/* v19: streak, healing, reading plan, crew challenge, partners, answered prayers, What's new */
+.a-heal { color: #e88aa8; }
+.healstep { border: 1px solid var(--line); border-radius: 14px; padding: 12px; display: grid; gap: 6px; background: var(--surface); }
+.healstep.next { border-color: var(--accent); }
+.healstep.done { opacity: .75; }
+.healstep a { color: var(--accent); display: inline-flex; gap: 6px; align-items: center; text-decoration: none; font-weight: 600; }
+.readbar { height: 8px; border-radius: 99px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; }
+.readbar.big { height: 12px; }
+.readbar i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--good)); border-radius: inherit; transition: width .4s; }
+.challenge { display: grid; gap: 8px; padding: 12px; border-radius: 16px; background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); }
+.challenge.won { background: color-mix(in srgb, var(--good) 14%, transparent); border-color: color-mix(in srgb, var(--good) 40%, transparent); }
+.partner { display: flex; align-items: center; gap: 10px; }
+.partner > button.row { background: none; border: 0; color: inherit; font: inherit; padding: 0; cursor: pointer; }
+.partner.quiet .avatar { box-shadow: 0 0 0 2px var(--bad); }
+.post .acts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.answered { border-left: 3px solid var(--good); padding: 4px 0 4px 10px; display: grid; gap: 2px; }
+.post.is-answered { border-color: color-mix(in srgb, var(--good) 45%, var(--line)); }
+.newsvid { position: relative; display: block; width: 100%; border: 0; padding: 0; border-radius: 16px; overflow: hidden; background: #000; cursor: pointer; aspect-ratio: 16/10; }
+.newsvid img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: .85; }
+.newsvid .small { position: absolute; left: 12px; bottom: 10px; color: #fff; font-weight: 700; text-shadow: 0 1px 6px rgba(0,0,0,.6); }
+.newsvid .playbadge.big { width: 56px; height: 56px; left: 50%; top: 50%; right: auto; bottom: auto; transform: translate(-50%, -50%); }
+.newsvid .playbadge.big .ic { width: 26px; height: 26px; }
 </style>
 </head>
 <body>
@@ -434,10 +456,13 @@ const KINDS = {
   train:   { label: "Train",    area: "body",    xp: 30, icon: "dumb",    min: true,  note: "What did you do?", ph: "e.g. Push day, 5 km run", types: ["Gym", "Basketball", "Run", "Soccer", "Other sport"], photo: true },
   stretch: { label: "Stretch",  area: "stretch", xp: 15, icon: "pulse",   min: true,  note: "What did you stretch?", ph: "e.g. Hips and hamstrings, 15 min yoga", photo: true },
   learn:   { label: "Learn",    area: "learn",   xp: 40, icon: "bulb",    min: false, note: "What did you learn? Be specific.", ph: "A new skill, a faster way to work, how to post content better…", req: true, photo: true },
+  heal:    { label: "Healing",  area: "heal",    xp: 30, icon: "heart",   min: true,  note: "What came up? Be honest, this stays private.", ph: "Only you and your coach see this", photo: false, locked: true },
 };
+/* Healing only shows once unlocked; its logs never leave you and your coach. */
+const kindsFor = () => Object.entries(KINDS).filter(([, d]) => !d.locked || S.mine?.healing);
 const RANKS = ["Recruit", "Disciplined", "Steadfast", "Builder", "Warrior", "Watchman", "Pillar", "Elder", "General", "Legend"];
-/* Every log needs a proof photo, except Learn. */
-const needPic = k => k !== "learn";
+/* Every log needs a proof photo, except Learn (and private Healing). */
+const needPic = k => k !== "learn" && k !== "heal";
 const PHOTO_XP = 10, BOTH_SPIRIT_XP = 15, FULL_DAY_XP = 10, WEEK_XP = 200;
 const SHORT_LINK = "https://trueyxl.github.io/execute-over-excuses/";
 
@@ -469,11 +494,12 @@ const COACH_HASH = "4e072c27f29c879fd3c99e86451be75ebc3eaa13ef7e77d3478dab0a7c47
 /* ===== stats ===== */
 function hasArea(day, area) { return (day?.logs || []).some(l => KINDS[l.kind]?.area === area); }
 function hasKind(day, k) { return (day?.logs || []).some(l => l.kind === k); }
-function weekOf(days, mon, R) {
+/* `grace` = dates covered by a grace day: they count as days with God, so one miss doesn't break the week. */
+function weekOf(days, mon, R, grace) {
   const dates = [...Array(7)].map((_, i) => addD(mon, i));
   const w = { mon, spiritDays: 0, bothDays: 0, buildDays: 0, train: 0, stretch: 0, learn: 0, xp: 0, strip: {} };
   for (const d of dates) {
-    const day = days[d], s = hasArea(day, "spirit"), b = hasArea(day, "build");
+    const day = days[d], s = hasArea(day, "spirit") || !!grace?.has(d), b = hasArea(day, "build");
     if (s) w.spiritDays++; if (b) w.buildDays++;
     if (hasKind(day, "prayer") && hasKind(day, "word")) w.bothDays++;
     if (hasArea(day, "body")) w.train++;
@@ -514,14 +540,15 @@ function computeMine() {
   const dates = Object.keys(S.days).filter(d => S.days[d]?.logs?.length).sort();
   const first = dates.length ? monday(dates[0]) : cur;
   const weeks = [];
-  for (let m = first; m <= cur; m = addD(m, 7)) weeks.push(weekOf(S.days, m, R));
+  const ds = dayStreak(S.days, t), grace = new Set(ds.used);
+  for (let m = first; m <= cur; m = addD(m, 7)) weeks.push(weekOf(S.days, m, R, grace));
   let xp = 0; for (const w of weeks) xp += w.xp;
   const thisW = weeks[weeks.length - 1];
   let streak = 0, i = weeks.length - 1;
   if (!thisW.consistent) i--;
   while (i >= 0 && weeks[i].consistent) { streak++; i--; }
   let best = 0, run = 0; for (const w of weeks) { run = w.consistent ? run + 1 : 0; best = Math.max(best, run); }
-  S.mine = { weeks, thisW, xp, lvl: climb(weeks, cur, R), streak, best, last: dates[dates.length - 1] || "", healing: best >= R.healWeeks || !!S.profile?.unlocked?.healing };
+  S.mine = { weeks, thisW, xp, lvl: climb(weeks, cur, R), streak, best, ds, last: dates[dates.length - 1] || "", healing: best >= R.healWeeks || !!S.profile?.unlocked?.healing };
   return S.mine;
 }
 /* What the crew sees of a log. Prayer notes stay between the person and the coach. */
@@ -531,13 +558,13 @@ function pubLog(l, date, note) {
 function summary() {
   const m = S.mine, w = m.thisW, t = today(), todo = S.plans["d" + t]?.items || [];
   return {
-    xp: m.xp, level: m.lvl.n, streak: m.streak, best: m.best, last: m.last, weekId: w.mon,
+    xp: m.xp, level: m.lvl.n, streak: m.streak, best: m.best, dayStreak: m.ds.n, grace: m.ds.grace, last: m.last, weekId: w.mon,
     week: { spiritDays: w.spiritDays, bothDays: w.bothDays, buildDays: w.buildDays, train: w.train, stretch: w.stretch, learn: w.learn, xp: w.xp, musts: w.musts, mustsDone: w.mustsDone, strip: w.strip },
     history: m.weeks.slice(-8).map(x => ({ mon: x.mon, done: x.mustsDone })),
     climb: { run: m.lvl.run, trial: m.lvl.trial },
     todo: { date: t, done: todo.filter(i => i.done).length, total: todo.length },
-    recent: Object.values(S.days).flatMap(d => (d.logs || []).map(l => pubLog(l, d.date, false))).sort((a, b) => b.ts - a.ts).slice(0, 10),
-    wk: Object.values(S.days).filter(d => d.date >= w.mon).flatMap(d => (d.logs || []).map(l => pubLog(l, d.date, true))).sort((a, b) => a.ts - b.ts).slice(0, 80),
+    recent: Object.values(S.days).flatMap(d => (d.logs || []).filter(l => l.kind !== "heal").map(l => pubLog(l, d.date, false))).sort((a, b) => b.ts - a.ts).slice(0, 10),
+    wk: Object.values(S.days).filter(d => d.date >= w.mon).flatMap(d => (d.logs || []).filter(l => l.kind !== "heal").map(l => pubLog(l, d.date, true))).sort((a, b) => a.ts - b.ts).slice(0, 80),
   };
 }
 
@@ -580,6 +607,7 @@ function syncStats() {
   const patch = { stats: { ...st, updated: Date.now() } };
   if (unlock) { patch.unlocked = { ...(S.profile.unlocked || {}), healing: true }; setTimeout(() => toast("Healing unlocked. 3 weeks of consistency.", "xp"), 400); }
   q(() => S.db.doc(`people/${S.uid}`).update(patch));
+  sendPulse();
 }
 let statsTimer = 0; const queueStats = () => { if (!statsTimer) statsTimer = setTimeout(() => { statsTimer = 0; syncStats(); }, 700); };
 
@@ -615,6 +643,8 @@ function listen() {
   on(db.collection("groups"), s => { S.groups = {}; s.docs.forEach(d => S.groups[d.id] = d.data()); render(); });
   on(db.collection("dms").where("u", "array-contains", S.uid).limit(60), s => { S.dms = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (b.last?.ts || 0) - (a.last?.ts || 0)); alertNew(); render(); });
   on(db.doc("config/feature"), s => { S.feature = s.exists ? s.data() : {}; alertNew(); render(); });
+  on(db.doc("config/challenge"), s => { S.challenge = s.exists ? s.data() : null; render(); });
+  on(db.doc(`${me}/heal/progress`), s => { S.heal = s.exists ? s.data() : {}; render(); if (S.sheet?.heal) renderSheet(); });
   on(db.doc("config/rules"), s => { S.rules = { ...DEF_RULES, ...(s.exists ? s.data() : {}) }; computeMine(); render(); queueStats(); });
 }
 /* One live prayer wall and one live Good job / comment feed per crew you're in. */
@@ -639,8 +669,8 @@ function catLogs(who, area, mon) {
   else { const st = S.people[who]?.stats || {}; logs = (st.wk || st.recent || []).filter(l => inWk(l.date)); }
   return logs.filter(l => kinds.includes(l.kind)).sort((a, b) => b.ts - a.ts);
 }
-const AREA_NAME = { spirit: "Time with God", build: "Build", body: "Gym or sport", stretch: "Stretch", learn: "Learn something new" };
-const AREA_ICON = { spirit: "sunrise", build: "brief", body: "dumb", stretch: "pulse", learn: "bulb" };
+const AREA_NAME = { spirit: "Time with God", build: "Build", body: "Gym or sport", stretch: "Stretch", learn: "Learn something new", heal: "Healing" };
+const AREA_ICON = { spirit: "sunrise", build: "brief", body: "dumb", stretch: "pulse", learn: "bulb", heal: "heart" };
 function catSheet(c) {
   const p = c.who === S.uid ? S.profile : S.people[c.who] || {}, logs = catLogs(c.who, c.area, c.mon), have = allProofs();
   needProofs(c.who, logs.map(l => l.proof).filter(Boolean));
@@ -756,6 +786,10 @@ function feed() {
     const nm = x.anon ? "Someone" : S.people[x.by]?.name || x.name || "Someone", kl = { prayer: "posted a prayer request", learned: "shared what they learned" }[x.kind] || "posted a word";
     out.push({ key: `w${x.id}`, ts: x.ts, who: x.anon ? null : x.by, icon: x.kind === "prayer" ? "heart" : "flame", area: x.kind === "prayer" ? "spirit" : "learn", title: `${nm} ${kl} in ${S.groups[g]?.name || "your crew"}`, sub: x.text, go: ["gwall", g] });
   }
+  for (const [g, posts] of Object.entries(S.cwall)) for (const x of posts || []) if (x.answered && x.by !== S.uid && x.answered.ts > since) {
+    const nm = x.anon ? "A" : (S.people[x.by]?.name || x.name || "Someone") + "'s";
+    out.push({ key: `ans${x.id}`, ts: x.answered.ts, who: x.anon ? null : x.by, icon: "check", area: "spirit", title: `🙌 ${nm} prayer was answered`, sub: x.answered.text || x.text, go: ["gwall", g] });
+  }
   for (const [g, cs] of Object.entries(S.cheers)) for (const c of cs || []) if (c.to === S.uid && c.by !== S.uid && c.ts > since) {
     const nm = S.people[c.by]?.name || c.name || "Someone", what = { prayer: "prayer time", word: "Bible time", build: "build session", train: "workout", stretch: "stretch", learn: "lesson" }[myRecent(c.log)?.kind] || "log";
     out.push({ key: `c${c.id}`, ts: c.ts, who: c.by, icon: c.t === "gj" ? "thumb" : "chat", area: "build", title: c.t === "gj" ? `${nm} said good job on your ${what}` : `${nm} commented on your ${what}`, sub: c.t === "c" ? c.text : "", go: ["gwins", g] });
@@ -837,7 +871,7 @@ function feedSheet() {
   return `<div class="row spread"><h2>Your crew</h2><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div>
     ${perm === "default" ? `<div class="note stack" style="gap:8px"><p class="small">Get a ping on this phone when someone in your crew logs or posts.</p><div><button class="btn sm primary" data-act="notifyon">${ic("bell")} Turn on notifications</button></div></div>` : perm === "denied" ? `<p class="small muted">Phone notifications are blocked for this site. You can turn them on in your browser settings.</p>` : ""}
     <label class="row small" style="gap:8px"><input type="checkbox" data-act="soundtoggle" ${soundOn() ? "checked" : ""}> Play a sound for new crew activity</label>
-    ${S.pushOn ? `<label class="row small" style="gap:8px"><input type="checkbox" data-act="logpings" ${S.logPings !== false ? "checked" : ""}> Ping my phone when someone in my crew logs</label>` : ""}
+    ${S.pushOn ? [["logs", "Ping my phone when someone in my crew logs"], ["recap", "Sunday night recap of my week"], ["nudge", "Tell me when my accountability partner goes quiet"]].map(([k, l]) => `<label class="row small" style="gap:8px"><input type="checkbox" data-act="pref" data-v="${k}" ${S.prefs?.[k] !== false ? "checked" : ""}> ${l}</label>`).join("") : ""}
     ${items.length ? `<div class="list feed">${items.map(x => `<button class="item person ${x.ts > r ? "new" : ""}" data-act="feedgo" data-v="${esc(x.go.join(":"))}">${x.who ? av(S.people[x.who]) : `<span class="avatar a-${x.area || "build"}">${ic(x.icon)}</span>`}<div class="grow stack" style="gap:2px;min-width:0;text-align:left"><b style="overflow-wrap:anywhere">${esc(x.title)}</b>${x.sub ? `<span class="small muted" style="overflow-wrap:anywhere">${esc(x.sub.length > 90 ? x.sub.slice(0, 90) + "…" : x.sub)}</span>` : ""}</div><span class="small muted" style="flex:none">${ago(x.ts)}</span></button>`).join("")}</div>`
       : `<div class="empty">Nothing yet. When someone in your crew logs a workout, prayer or lesson, it shows up here.</div>`}`;
 }
@@ -866,7 +900,7 @@ function render() {
   patch(root, `<main class="app ${wide ? "wide" : ""}">${brandBar()}${body}</main>${S.profile && S.uid ? navBar() : ""}`);
   if (S.sheet?.peek || S.sheet?.feed || S.sheet?.dm || S.sheet?.pic || S.sheet?.cat) renderSheet();
   scrollChats();
-  if (S.tour != null) renderTour(); else maybeTour();
+  if (S.tour != null) renderTour(); else { maybeTour(); maybeNews(); }
 }
 /* Live data re-renders often: skip identical HTML, and keep whatever the person is typing (value, focus, cursor). */
 function patch(el, html) {
@@ -1050,11 +1084,12 @@ function hud() {
         <p class="tiny muted">Level ${L.n} · ${esc(L.name)}</p>
         <h1 style="font-size:30px">${esc(p.name || (women() ? "Sister" : "Brother"))}</h1>
       </div>
-      <span class="streak" title="Consistent weeks in a row">${ic("flame")} ${m.streak} wk</span>
+      <span class="streak" title="Days in a row with time with God">${ic("flame")} ${m.ds.n} day${m.ds.n === 1 ? "" : "s"}</span>
     </div>
+    ${streakLine(m.ds)}
     ${climbMeter(L)}
     <p class="small">${L.trial ? `<b style="color:var(--accent)">Trial week.</b> Finish this week consistent to reach Level ${L.n + 1}. Miss it and you restart.` : L.failed ? `<b style="color:var(--bad)">Trial failed.</b> Back to the start: ${S.rules.levelWeeks} consistent weeks in a row earns a new trial.` : `<b>${L.run}/${S.rules.levelWeeks}</b> consistent weeks. Hit ${S.rules.levelWeeks} in a row to unlock your trial for Level ${L.n + 1}.`}</p>
-    <div class="row spread small"><span class="mono">${m.xp.toLocaleString()} XP</span><span class="muted">Best streak ${m.best} wk</span></div>
+    <div class="row spread small"><span class="mono">${m.xp.toLocaleString()} XP</span><span class="muted">Best streak ${m.ds.best} days</span></div>
   </section>`;
 }
 function climbMeter(L) {
@@ -1089,11 +1124,14 @@ function todayView() {
     </div>
   </section>
   ${todoCard(t)}
+  ${(S.profile.groups || []).filter(g => S.groups[g]).map((g, i, all) => challengeNow() ? `<section class="card">${challengeBox(g, true, all.length > 1)}</section>` : "").join("")}
+  ${partnerCard()}
   ${todayCalCard(t)}
   ${sermonCard()}
+  ${readingCard(true)}
   ${spotlight()}
   <section class="pad" aria-label="Log something">
-    ${Object.entries(KINDS).map(([k, d]) => `<button class="act a-${d.area}" data-act="log" data-kind="${k}">${ic(d.icon)}<span>${d.label}</span><small>+${d.xp} XP</small></button>`).join("")}
+    ${kindsFor().map(([k, d]) => `<button class="act a-${d.area}" data-act="log" data-kind="${k}">${ic(d.icon)}<span>${d.label}</span><small>+${d.xp} XP</small></button>`).join("")}
   </section>
   ${weekCard(m.thisW, true)}
   ${timeCard()}
@@ -1140,7 +1178,7 @@ function spotlight() {
       ${top.length ? `<p class="tiny muted">This week's leaders</p><div class="list">${top.map((x, i) => `<div class="item" style="align-items:center"><span class="rank">${i + 1}</span>${av(x.p)}<b class="grow">${esc(x.p.name || "Someone")}${x.id === S.uid ? " (you)" : ""}</b><span class="mono small">${x.xp} XP</span></div>`).join("")}</div>` : `<p class="small muted">Nobody has XP this week yet. Be first.</p>`}</div>` : ""}
   </section>`;
 }
-const AREA_KINDS = { spirit: ["prayer", "word"], build: ["build"], body: ["train"], stretch: ["stretch"], learn: ["learn"] };
+const AREA_KINDS = { spirit: ["prayer", "word"], build: ["build"], body: ["train"], stretch: ["stretch"], learn: ["learn"], heal: ["heal"] };
 function mustRows(w, who) {
   const R = S.rules;
   const rows = [
@@ -1193,11 +1231,175 @@ function gymCard(compact) {
     <p class="tiny muted">The PDF has photos of every exercise, form tips, rest times, no-gym swaps and boxes to track your weights.</p>
     <div>${planPdf()}</div></section>`;
 }
+/* ===== day streak: days in a row with time with God. One grace day every 2 weeks covers a missed day. ===== */
+const GRACE_EPOCH = "2026-01-05";  // grace periods are fixed 2-week blocks starting on this Monday
+const graceBlock = d => Math.floor(Math.round((parse(d) - parse(GRACE_EPOCH)) / 864e5) / 14);
+const blockStart = b => addD(GRACE_EPOCH, b * 14);
+function dayStreak(days, t) {
+  const has = d => hasArea(days[d], "spirit"), first = Object.keys(days).filter(has).sort()[0];
+  if (!first) return { n: 0, today: false, grace: true, used: [], best: 0, nextGrace: blockStart(graceBlock(t) + 1) };
+  const usedBlocks = new Set(); let n = 0, best = 0, used = [];
+  for (let d = first; d < t; d = addD(d, 1)) {
+    if (has(d)) { n++; best = Math.max(best, n); continue; }
+    const b = graceBlock(d);
+    if (n > 0 && !usedBlocks.has(b)) { usedBlocks.add(b); used.push(d); continue; }   // grace keeps the streak alive (doesn't add a day)
+    n = 0;
+  }
+  const done = has(t); if (done) { n++; best = Math.max(best, n); }
+  return { n, today: done, grace: !usedBlocks.has(graceBlock(t)), used, best, nextGrace: blockStart(graceBlock(t) + 1) };
+}
+function streakLine(ds) {
+  const g = ds.grace ? `<span class="chip on">${ic("shield")} Grace day ready</span>` : `<span class="chip">${ic("shield")} Grace used · new one ${short(ds.nextGrace)}</span>`;
+  const msg = ds.today ? "Time with God logged today. Streak safe." : ds.n ? "Log time with God today to keep it going." : "Log time with God today to start a streak.";
+  return `<div class="row wrap" style="gap:6px;align-items:center">${g}<span class="small muted">${msg}</span></div>`;
+}
+
+/* ===== Healing (unlocked after healWeeks consistent weeks): guided tracks, private logs only you and your coach see ===== */
+const HEAL = [
+  { id: "father", name: "Father wound", line: "What you got, and didn't get, from your dad.", steps: [
+    ["Tell the story", "Psalm 27:10", "Write about your father in a few honest lines. What did you get from him? What did you miss?"],
+    ["Name the hurt", "Psalm 34:18", "Which moment still stings? Say what it made you believe about yourself."],
+    ["Your true Father", "Romans 8:15", "God calls you son or daughter. Where do you still live like an orphan?"],
+    ["Break the cycle", "Malachi 4:6", "What will you do differently with the people who look up to you? One concrete thing."] ] },
+  { id: "forgive", name: "Forgiveness", line: "Letting go without pretending it didn't hurt.", steps: [
+    ["Who is it?", "Ephesians 4:31-32", "Write the name of someone you haven't forgiven, and what they did."],
+    ["What it cost you", "Hebrews 12:15", "How has holding this changed you: your sleep, your temper, your trust?"],
+    ["Release the debt", "Matthew 18:21-35", "Pray it out loud: \"I release ___ from what they owe me.\" Write how it felt."],
+    ["Forgive yourself", "1 John 1:9", "What are you still punishing yourself for? Confess it once and write down that it's covered."] ] },
+  { id: "anger", name: "Anger", line: "What sets you off, and what's under it.", steps: [
+    ["Your triggers", "James 1:19-20", "List the last three times you got angry. What happened right before?"],
+    ["Under the anger", "Proverbs 20:5", "Anger often covers hurt, fear or shame. Which one was under each of those times?"],
+    ["Slow down", "Proverbs 16:32", "Write your plan for the next time: what you'll do in the first 10 seconds."],
+    ["Make it right", "Matthew 5:23-24", "Who got hit by your anger? Write what you'll say to them this week."] ] },
+  { id: "grief", name: "Grief and loss", line: "People, chances or seasons you lost.", steps: [
+    ["What you lost", "Ecclesiastes 3:1-4", "Name what or who you're grieving. You don't have to be over it."],
+    ["What you miss most", "John 11:35", "Jesus wept. Write the thing you miss most, as specific as you can."],
+    ["Bring it to God", "Psalm 62:8", "Pour it out. Write a prayer that says exactly how you feel, no clean-up."],
+    ["Carry it forward", "2 Corinthians 1:3-4", "How could this pain help someone else one day? Who comes to mind?"] ] },
+  { id: "shame", name: "Shame and the past", line: "The things you hope nobody finds out.", steps: [
+    ["The voice", "Romans 8:1", "What does shame keep telling you about yourself? Write the exact sentence."],
+    ["The truth", "2 Corinthians 5:17", "Now write what God says about you instead, in your own words."],
+    ["Bring it to light", "James 5:16", "Is there one trusted person, maybe your coach, you could tell? Write what's stopping you."],
+    ["Walk free", "Isaiah 43:18-19", "Write one new thing you're stepping into now that the past doesn't run you."] ] },
+  { id: "peace", name: "Rest and anxiety", line: "The pressure in your head and chest.", steps: [
+    ["What's on you", "1 Peter 5:7", "Brain-dump every worry. Then circle the ones you actually control."],
+    ["Breathe and pray", "Philippians 4:6-7", "Take 5 slow breaths, then pray through the list. Write what changed in you."],
+    ["Your rest", "Matthew 11:28-30", "When did you last truly rest? Plan one real rest block this week."],
+    ["Peace on purpose", "Isaiah 26:3", "Pick one verse to come back to when anxiety hits. Write it out and why."] ] },
+];
+const healDone = id => S.heal?.[id] || [];  // progress lives in people/<uid>/heal/progress (private, like days)
 function healCard() {
   const m = S.mine, R = S.rules, n = Math.min(m.streak, R.healWeeks);
-  if (m.healing) return `<section class="card"><div class="row"><span class="badge a-stretch" style="width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:var(--surface-2)">${ic("heart")}</span><div class="grow"><h3>Healing · unlocked</h3><p class="small muted">You earned it with ${R.healWeeks} consistent weeks. This category opens soon.</p></div></div></section>`;
-  return `<section class="card locked"><div class="row"><span style="width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:var(--surface-2);border:1px solid var(--line)">${ic("lock")}</span><div class="grow"><h3>Healing · locked</h3><p class="small muted">Finish ${R.healWeeks} consistent weeks in a row to unlock it.</p></div><span class="mono">${n}/${R.healWeeks}</span></div><div class="lockmeter">${[...Array(R.healWeeks)].map((_, i) => `<i class="${i < n ? "on" : ""}"></i>`).join("")}</div></section>`;
+  if (!m.healing) return `<section class="card locked"><div class="row"><span style="width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:var(--surface-2);border:1px solid var(--line)">${ic("lock")}</span><div class="grow"><h3>Healing · locked</h3><p class="small muted">Finish ${R.healWeeks} consistent weeks in a row to unlock it.</p></div><span class="mono">${n}/${R.healWeeks}</span></div><div class="lockmeter">${[...Array(R.healWeeks)].map((_, i) => `<i class="${i < n ? "on" : ""}"></i>`).join("")}</div></section>`;
+  const cur = HEAL.find(t => t.id === S.heal?.cur), left = cur ? cur.steps.length - healDone(cur.id).length : 0;
+  return `<section class="card heal"><div class="row"><span class="a-heal" style="width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:var(--surface-2);flex:none">${ic("heart")}</span><div class="grow" style="min-width:0"><p class="tiny muted">Unlocked</p><h3>Healing</h3><p class="small muted">${cur ? `${esc(cur.name)} · ${left ? `${left} step${left > 1 ? "s" : ""} left` : "finished"}` : "Six guided tracks. Private: only you and your coach see these."}</p></div><button class="btn sm primary" data-act="heal">${cur ? "Continue" : "Open"}</button></div></section>`;
 }
+function healSheet(h) {
+  const t = HEAL.find(x => x.id === h.track);
+  const head = (title, back) => `<div class="row spread"><div class="row" style="gap:8px">${back ? `<button class="icon-btn" data-act="healtrack" data-v="" aria-label="All tracks">${ic("back")}</button>` : ""}<h2>${title}</h2></div><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div>`;
+  if (!t) return `${head("Healing")}<p class="small muted">Pick what you want to work on. Each track has 4 short steps: read the verse, answer the question, log it. Healing logs are private: your crew never sees them, only your coach does.</p>
+    <div class="stack" style="gap:8px">${HEAL.map(x => { const d = healDone(x.id).length; return `<button class="person" data-act="healtrack" data-v="${x.id}"><span class="a-heal">${ic("heart")}</span><div class="grow stack" style="gap:2px;text-align:left"><b>${esc(x.name)}</b><span class="small muted">${esc(x.line)}</span></div><span class="mono small ${d === x.steps.length ? "" : "muted"}" style="${d === x.steps.length ? "color:var(--good)" : ""}">${d}/${x.steps.length}</span></button>`; }).join("")}</div>
+    <p class="tiny muted" style="text-transform:none;letter-spacing:0">If you're in crisis or thinking about hurting yourself, call or text 9-8-8 (Canada, 24/7) or 911. Then tell your coach.</p>`;
+  const done = healDone(t.id);
+  return `${head(esc(t.name), true)}<p class="small muted">${esc(t.line)}</p>
+    <div class="stack" style="gap:10px">${t.steps.map(([title, ref, q], i) => { const ok = done.includes(i), next = !ok && t.steps.findIndex((_, k) => !done.includes(k)) === i;
+      return `<div class="healstep ${ok ? "done" : ""} ${next ? "next" : ""}"><div class="row spread"><b>${i + 1}. ${esc(title)}</b>${ok ? `<span style="color:var(--good)">${ic("check")}</span>` : ""}</div>
+        <a class="small" href="https://www.biblegateway.com/passage/?search=${encodeURIComponent(ref)}&version=NIV" target="_blank" rel="noopener">${ic("book")} ${esc(ref)}</a>
+        <p class="small">${esc(q)}</p>${S.ro ? "" : `<div><button class="btn sm ${next ? "primary" : ""}" data-act="healstep" data-id="${t.id}" data-v="${i}">${ok ? "Do it again" : "Write it"}</button></div>`}</div>`; }).join("")}</div>`;
+}
+
+/* ===== Bible reading plans: one chapter a day, tap to read, log it as The Word ===== */
+const READ_PLANS = {
+  matthew: { name: "Matthew in 28 days", book: "Matthew", code: "MAT", n: 28 },
+  mark: { name: "Mark in 16 days", book: "Mark", code: "MRK", n: 16 },
+  john: { name: "John in 21 days", book: "John", code: "JHN", n: 21 },
+  proverbs: { name: "Proverbs in 31 days", book: "Proverbs", code: "PRO", n: 31 },
+  acts: { name: "Acts in 28 days", book: "Acts", code: "ACT", n: 28 },
+};
+const chapterUrl = (p, c) => `https://www.bible.com/bible/111/${p.code}.${c}.NIV`;
+function readingCard(compact) {
+  const r = S.profile?.reading, p = r && READ_PLANS[r.plan];
+  if (!p) {
+    if (compact) return "";
+    return `<section class="card" id="readplan"><p class="tiny muted">${ic("book")} Reading plan</p><h3>Read the Word with a plan</h3><p class="small muted">One chapter a day. Tap to read it, then log it as The Word. Miss a day and it waits for you.</p>
+      <div class="stack" style="gap:8px">${Object.entries(READ_PLANS).map(([k, x]) => `<button class="person" data-act="readstart" data-v="${k}"><span class="a-spirit">${ic("book")}</span><div class="grow" style="text-align:left"><b>${esc(x.name)}</b></div><span class="small muted">${x.n} chapters</span></button>`).join("")}</div></section>`;
+  }
+  const done = r.done || [], next = [...Array(p.n)].map((_, i) => i + 1).find(c => !done.includes(c)), dayN = Math.min(p.n, Math.round((parse(today()) - parse(r.start)) / 864e5) + 1);
+  const pace = !next ? "" : done.length >= dayN - 1 ? `<span class="status good">On track</span>` : `<span class="status warn">${dayN - 1 - done.length} behind</span>`;  // behind = chapters missed before today
+  const bar = `<div class="readbar" aria-label="${done.length} of ${p.n} chapters read"><i style="width:${Math.round(100 * done.length / p.n)}%"></i></div>`;
+  if (!next) return `<section class="card" id="readplan"><p class="tiny muted">${ic("book")} Reading plan</p><h3>${esc(p.name)} · finished</h3>${bar}<p class="small">You read all ${p.n} chapters. Pick your next book.</p><div><button class="btn sm" data-act="readstop">Choose another plan</button></div></section>`;
+  return `<section class="card" id="readplan"><div class="row spread"><p class="tiny muted">${ic("book")} ${esc(p.name)} · ${done.length}/${p.n}</p>${pace}</div>
+    <h2>Today: ${esc(p.book)} ${next}</h2>${bar}
+    <div class="row wrap" style="gap:8px"><a class="btn sm" href="${chapterUrl(p, next)}" target="_blank" rel="noopener">${ic("book")} Read it</a>${S.ro ? "" : `<button class="btn sm primary" data-act="readlog" data-v="${next}">${ic("check")} Log it as The Word</button><button class="linkish small" data-act="readmark" data-v="${next}">Already logged it</button>`}</div>
+    ${compact ? "" : `<div><button class="linkish small" data-act="readstop">${S.armDel === "read" ? "Tap again to stop this plan" : "Stop or switch plan"}</button></div>`}</section>`;
+}
+
+/* ===== crew challenge (set by the coach in config/challenge): the whole crew fills one bar together ===== */
+const CH_KINDS = { any: "Any log", prayer: "Prayer", word: "The Word", build: "Build", train: "Train", stretch: "Stretch", learn: "Learn" };
+function challengeNow() { const c = S.challenge; return c?.title && c.wk === monday(today()) && c.target > 0 ? c : null; }
+function crewMembers(gid) { return Object.entries(S.people).filter(([, p]) => (p.groups || []).includes(gid)); }
+function challengeProgress(c, gid) {
+  const mon = c.wk, by = [];
+  for (const [id, p] of crewMembers(gid)) {
+    const logs = id === S.uid ? Object.values(S.days).filter(d => d.date >= mon).flatMap(d => (d.logs || []).map(l => ({ ...l, date: d.date }))) : (p.stats?.weekId === mon ? p.stats.wk || [] : []);
+    const mine = logs.filter(l => l.date >= mon && l.date <= addD(mon, 6) && l.kind !== "heal" && (c.kind === "any" || l.kind === c.kind));
+    const v = c.unit === "min" ? mine.reduce((a, l) => a + (+l.min || 0), 0) : mine.length;
+    if (v) by.push({ id, p, v });
+  }
+  by.sort((a, b) => b.v - a.v);
+  return { total: by.reduce((a, x) => a + x.v, 0), by };
+}
+const chFmt = (c, v) => c.unit === "min" ? fmtMin(v) : `${v}`;
+function challengeBox(gid, compact, named) {
+  const c = challengeNow(); if (!c) return "";
+  const pr = challengeProgress(c, gid), pct = Math.min(100, Math.round(100 * pr.total / c.target)), won = pr.total >= c.target;
+  const dl = 7 - dowIdx(today()), unit = c.unit === "min" ? "" : ` ${c.kind === "any" ? "logs" : (CH_KINDS[c.kind] + " logs")}`;
+  return `<div class="challenge ${won ? "won" : ""}"><div class="row spread"><p class="tiny" style="color:var(--accent)">${ic("target")} Crew challenge${named ? ` · ${esc(S.groups[gid]?.name || "")}` : ""}</p><span class="small muted">${won ? "Done 🎉" : `${dl} day${dl > 1 ? "s" : ""} left`}</span></div>
+    <b style="overflow-wrap:anywhere">${esc(c.title)}</b>
+    <div class="readbar big"><i style="width:${pct}%"></i></div>
+    <div class="row spread small"><span class="mono">${chFmt(c, pr.total)} / ${chFmt(c, c.target)}${unit}</span><span class="muted">${pct}%</span></div>
+    ${!compact && pr.by.length ? `<div class="row wrap" style="gap:6px">${pr.by.map(x => `<span class="chip">${esc(x.p.name || "Someone")} · ${chFmt(c, x.v)}</span>`).join("")}</div>` : ""}</div>`;
+}
+function challengeEditor() {
+  const c = S.challenge || {}, live = challengeNow();
+  return `<section class="card"><h3>Crew challenge</h3><p class="small muted">One shared goal for this week. Every crew fills its own bar together. It ends Sunday night.</p>
+    ${live ? `<p class="small">Live now: <b>${esc(live.title)}</b></p>` : ""}
+    <form class="stack" data-form="challenge" style="gap:10px">
+      <div class="field"><label for="ch-title">Challenge</label><input id="ch-title" class="input" maxlength="100" value="${esc(live ? c.title : "")}" placeholder="e.g. Crew reads the Word 20 times this week"></div>
+      <div class="row wrap" style="gap:10px"><div class="field grow" style="min-width:140px"><label for="ch-kind">What counts</label><select id="ch-kind" class="input">${Object.entries(CH_KINDS).map(([k, l]) => `<option value="${k}" ${(live ? c.kind : "word") === k ? "selected" : ""}>${l}</option>`).join("")}</select></div>
+        <div class="field grow" style="min-width:150px"><label for="ch-unit">Count</label><select id="ch-unit" class="input"><option value="logs" ${c.unit !== "min" ? "selected" : ""}>Number of logs</option><option value="min" ${c.unit === "min" ? "selected" : ""}>Minutes</option></select></div>
+        <div class="field" style="width:110px"><label for="ch-target">Target</label><input id="ch-target" class="input mono" type="number" inputmode="numeric" min="1" max="100000" value="${live ? c.target : 20}"></div></div>
+      <div class="row wrap" style="gap:8px"><button class="btn primary" type="submit">${live ? "Update" : "Start"} challenge</button>${live ? `<button class="btn" type="button" data-act="chend">End it</button>` : ""}</div></form></section>`;
+}
+
+/* ===== accountability partners: new pairs every month inside each crew (same for everyone, no setup) ===== */
+function seeded(str) { let h = 2166136261; for (const ch of str) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return () => ((h = Math.imul(h ^ (h >>> 15), 2246822507) ^ Math.imul(h ^ (h >>> 13), 3266489909)) >>> 0) / 4294967296; }
+function partnersIn(gid, month) {
+  const ids = crewMembers(gid).map(([id]) => id).sort(), rnd = seeded(gid + month);
+  for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
+  const pairs = []; for (let i = 0; i + 1 < ids.length; i += 2) pairs.push([ids[i], ids[i + 1]]);
+  if (ids.length % 2 && pairs.length) pairs[pairs.length - 1].push(ids[ids.length - 1]);  // odd one out makes a trio
+  return pairs;
+}
+function myPartners() {
+  const gid = (S.profile?.groups || []).filter(g => S.groups[g]).sort()[0]; if (!gid) return null;
+  const pair = partnersIn(gid, today().slice(0, 7)).find(p => p.includes(S.uid));
+  return pair ? { gid, ids: pair.filter(x => x !== S.uid) } : null;
+}
+const idleDays = p => p?.stats?.last ? Math.round((parse(today()) - parse(p.stats.last)) / 864e5) : 99;
+function partnerCard() {
+  const mp = myPartners(); if (!mp) return "";
+  const rows = mp.ids.map(id => { const p = S.people[id] || {}, idle = idleDays(p), quiet = idle >= 3;
+    return `<div class="partner ${quiet ? "quiet" : ""}"><button class="row grow" style="gap:10px;min-width:0;text-align:left" data-act="peek" data-id="${id}">${av(p)}<div class="grow" style="min-width:0"><b>${esc(p.name || "Someone")}</b><p class="small muted" style="margin:0">${idle >= 99 ? "No logs yet" : idle === 0 ? "Logged today" : `Last log ${idle} day${idle > 1 ? "s" : ""} ago`} · ${ic("flame")} ${p.stats?.dayStreak ?? 0} days</p></div></button>
+      ${S.ro ? "" : `<button class="btn sm ${quiet ? "primary" : ""}" data-act="nudge" data-id="${id}">${ic("msg")} ${quiet ? "Check on " + pro(p).him : "Message"}</button>`}</div>
+      ${quiet ? `<p class="small" style="color:var(--bad);margin:0">${esc(p.name || "Your partner")} hasn't logged in ${idle >= 99 ? "a while" : idle + " days"}. Send ${pro(p).him} a word.</p>` : ""}`; }).join("");
+  const nextMonth = new Date(); nextMonth.setMonth(nextMonth.getMonth() + 1, 1);
+  return `<section class="card"><div class="row spread"><p class="tiny muted">${ic("users")} Your partner${mp.ids.length > 1 ? "s" : ""} · ${MON[new Date().getMonth()]}</p><span class="tiny muted">New ${short(iso(nextMonth))}</span></div>${rows}
+    <p class="tiny muted" style="text-transform:none;letter-spacing:0">Check on each other. If one of you goes 3 days without logging, the other gets a nudge.</p></section>`;
+}
+
+/* ===== answered prayers ===== */
+const NUDGE_TEXT = p => `Hey ${p?.name?.split(" ")[0] || ""}, haven't seen you log in a few days. You good? Praying for you. Let's get back at it today 💪`;
 /* Every proof photo we've seen, by id: owner, src, kind, date. */
 S.proofCache = {};
 function allProofs() {
@@ -1250,6 +1452,7 @@ function planView() {
   return `<section class="card"><p class="tiny muted">Execution plan</p><h1>Plan the work.<br>Work the plan.</h1><p class="small muted">Write what you will execute this week and this month. Your coach can see it.</p></section>
   ${planCard(wk, `This week · ${short(monday(t))}–${short(addD(monday(t), 6))}`, "e.g. Send 20 proposals, finish chapter 4, meal prep Sunday")}
   ${planCard(mo, `This month · ${MON[+t.slice(5, 7) - 1]}`, "e.g. Save 500 $, launch the website, read Proverbs")}
+  ${readingCard()}
   ${gymCard()}
   ${healCard()}
   <section class="card"><h3>Your weeks</h3>${historyList(m.weeks.slice(-8).reverse().map(w => ({ mon: w.mon, done: w.mustsDone })))}</section>`;
@@ -1311,6 +1514,7 @@ function miniMusts(w) {
   const m = w.musts || {};
   return `<div class="mini">${[["spirit", "sunrise"], ["build", "brief"], ["train", "dumb", "body"], ["stretch", "pulse"], ["learn", "bulb"]].map(([k, i, a]) => `<i class="a-${a || k} ${m[k] ? "on" : ""}" title="${k}">${ic(i)}</i>`).join("")}</div>`;
 }
+const flameTxt = p => p?.stats?.dayStreak != null ? `${ic("flame")} ${p.stats.dayStreak} day${p.stats.dayStreak === 1 ? "" : "s"}` : `${ic("flame")} ${p?.stats?.streak || 0} wk`;
 const initial = n => esc((n || "?").trim().charAt(0) || "?");
 function crewView() {
   const mine = (S.profile.groups || []).filter(g => S.groups[g]);
@@ -1332,9 +1536,10 @@ function groupCard(gid) {
   const seg = `<div class="seg" role="tablist">${[["crew", "users", "Crew"], ["chat", "msg", `Chat${cNew ? ` · ${cNew} new` : ""}`], ["wins", "thumb", `Wins${gjNew ? ` · ${gjNew} new` : ""}`], ["wall", "heart", `Prayer wall${fresh ? ` · ${fresh} new` : ""}`], ["proof", "camera", "Proofs"]].map(([v, i, l]) => `<button role="tab" aria-selected="${tab === v}" class="${tab === v ? "on" : ""}" data-act="gtab" data-id="${gid}" data-v="${v}">${ic(i)} ${l}</button>`).join("")}</div>`;
   return `<section class="card" id="crew-${gid}">
     <div class="row spread"><div><p class="tiny muted">Crew · code <span class="mono" style="color:var(--accent)">${esc(g.code)}</span></p><h2>${esc(g.name)}</h2></div><button class="btn sm" data-act="invite" data-id="${gid}">${ic("copy")} Invite</button></div>
+    ${challengeBox(gid)}
     ${seg}
     ${tab === "wall" ? wallView(gid) : tab === "chat" ? crewChat(gid) : tab === "wins" ? winsView(gid, members) : tab === "proof" ? (shots.length ? `<div class="wall">${shots.map(s => shotTile(s, s.owner, `<b>${esc(s.who || "Someone")}</b> · ${esc(KINDS[s.kind]?.label || "")} · ${short(s.date)}`)).join("")}</div>` : `<div class="empty">No photos yet. Snap one after your next workout or Bible time.</div>`) : `
-    <div class="stack">${members.map((m, i) => `<button class="person" data-act="peek" data-id="${m.id}" aria-label="See ${esc(m.p.name || "this person")}'s week"><span class="rank">${i + 1}</span>${av(m.p)}<div class="grow stack" style="gap:4px"><b>${esc(m.p.name || "Someone")}${m.id === S.uid ? " (you)" : ""}</b><span class="small muted">${m.p.stats?.climb?.trial ? `<span style="color:var(--accent);font-weight:700">Trial week</span> · ` : ""}Lv ${m.p.stats?.level || 1} · ${ic("flame")} ${m.p.stats?.streak || 0} wk${seenTxt(m.p) ? ` · ${seenTxt(m.p)}` : ""}</span></div>${miniMusts(m.w)}</button>`).join("")}</div>
+    <div class="stack">${members.map((m, i) => `<button class="person" data-act="peek" data-id="${m.id}" aria-label="See ${esc(m.p.name || "this person")}'s week"><span class="rank">${i + 1}</span>${av(m.p)}<div class="grow stack" style="gap:4px"><b>${esc(m.p.name || "Someone")}${m.id === S.uid ? " (you)" : ""}</b><span class="small muted">${m.p.stats?.climb?.trial ? `<span style="color:var(--accent);font-weight:700">Trial week</span> · ` : ""}Lv ${m.p.stats?.level || 1} · ${flameTxt(m.p)}${seenTxt(m.p) ? ` · ${seenTxt(m.p)}` : ""}</span></div>${miniMusts(m.w)}</button>`).join("")}</div>
     <div><button class="linkish" data-act="gleave" data-id="${gid}">${S.armDel === "g" + gid ? "Tap again to leave this crew" : "Leave crew"}</button></div>`}
   </section>`;
 }
@@ -1363,29 +1568,34 @@ function winCard(gid, w, cs) {
 }
 const WALL_KINDS = { prayer: ["Prayer request", "Praying"], learned: ["What I learned", "Amen"], word: ["A word for the crew", "Amen"] };
 function wallView(gid) {
-  const posts = S.cwall[gid], k = S.wallKind || "prayer";
+  const all = S.cwall[gid], k = S.wallKind || "prayer", only = S.wallAns, nAns = (all || []).filter(x => x.answered).length;
+  const posts = all && only ? all.filter(x => x.answered) : all;
   const form = S.ro ? "" : `<div class="stack" style="gap:10px">
     <div class="seg" role="group" aria-label="Post type">${Object.entries(WALL_KINDS).map(([v, [l]]) => `<button class="${k === v ? "on" : ""}" data-act="wallkind" data-v="${v}">${l}</button>`).join("")}</div>
     <form class="stack" data-form="wall" data-g="${gid}" style="gap:10px"><textarea id="wall-text-${gid}" class="input" maxlength="600" placeholder="${k === "prayer" ? "What can the crew pray with you about?" : k === "learned" ? "What did you learn this week? A verse, a lesson, a skill." : "Encourage your crew."}" aria-label="Your post"></textarea>
       <label class="row small" style="gap:8px"><input id="wall-anon-${gid}" type="checkbox"> Post without my name</label>
       <button class="btn primary" type="submit">${ic("send")} Post to the crew</button></form></div>`;
-  const list = posts == null ? `<p class="muted small">Loading…</p>` : posts.length ? posts.map(x => post(x, gid)).join("") : `<div class="empty">Nothing here yet. Be the first to drop a prayer request or a lesson.</div>`;
-  return `${form}<div class="stack" style="gap:10px" aria-label="Posts">${list}</div>`;
+  const list = posts == null ? `<p class="muted small">Loading…</p>` : posts.length ? posts.map(x => post(x, gid)).join("") : only ? `<div class="empty">No answered prayers yet. When God answers one, the person who asked can mark it here.</div>` : `<div class="empty">Nothing here yet. Be the first to drop a prayer request or a lesson.</div>`;
+  const filter = `<div class="seg mini" role="group" aria-label="Show"><button class="${only ? "" : "on"}" data-act="wallans" data-v="">All posts</button><button class="${only ? "on" : ""}" data-act="wallans" data-v="1">${ic("check")} Answered${nAns ? ` · ${nAns}` : ""}</button></div>`;
+  return `${only ? "" : form}${filter}<div class="stack" style="gap:10px" aria-label="Posts">${list}</div>`;
 }
 function post(x, gid) {
   const who = S.people[x.by], name = esc(who?.name || x.name || "Someone"), amen = x.amen || [], on = amen.includes(S.uid);
   const label = x.anon ? (S.isOwner ? `Anonymous <span class="muted">(${name})</span>` : "Anonymous") : name;
   const [kl, verb] = WALL_KINDS[x.kind] || WALL_KINDS.word;
   const del = (x.by === S.uid || S.isOwner) && !S.ro ? `<button class="linkish" data-act="wdel" data-g="${gid}" data-id="${x.id}" aria-label="Delete post">${S.armDel === "w" + x.id ? "Tap to delete" : ic("trash")}</button>` : "";
-  return `<article class="post k-${esc(x.kind)}"><div class="row spread" style="align-items:flex-start"><div class="row" style="gap:10px;min-width:0">${x.anon ? `<span class="avatar">?</span>` : av(who || { name: x.name })}<div style="min-width:0"><b>${label}</b><p class="tiny muted">${kl} · ${ago(x.ts)}</p></div></div>${del}</div>
-    <p>${esc(x.text)}</p><div><button class="chip btnish ${on ? "on" : ""}" data-act="amen" data-g="${gid}" data-id="${x.id}" aria-pressed="${on}">${ic(x.kind === "prayer" ? "heart" : "flame")} ${verb}${amen.length ? ` · ${amen.length}` : ""}</button></div></article>`;
+  return `<article class="post k-${esc(x.kind)} ${x.answered ? "is-answered" : ""}"><div class="row spread" style="align-items:flex-start"><div class="row" style="gap:10px;min-width:0">${x.anon ? `<span class="avatar">?</span>` : av(who || { name: x.name })}<div style="min-width:0"><b>${label}</b><p class="tiny muted">${kl} · ${ago(x.ts)}</p></div></div>${del}</div>
+    <p>${esc(x.text)}</p>
+    ${x.answered ? `<div class="answered"><p class="tiny" style="color:var(--good)">${ic("check")} Answered · ${ago(x.answered.ts)}</p>${x.answered.text ? `<p class="small">${esc(x.answered.text)}</p>` : ""}</div>` : ""}
+    ${S.ansOpen === x.id ? `<form class="stack" data-form="answer" data-g="${gid}" data-id="${x.id}" style="gap:8px"><textarea id="ans-${x.id}" class="input" maxlength="400" placeholder="How did God answer? (optional, your crew will see it)"></textarea><div class="row" style="gap:8px"><button class="btn sm primary" type="submit">${ic("check")} Mark answered</button><button class="btn sm" type="button" data-act="ansx">Cancel</button></div></form>` : ""}
+    <div class="acts"><button class="chip btnish ${on ? "on" : ""}" data-act="amen" data-g="${gid}" data-id="${x.id}" aria-pressed="${on}">${ic(x.kind === "prayer" ? "heart" : "flame")} ${verb}${amen.length ? ` · ${amen.length}` : ""}</button>${x.kind === "prayer" && x.by === S.uid && !x.answered && !S.ro && S.ansOpen !== x.id ? `<button class="chip btnish" data-act="ans" data-id="${x.id}">${ic("check")} God answered this</button>` : ""}${x.answered && (x.by === S.uid || S.isOwner) && !S.ro ? `<button class="linkish small" data-act="ansundo" data-g="${gid}" data-id="${x.id}">Undo answered</button>` : ""}</div></article>`;
 }
 function peekSheet(id) {
   const p = S.people[id]; if (!p) return "";
   const st = p.stats || {}, w = personWeek(p), t = today(), wObj = { mon: monday(t), ...w, strip: w.strip || {} };
   const g = p.goal?.wk === monday(t) && p.goal.text ? p.goal : null, td = st.todo?.date === t ? st.todo : null, R = S.rules;
   const run = st.climb?.run || 0, shots = (S.crewProofs[id] || []).slice(0, 6);
-  return `<div class="row">${av(p, true)}<div class="grow"><h2>${esc(p.name || "Someone")}</h2><p class="small muted">Lv ${st.level || 1} · ${ic("flame")} ${st.streak || 0} wk streak · best ${st.best || 0}${seenTxt(p) ? ` · ${seenTxt(p)}` : ""}</p></div></div>
+  return `<div class="row">${av(p, true)}<div class="grow"><h2>${esc(p.name || "Someone")}</h2><p class="small muted">Lv ${st.level || 1} · ${flameTxt(p)} · ${st.streak || 0} consistent wk${seenTxt(p) ? ` · ${seenTxt(p)}` : ""}</p></div></div>
     ${id !== S.uid && !S.ro ? `<button class="btn primary block" data-act="dm" data-id="${id}">${ic("msg")} Message ${esc(p.name || "")}</button>` : ""}
     <div class="stack" style="gap:6px">${climbMeter({ run, need: R.levelWeeks + R.trialWeeks })}<p class="small muted">${st.climb?.trial ? `<b style="color:var(--accent)">On ${pro(p).his} trial week</b> for Level ${(st.level || 1) + 1}. Pray for ${pro(p).him}.` : `${Math.min(run, R.levelWeeks)}/${R.levelWeeks} weeks toward ${pro(p).his} next trial.`}</p></div>
     ${g ? `<div class="note"><p class="tiny muted">Goal of the week</p><p><b style="${g.done ? "text-decoration:line-through;color:var(--muted)" : ""}">${esc(g.text)}</b>${g.done ? ` <span style="color:var(--good)">Done</span>` : ""}</p></div>` : ""}
@@ -1658,8 +1868,9 @@ function coachView() {
   const left = `<section class="card"><div class="row spread"><p class="tiny muted">Coach view · only you see this</p><button class="btn sm" data-act="coachlock">${ic("lock")} Lock</button></div><h1>Your people</h1>
       <div class="seg">${[["all", `Everyone · ${all.length}`], ["men", `Men · ${all.filter(([, p]) => sideOf(p) === "men").length}`], ["women", `Women · ${all.filter(([, p]) => sideOf(p) === "women").length}`]].map(([v, l]) => `<button class="${fs === v ? "on" : ""}" data-act="coachside" data-v="${v}">${l}</button>`).join("")}</div>
       <div class="row wrap" style="gap:8px"><span class="chip on">${list.filter(x => isOn(x.p)).length} online now</span><span class="chip on">${list.filter(x => x.w.consistent).length} consistent this week</span><span class="chip" style="color:var(--bad)">${idle} quiet 2+ days</span></div>
-      <div class="stack">${list.length ? list.map(x => `<button class="person" data-act="sel" data-id="${x.id}" style="${S.sel === x.id ? "border-color:var(--accent)" : ""}">${av(x.p)}<div class="grow stack" style="gap:4px"><b>${esc(x.p.name || "Someone")}${x.id === S.uid ? " (you)" : ""}</b><span class="small muted">${x.p.stats?.climb?.trial ? `<span style="color:var(--accent);font-weight:700">Trial</span> · ` : ""}${x.idle >= 99 ? "No logs yet" : x.idle === 0 ? "Logged today" : `Last log ${x.idle} day${x.idle === 1 ? "" : "s"} ago`} · ${ic("flame")} ${x.p.stats?.streak || 0}${seenTxt(x.p) ? ` · ${seenTxt(x.p)}` : ""}</span></div>${miniMusts(x.w)}</button>`).join("") : `<div class="empty">Nobody here yet. Share the app (see Me → Invite people).</div>`}</div></section>
+      <div class="stack">${list.length ? list.map(x => `<button class="person" data-act="sel" data-id="${x.id}" style="${S.sel === x.id ? "border-color:var(--accent)" : ""}">${av(x.p)}<div class="grow stack" style="gap:4px"><b>${esc(x.p.name || "Someone")}${x.id === S.uid ? " (you)" : ""}</b><span class="small muted">${x.p.stats?.climb?.trial ? `<span style="color:var(--accent);font-weight:700">Trial</span> · ` : ""}${x.idle >= 99 ? "No logs yet" : x.idle === 0 ? "Logged today" : `Last log ${x.idle} day${x.idle === 1 ? "" : "s"} ago`} · ${flameTxt(x.p)}${seenTxt(x.p) ? ` · ${seenTxt(x.p)}` : ""}</span></div>${miniMusts(x.w)}</button>`).join("") : `<div class="empty">Nobody here yet. Share the app (see Me → Invite people).</div>`}</div></section>
     ${featureEditor()}
+    ${challengeEditor()}
     ${rulesEditor()}`;
   return `<div class="cols"><div class="stack" style="gap:14px">${left}</div><div class="stack" style="gap:14px">${S.sel ? personDetail() : `<section class="card"><div class="empty">Pick someone to see their week, plan, log and photos.</div></section>`}</div></div>`;
 }
@@ -1670,7 +1881,7 @@ function personDetail() {
   const todo = d?.plans?.["d" + t]?.items || [], plan = d?.plans?.["w" + monday(t)]?.items || [], mplan = d?.plans?.["m" + t.slice(0, 7)]?.items || [];
   const recent = d ? Object.keys(d.days).sort().reverse().slice(0, 10) : [];
   const g = p.goal?.wk === monday(t) && p.goal.text ? p.goal : null, pr = pro(p);
-  return `<section class="card"><div class="row">${av(p, true)}<div class="grow"><h2>${esc(p.name || "Someone")}</h2><p class="small muted mono">${sideOf(p) === "women" ? "Women" : "Men"} · Lv ${p.stats?.level || 1}${p.stats?.climb?.trial ? " (trial week)" : ""} · ${(p.stats?.xp || 0).toLocaleString()} XP · ${ic("flame")} ${p.stats?.streak || 0} wk streak · best ${p.stats?.best || 0}</p>${seenTxt(p) ? `<p class="small muted">${seenTxt(p)}</p>` : ""}</div></div>
+  return `<section class="card"><div class="row">${av(p, true)}<div class="grow"><h2>${esc(p.name || "Someone")}</h2><p class="small muted mono">${sideOf(p) === "women" ? "Women" : "Men"} · Lv ${p.stats?.level || 1}${p.stats?.climb?.trial ? " (trial week)" : ""} · ${(p.stats?.xp || 0).toLocaleString()} XP · ${flameTxt(p)} · ${p.stats?.streak || 0} wk streak · best ${p.stats?.best || 0}</p>${seenTxt(p) ? `<p class="small muted">${seenTxt(p)}</p>` : ""}</div></div>
     ${p.why ? `<div class="note"><p class="tiny muted">${pr.His} why</p><p>${esc(p.why)}</p></div>` : ""}
     ${g ? `<div class="note"><p class="tiny muted">Goal of the week${g.done ? " · done" : ""}</p><p>${esc(g.text)}</p></div>` : ""}</section>
   <section class="card"><div class="row spread"><h3>This week</h3>${weekStatus(wObj)}</div>${strip(wObj)}<div class="stack" style="gap:12px">${mustRows(wObj, S.sel)}</div></section>
@@ -1729,7 +1940,8 @@ function rulesCard() {
     <li><span class="a-stretch">${ic("pulse")}</span><span><b>Each week:</b> stretch at least ${R.stretch === 1 ? "once" : R.stretch + " times"}.</span></li>
     <li><span class="a-learn">${ic("bulb")}</span><span><b>Each week:</b> learn something new. A skill, a better way to work, how to post content better.</span></li>
     <li><span style="color:var(--accent)">${ic("shield")}</span><span><b>Levels:</b> hit all five for ${R.levelWeeks} weeks in a row to earn a ${R.trialWeeks === 1 ? "one-week" : R.trialWeeks + "-week"} trial. Pass the trial to level up. Miss a week and you restart the climb.</span></li>
-    <li><span style="color:var(--good)">${ic("heart")}</span><span>Hit all five for <b>${R.healWeeks} weeks in a row</b> to unlock Healing.</span></li>
+    <li><span style="color:var(--accent)">${ic("flame")}</span><span><b>Day streak:</b> every day in a row with time with God. You get <b>one grace day every 2 weeks</b>: miss one day and the streak survives.</span></li>
+    <li><span style="color:var(--good)">${ic("heart")}</span><span>Hit all five for <b>${R.healWeeks} weeks in a row</b> to unlock Healing: six private guided tracks (father wound, forgiveness, anger, grief, shame, anxiety).</span></li>
     <li><span class="a-learn">${ic("pencil")}</span><span>Every log needs a short note. Say what you actually did.</span></li></ul></section>`;
 }
 function meView() {
@@ -1742,7 +1954,7 @@ function meView() {
       ${S.ro ? "" : `<button class="btn primary" type="submit">Save</button>`}
     </form></section>
   <section class="card"><h3>Look</h3>${lookPicker()}</section>
-  <section class="card"><h3>How to use the app</h3><p class="small muted">A 2-minute video and a quick tour of the Today screen.</p><div class="row wrap" style="gap:8px"><button class="btn primary" data-act="tutvideo">${ic("send")} Watch the video</button><button class="btn" data-act="tourreplay">Replay the tour</button></div></section>
+  <section class="card"><h3>How to use the app</h3><p class="small muted">A 2-minute video and a quick tour of the Today screen.</p><div class="row wrap" style="gap:8px"><button class="btn primary" data-act="tutvideo">${ic("send")} Watch the video</button><button class="btn" data-act="tourreplay">Replay the tour</button><button class="btn" data-act="news">What's new</button></div></section>
   ${rulesCard()}
   ${canNotify() ? `<section class="card"><h3>Crew notifications</h3>${Notification.permission === "granted" ? `<p class="small">On. You get a ping when someone in your crew logs, posts on the prayer wall, or your coach makes an announcement.</p>` : Notification.permission === "denied" ? `<p class="small muted">Blocked for this site. Turn them on in your browser's site settings.</p>` : `<p class="small">Get a ping when someone in your crew logs or posts.</p><div><button class="btn sm primary" data-act="notifyon">${ic("bell")} Turn on notifications</button></div>`}<p class="tiny muted">Works while the app is open or in the background. On iPhone, add it to your home screen first.</p></section>` : ""}
   <section class="card"><h3>Put it on your home screen</h3>
@@ -1751,6 +1963,57 @@ function meView() {
   ${S.isOwner ? `<section class="card"><h3>Invite people</h3><p class="small">Send anyone the link above. They sign in with Google or email, pick the men's or women's side, and show up in your Coach tab right away.</p></section>` : ""}
   <section class="card"><div class="row spread"><span class="small muted" style="overflow-wrap:anywhere">Signed in as ${esc(S.auth?.currentUser?.email || "")}</span><button class="btn sm" data-act="signout">Sign out</button></div></section>
   <section class="card"><h3>Your proof photos</h3>${S.myProofs.length ? `<div class="wall">${S.myProofs.map(s => shotTile(s, S.uid, `${esc(KINDS[s.kind]?.label || "")} · ${short(s.date)}`)).join("")}</div>` : `<div class="empty">Your gym and Word photos will show here.</div>`}</section>`;
+}
+
+/* ===== saving progress for reading plans and Healing ===== */
+function markRead(ch) {
+  const r = S.profile?.reading; if (!r || (r.done || []).includes(ch)) return;
+  q(() => S.db.doc(`people/${S.uid}`).update({ "reading.done": firebase.firestore.FieldValue.arrayUnion(ch) }));
+}
+function markHeal(track, i) {
+  const cur = healDone(track); if (cur.includes(i)) return;
+  q(() => S.db.doc(`people/${S.uid}/heal/progress`).set({ cur: track, [track]: [...cur, i].sort() }, { merge: true }));
+}
+
+/* ===== weekly pulse to the push Worker: powers the Sunday recap and partner nudges (no Firestore access needed there) ===== */
+let pulseKey = "";
+function sendPulse() {
+  if (!PUSH_URL || !S.mine || !S.profile || S.ro) return;
+  const w = S.mine.thisW, mon = w.mon, mins = Object.values(S.days).filter(d => d.date >= mon).flatMap(d => d.logs || []).filter(l => l.kind !== "heal");
+  const gj = Object.values(S.cheers).flat().filter(c => c.t === "gj" && c.to === S.uid && c.by !== S.uid && c.ts >= parse(mon).getTime()).length;
+  const mp = myPartners();
+  const body = { wk: mon, name: S.profile.name || "", last: S.mine.last || "", logs: mins.length, min: mins.reduce((a, l) => a + (+l.min || 0), 0), musts: w.mustsDone, consistent: w.consistent, gj, streak: S.mine.ds.n, groups: (S.profile.groups || []).slice(0, 5), partners: mp?.ids || [] };
+  const key = stable(body); let saved = ""; try { saved = localStorage.getItem("eoe-pulse-" + S.uid) || ""; } catch {}
+  if (key === pulseKey || key === saved) return; pulseKey = key;
+  pushCall("/pulse", body).then(r => { if (r) try { localStorage.setItem("eoe-pulse-" + S.uid, key); } catch {} });
+}
+
+/* ===== What's new: shown once to people coming back after an update (video + list) ===== */
+const NEW_VER = "2026-11-v19";
+const NEWS = [
+  ["flame", "Day streak + grace day", "The flame counts days in a row with time with God. Miss one and your grace day (one every 2 weeks) keeps it alive."],
+  ["target", "Crew challenges", "Your coach sets one goal for the week. The whole crew fills the bar together."],
+  ["users", "Accountability partner", "New partner every month. If one of you goes 3 days quiet, the other gets a nudge."],
+  ["book", "Bible reading plans", "Matthew, Mark, John, Proverbs or Acts. One chapter a day, tap to read, log it as The Word."],
+  ["check", "Answered prayers", "Mark your prayer request as answered and tell the crew how God came through."],
+  ["heart", "Healing is open", "Six private guided tracks once you unlock it with 3 consistent weeks."],
+  ["bell", "Sunday night recap", "Your week in one notification: logs, hours, good jobs and your crew's total."],
+  ["thumb", "Since the first video", "Good jobs and comments on Wins, crew chat and private messages, photo or video proof on every log, voice typing, new looks, sermon of the week, your time card, and editing logs and to-dos."],
+];
+function newsSheet() {
+  return `<div class="row spread"><div><p class="tiny" style="color:var(--accent)">Update</p><h2>What's new</h2></div><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div>
+    <button class="newsvid" data-act="newsvideo" aria-label="Play the What's new video"><img src="whats-new.jpg" alt="" loading="lazy"><span class="playbadge big">${ic("play")}</span><span class="small">Watch the 2-minute video</span></button>
+    <div class="list">${NEWS.map(([i, t, d]) => `<div class="item"><span style="color:var(--accent)">${ic(i)}</span><div class="grow stack" style="gap:2px"><b>${t}</b><span class="small muted">${d}</span></div></div>`).join("")}</div>
+    <button class="btn primary block" data-act="close">Got it, let's go</button>`;
+}
+function newsSeen() {
+  if (S.profile && S.profile.news !== NEW_VER && !S.ro) q(() => S.db.doc(`people/${S.uid}`).update({ news: NEW_VER }));
+}
+/* People who already did the first tour see What's new once; brand-new people get the tour instead. */
+let newsShown = false;
+function maybeNews() {
+  if (newsShown || S.ro || S.status !== "ready" || !S.profile?.tour || S.profile.news === NEW_VER || S.sheet || S.tour != null || S.deep) return;
+  newsShown = true; setTimeout(() => { if (!S.sheet) { S.sheet = { news: true }; renderSheet(); } }, 600);
 }
 
 /* ===== log sheet ===== */
@@ -1771,7 +2034,7 @@ async function openEdit(date, id) {
 /* ===== first-run tour (skippable; done once per account, replay from Me) ===== */
 const TOUR = [
   { title: "Welcome to Execute > Excuses", text: "Quick tour, about 30 seconds. You can skip it any time." },
-  { sel: ".hud", title: "Your level", text: "Hit 3 consistent weeks in a row to earn a trial week. Pass the trial and you level up. Miss a week and the climb starts over." },
+  { sel: ".hud", title: "Your level and streak", text: "The flame counts days in a row with time with God. Miss a day and your grace day (one every 2 weeks) saves it. Hit 3 consistent weeks in a row to earn a trial week; pass it to level up." },
   { sel: "[data-tour=quests]", title: "Every day", text: "Time with God: prayer or the Word. Do both for bonus XP. And build your future (career, money, business or school) 5 days out of 7." },
   { sel: ".pad", title: "Log it", text: "Tap what you did. Add a short note and a proof photo. Learn only needs the note." },
   { sel: "[data-tour=week]", title: "Every week", text: "Gym or sport 3 times, stretch once, learn something new once. Do it all and the week counts as consistent." },
@@ -1808,7 +2071,7 @@ function renderTour() {
 }
 function endTour() {
   S.tour = null; tourShut = true; renderTour();
-  if (S.profile && !S.profile.tour && !S.ro) q(() => S.db.doc(`people/${S.uid}`).update({ tour: Date.now() }));
+  if (S.profile && !S.profile.tour && !S.ro) { newsShown = true; q(() => S.db.doc(`people/${S.uid}`).update({ tour: Date.now(), news: NEW_VER })); }
 }
 addEventListener("resize", () => S.tour != null && renderTour());
 addEventListener("scroll", () => S.tour != null && renderTour(), { passive: true });
@@ -1821,7 +2084,9 @@ function renderSheet() {
   if (s.pic) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Proof photo" data-stop><span class="grab"></span>${photoSheet(s.pic)}</div></div>`);
   if (s.cat) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${AREA_NAME[s.cat.area]}" data-stop><span class="grab"></span>${catSheet(s.cat)}</div></div>`);
   if (s.photo) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Proof photo" data-stop><span class="grab"></span><div class="row spread"><h2>Proof</h2><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div><img class="bigphoto" src="${esc(s.photo)}" alt="Proof photo"></div></div>`);
-  if (s.video) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="How to use the app" data-stop><span class="grab"></span><div class="row spread"><h2>How to use the app</h2><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div><video src="tutorial.mp4" controls playsinline autoplay style="width:100%;max-height:72vh;border-radius:14px;background:#000"></video></div></div>`);
+  if (s.video) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(s.title || "How to use the app")}" data-stop><span class="grab"></span><div class="row spread"><h2>${esc(s.title || "How to use the app")}</h2><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div><video src="${typeof s.video === "string" ? s.video : "tutorial.mp4"}" controls playsinline autoplay style="width:100%;max-height:72vh;border-radius:14px;background:#000"></video></div></div>`);
+  if (s.heal) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Healing" data-stop><span class="grab"></span>${healSheet(s.heal)}</div></div>`);
+  if (s.news) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="What's new" data-stop><span class="grab"></span>${newsSheet()}</div></div>`);
   if (s.feed) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Crew activity" data-stop><span class="grab"></span>${feedSheet()}</div></div>`);
   if (s.dm) { patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Chat with ${esc(S.people[s.dm]?.name || "crew member")}" data-stop><span class="grab"></span>${dmSheet(s.dm)}</div></div>`); return scrollChats(); }
   if (s.peek) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(S.people[s.peek]?.name || "Crew member")}" data-stop><span class="grab"></span><div class="row spread"><p class="tiny muted">Crew</p><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div>${peekSheet(s.peek)}</div></div>`);
@@ -1830,7 +2095,7 @@ function renderSheet() {
   patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${s.edit ? "Edit" : "Log"} ${esc(d.label)}" data-stop>
     <span class="grab"></span>
     <div class="row spread"><div class="row"><span class="a-${d.area}">${ic(d.icon)}</span><h2>${s.edit ? "Edit · " : ""}${esc(d.label)}</h2></div><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div>
-    ${s.edit ? `<p class="small muted">Logged ${nice(s.date)}</p><div class="field"><label>Category</label><div class="seg">${Object.entries(KINDS).map(([k, x]) => `<button class="${s.kind === k ? "on" : ""}" data-act="skind" data-v="${k}">${x.label}</button>`).join("")}</div></div>` : `<div class="seg" role="group" aria-label="Day"><button class="${s.date === t ? "on" : ""}" data-act="sdate" data-v="${t}">Today</button><button class="${s.date === y ? "on" : ""}" data-act="sdate" data-v="${y}">Yesterday</button><button class="${s.date !== t && s.date !== y ? "on" : ""}" data-act="sdate" data-v="pick">Earlier</button></div>
+    ${s.edit ? `<p class="small muted">Logged ${nice(s.date)}</p><div class="field"><label>Category</label><div class="seg">${kindsFor().map(([k, x]) => `<button class="${s.kind === k ? "on" : ""}" data-act="skind" data-v="${k}">${x.label}</button>`).join("")}</div></div>` : `<div class="seg" role="group" aria-label="Day"><button class="${s.date === t ? "on" : ""}" data-act="sdate" data-v="${t}">Today</button><button class="${s.date === y ? "on" : ""}" data-act="sdate" data-v="${y}">Yesterday</button><button class="${s.date !== t && s.date !== y ? "on" : ""}" data-act="sdate" data-v="pick">Earlier</button></div>
       ${s.date !== t && s.date !== y || s.pickDay ? `<div class="field"><label for="lg-date">Which day? (up to 7 days back)</label><input id="lg-date" class="input" type="date" min="${addD(t, -7)}" max="${t}" value="${s.date}"></div>` : ""}`}
     ${d.types ? `<div class="field"><label>Type</label><div class="seg">${d.types.map(x => `<button class="${s.type === x ? "on" : ""}" data-act="stype" data-v="${x}">${x}</button>`).join("")}</div></div>` : ""}
     ${d.min ? (() => { const h = s.unit === "h", opts = h ? [60, 90, 120, 180, 240, 360] : [10, 15, 30, 45, 60, 90];
@@ -1839,6 +2104,7 @@ function renderSheet() {
         <input id="lg-min" class="input mono" type="number" inputmode="decimal" min="${h ? .25 : 1}" max="${h ? 24 : 1440}" step="${h ? .25 : 1}" value="${esc(keep.min ?? (h ? +(s.min / 60).toFixed(2) : s.min))}"></div>`; })() : ""}
     ${s.kind === "learn" && S.feature?.podcast?.title ? `<div class="note row spread" style="gap:10px"><p class="small" style="min-width:0;overflow-wrap:anywhere">This week's suggestion: <b>${esc(S.feature.podcast.title)}</b></p><button class="btn sm" data-act="usesug">Use it</button></div>` : ""}
     <div class="field"><label for="lg-note">${esc(d.note)} <span style="color:var(--accent)">(required)</span></label><textarea id="lg-note" class="input" maxlength="600" placeholder="${esc(d.ph)}">${esc(keep.note ?? s.note)}</textarea></div>
+    ${s.kind === "heal" ? `<p class="tiny muted" style="text-transform:none;letter-spacing:0">${ic("lock")} Private. Your crew never sees Healing logs. Only you and your coach do.</p>` : ""}
     ${d.photo ? `<div class="field"><label>Proof photo or video ${needPic(s.kind) && !s.edit ? `<span style="color:var(--accent)">(required)</span>` : ""} <span class="muted">(+${PHOTO_XP} XP)</span></label>
       ${s.url ? `${s.isVid ? `<video class="preview" src="${s.url}" muted playsinline controls preload="metadata"></video>` : `<img class="preview" src="${s.url}" alt="Your photo">`}<button class="btn sm ghost" data-act="nophoto">${ic("x")} Remove ${s.isVid ? "video" : "photo"}</button>` : s.oldProof && !s.dropOld ? `${s.oldSrc ? `<img class="preview" src="${esc(s.oldSrc)}" alt="Your saved proof">` : `<p class="small muted">Proof saved.</p>`}<div class="row"><label class="btn grow" for="lg-cam">${ic("camera")} Retake</label><label class="btn grow" for="lg-pick">${ic("image")} Replace</label><button class="btn ghost danger" data-act="dropold" aria-label="Remove proof">${ic("trash")}</button></div>` : `<div class="row">
         <label class="btn grow" for="lg-cam">${ic("camera")} Photo</label><label class="btn grow" for="lg-vid">${ic("video")} Video</label><label class="btn grow" for="lg-pick">${ic("image")} Library</label></div><p class="tiny muted" style="text-transform:none;letter-spacing:0">Videos up to 30 seconds.</p>`}
@@ -1944,7 +2210,9 @@ async function saveLog() {
     await (chain = chain.then(() => ref.set({ date: s.date, logs })));
     if (prev) { S.sheet = null; renderSheet(); if (s.url) URL.revokeObjectURL(s.url); return toast(log.proof && !prev.proof ? `Updated · +${PHOTO_XP} XP for the photo` : "Updated", log.proof && !prev.proof ? "xp" : ""); }
     const gain = d.xp + (log.proof ? PHOTO_XP : 0);
-    pingPush("log", { date: s.date, id: log.id });
+    if (s.kind !== "heal") pingPush("log", { date: s.date, id: log.id });
+    if (s.readCh) markRead(s.readCh);
+    if (s.healStep) markHeal(s.healStep.track, s.healStep.i);
     S.sheet = null; renderSheet();
     if (s.url) URL.revokeObjectURL(s.url);
     setTimeout(() => { const after = computeMine().lvl; toast(after.n > before ? `Level up! Lv ${after.n} · ${after.name}` : `+${gain} XP`, "xp"); }, 250);
@@ -1993,7 +2261,7 @@ document.addEventListener("click", e => {
       const t = curDark ? "light" : "dark"; document.documentElement.dataset.theme = t; try { localStorage.setItem("exe-theme", t); } catch {} return render();
     }
     case "log": return openLog(a.dataset.kind);
-    case "close": if (s?.url) URL.revokeObjectURL(s.url); document.querySelector("#sheet video")?.pause(); S.sheet = s?.back || null; return renderSheet();
+    case "close": if (s?.news || s?.back?.news) newsSeen(); if (s?.url) URL.revokeObjectURL(s.url); document.querySelector("#sheet video")?.pause(); S.sheet = s?.back || null; return renderSheet();
     case "timewk": S.timeWk = a.dataset.v; return render();
     case "sdate": if (a.dataset.v === "pick") { s.pickDay = true; if (s.date === today()) s.date = addD(today(), -2); } else { s.pickDay = false; s.date = a.dataset.v; } return renderSheet();
     case "stype": s.type = a.dataset.v; return renderSheet();
@@ -2049,11 +2317,10 @@ document.addEventListener("click", e => {
     case "peek": S.sheet = { peek: id }; loadCrewProofs(); return renderSheet();
     case "gymday": S.gymDay = a.dataset.v; return render();
     case "gymplan": go("plan"); return setTimeout(() => document.getElementById("gymplan")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
-    case "logpings": S.logPings = a.checked; pushCall("/prefs", { logs: a.checked }).then(r => { if (r) S.logPings = r.logs; }); return;
     case "soundtoggle": soundOn(!soundOn()); if (soundOn()) chime(); return renderSheet();
     case "gtab": S.gtab[id] = a.dataset.v; if (a.dataset.v === "proof") loadCrewProofs(); return render();
     case "wallkind": S.wallKind = a.dataset.v; return render();
-    case "feed": { if (S.pushOn && S.logPings === undefined) pushCall("/prefs", {}).then(r => { if (r) { S.logPings = r.logs; renderSheet(); } }); const r = lastRead(); S.sheet = { feed: true, read: r }; try { localStorage.setItem(NOTE_KEY(), String(Date.now())); } catch {} render(); return renderSheet(); }
+    case "feed": { if (S.pushOn && !S.prefs) pushCall("/prefs", {}).then(r => { if (r) { S.prefs = r; renderSheet(); } }); const r = lastRead(); S.sheet = { feed: true, read: r }; try { localStorage.setItem(NOTE_KEY(), String(Date.now())); } catch {} render(); return renderSheet(); }
     case "notifyon": return askNotify();
     case "tournext": S.tour = Math.min(TOUR.length - 1, S.tour + 1); return renderTour();
     case "tourback": S.tour = Math.max(0, S.tour - 1); return renderTour();
@@ -2114,6 +2381,25 @@ document.addEventListener("click", e => {
       return q(() => S.db.doc(`people/${S.uid}`).update({ goal: { ...g, done: !g.done } }));
     }
     case "goaledit": S.goalEdit = true; render(); return document.getElementById("goal-text")?.focus();
+    case "heal": S.sheet = { heal: { track: S.heal?.cur && healDone(S.heal.cur).length < 4 ? S.heal.cur : "" } }; return renderSheet();
+    case "healtrack": S.sheet = { heal: { track: a.dataset.v } }; return renderSheet();
+    case "healstep": {
+      const t = HEAL.find(x => x.id === id), st = t?.steps[+a.dataset.v]; if (!st) return;
+      const back = S.sheet; openLog("heal", `${t.name} · ${st[0]} (${st[1]})\n${st[2]}\n\n`); S.sheet.healStep = { track: id, i: +a.dataset.v }; S.sheet.back = back; return renderSheet();
+    }
+    case "readstart": return q(async () => { await S.db.doc(`people/${S.uid}`).update({ reading: { plan: a.dataset.v, start: today(), done: [] } }); toast(`Started ${READ_PLANS[a.dataset.v].name}`); });
+    case "readstop": if (S.armDel !== "read") { S.armDel = "read"; return render(); } S.armDel = null; return q(() => S.db.doc(`people/${S.uid}`).update({ reading: firebase.firestore.FieldValue.delete() }));
+    case "readlog": { const p = READ_PLANS[S.profile.reading?.plan]; if (!p) return; openLog("word", `${p.book} ${a.dataset.v}. `); S.sheet.readCh = +a.dataset.v; return renderSheet(); }
+    case "readmark": markRead(+a.dataset.v); return toast("Marked as read");
+    case "chend": return q(async () => { await S.db.doc("config/challenge").set({ title: "", wk: "", target: 0, ended: Date.now() }); toast("Challenge ended"); });
+    case "nudge": { const p = S.people[id]; S.sheet = { dm: id, draft: idleDays(p) >= 3 ? NUDGE_TEXT(p) : "" }; renderSheet(); return setTimeout(() => { const x = document.getElementById("dm-input"); if (x && S.sheet?.draft && !x.value) { x.value = S.sheet.draft; } x?.focus(); }, 60); }
+    case "wallans": S.wallAns = !!a.dataset.v; return render();
+    case "ans": S.ansOpen = id; render(); return setTimeout(() => document.getElementById("ans-" + id)?.focus(), 30);
+    case "ansx": S.ansOpen = null; return render();
+    case "ansundo": return q(() => S.db.doc(`groups/${a.dataset.g}/posts/${id}`).update({ answered: firebase.firestore.FieldValue.delete() }));
+    case "news": S.sheet = { news: true }; return renderSheet();
+    case "newsvideo": S.sheet = { video: "whats-new.mp4", title: "What's new", back: { news: true } }; return renderSheet();
+    case "pref": { const k = a.dataset.v; S.prefs = { ...(S.prefs || {}), [k]: a.checked }; pushCall("/prefs", { [k]: a.checked }).then(r => { if (r) S.prefs = r; }); return; }
     case "sermonlog": return openLog("word", `Sermon: ${S.feature?.sermon?.title || ""}. `);
     case "podlearn": return openLog("learn", `${S.feature?.podcast?.title || ""}: `);
     case "usesug": { const t = S.feature?.podcast?.title || "", el = document.getElementById("lg-note"); if (el && !el.value.includes(t)) { el.value = `${t}: ${el.value}`; el.focus(); } return; }
@@ -2230,6 +2516,18 @@ document.addEventListener("submit", async e => {
     inp.value = ""; document.getElementById("wall-anon-" + g).checked = false;
     const pid = rid(12);
     return q(async () => { await S.db.doc(`groups/${g}/posts/${pid}`).set({ by: S.uid, name: anon ? "" : S.profile.name || "", kind: kindP, text, anon, ts: Date.now(), amen: [] }); pingPush("post", { gid: g, id: pid }); toast(kindP === "prayer" ? "Posted. The crew will pray with you." : "Posted"); });
+  }
+  if (kind === "answer") {
+    const g = f.dataset.g, pid = f.dataset.id, text = (document.getElementById("ans-" + pid)?.value || "").trim().slice(0, 400);
+    S.ansOpen = null; render();
+    return q(async () => { await S.db.doc(`groups/${g}/posts/${pid}`).update({ answered: { ts: Date.now(), ...(text ? { text } : {}) } }); pingPush("answered", { gid: g, id: pid }); toast("Praise God. Your crew will see it."); });
+  }
+  if (kind === "challenge") {
+    const v = id => document.getElementById(id).value.trim(), title = v("ch-title"), target = Math.round(+v("ch-target"));
+    if (!title) return toast("Write the challenge first.");
+    if (!(target > 0)) return toast("Set a target above 0.");
+    const c = { title, kind: CH_KINDS[v("ch-kind")] ? v("ch-kind") : "any", unit: v("ch-unit") === "min" ? "min" : "logs", target, wk: monday(today()), ts: Date.now() };
+    return q(async () => { await S.db.doc("config/challenge").set(c); toast("Challenge is live for every crew"); });
   }
   if (kind === "feature") {
     const v = id => document.getElementById(id).value.trim(), url = v("ft-url");
