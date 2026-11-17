@@ -448,6 +448,101 @@ button.mustbtn:hover { background: var(--surface-2); }
 .chgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(48px, 1fr)); gap: 6px; }
 .chgrid button.read { border-color: var(--good); }
 .rdnote { padding: 14px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--line); font-family: var(--body-font); font-size: 15px; line-height: 1.5; display: grid; gap: 10px; }
+
+/* ===== v21: slim bars on Today, Bible tab ===== */
+.bars { display: grid; gap: 8px; }
+.fold { padding: 0; gap: 0; overflow: hidden; }
+.fold.hud { padding: 0; gap: 0; }
+.foldhead { all: unset; box-sizing: border-box; width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 14px; min-height: 64px; cursor: pointer; -webkit-tap-highlight-color: transparent; position: relative; z-index: 1; }
+.foldhead:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: inherit; }
+.foldhead:disabled { cursor: default; }
+.foldhead:disabled .chev { visibility: hidden; }
+.foldhead .lvl { width: 42px; height: 42px; font-size: 22px; border-radius: 12px; }
+.foldhead .streak { padding: 5px 9px; font-size: 13px; }
+.foldtxt { display: grid; gap: 3px; min-width: 0; }
+.foldtxt > b { font-size: 16px; line-height: 1.25; }
+.foldtxt .lockmeter { margin-top: 3px; }
+.foldtxt .readbar { height: 6px; margin-top: 3px; }
+.clip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; display: block; }
+.foldico { width: 42px; height: 42px; border-radius: 12px; flex: none; display: grid; place-items: center; background: var(--surface-2); border: 1px solid var(--line); font-family: var(--display); font-weight: 800; font-size: 15px; color: var(--fg); }
+.foldico .ic { width: 20px; height: 20px; color: var(--accent); }
+.foldico.done { background: var(--good); border-color: transparent; color: var(--bg); }
+.foldico.done .ic { color: var(--bg); }
+.chev { flex: none; width: 28px; height: 28px; display: grid; place-items: center; color: var(--muted); transition: transform .25s ease; }
+.chev .ic { width: 18px; height: 18px; transform: rotate(-90deg); }
+.fold.open .chev { transform: rotate(180deg); }
+.foldbody { padding: 0 14px 14px; display: grid; gap: 12px; animation: foldin .28s ease both; }
+@keyframes foldin { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+.qpill { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; padding: 3px 8px 3px 6px; border-radius: 99px; background: var(--surface-2); border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.qpill .ic { width: 14px; height: 14px; }
+.qpill.on { background: color-mix(in srgb, var(--good) 18%, transparent); border-color: transparent; color: var(--good); }
+.bibtabs button { display: inline-flex; align-items: center; gap: 6px; }
+.bibtabs .ic { width: 16px; height: 16px; }
+.app { grid-template-columns: minmax(0, 1fr); }
+/* the reader skips the glass blur: long text scrolls smoother */
+.card.reader, :root[data-skin] .card.reader { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--solid, var(--surface)); }
+.rdbar .vers { -webkit-mask-image: linear-gradient(90deg, #000 82%, transparent); mask-image: linear-gradient(90deg, #000 82%, transparent); padding-right: 18px; }
+.card.reader { padding: 0; gap: 0; overflow: visible; grid-template-columns: minmax(0, 1fr); }
+.rdbar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: var(--solid, var(--surface)); border-bottom: 1px solid var(--line); border-radius: inherit; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.rdbar .rdpick { font-size: 18px; flex: none; max-width: 42%; min-height: 40px; padding: 4px 6px; }
+.rdbar .vers { flex: 1; min-width: 0; }
+.rdbar .vers button { min-height: 34px; padding: 4px 10px; font-size: 12px; }
+.rdsz { display: flex; flex: none; border: 1px solid var(--line); border-radius: 99px; overflow: hidden; }
+.rdsz button { border: 0; background: var(--surface-2); width: 34px; height: 34px; font-weight: 800; font-size: 13px; font-family: var(--serif); color: var(--fg); }
+.rdsz button + button { border-left: 1px solid var(--line); }
+.card.reader .rdbody { overflow: visible; padding: 16px 18px 8px; font-size: inherit; }
+.rdtitle { font-family: var(--display); font-size: 26px; margin: 4px 0 14px; }
+.rdtitle span { color: var(--accent); }
+.rdtext { font-family: var(--serif); line-height: 1.8; overflow-wrap: anywhere; }
+.rdtext .v { cursor: pointer; border-radius: 4px; padding: 1px 0; transition: background-color .2s, box-shadow .2s; -webkit-tap-highlight-color: transparent; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.rdtext .v sup { font-family: var(--body-font); font-size: .55em; font-weight: 800; color: var(--accent); margin: 0 3px 0 2px; vertical-align: super; line-height: 0; }
+.rdtext .v.hl-y { background: color-mix(in srgb, #facc15 34%, transparent); }
+.rdtext .v.hl-g { background: color-mix(in srgb, #4ade80 30%, transparent); }
+.rdtext .v.hl-b { background: color-mix(in srgb, #60a5fa 32%, transparent); }
+.rdtext .v.hl-p { background: color-mix(in srgb, #f472b6 30%, transparent); }
+.rdtext .v.sel { text-decoration: underline dotted var(--accent) 2px; text-underline-offset: 6px; background-color: color-mix(in srgb, var(--accent) 14%, transparent); }
+.vnote { display: inline-grid; vertical-align: middle; margin-left: 3px; color: var(--accent); }
+.vnote .ic { width: 15px; height: 15px; }
+.rdver { margin: 14px 0 4px; text-transform: none; letter-spacing: 0; font-family: var(--body-font); }
+.rdnav { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px 12px 14px; }
+.rdnav .btn { justify-content: center; min-height: 48px; font-size: 14px; }
+.rdnav .btn:disabled { opacity: .35; }
+.card.reader.in-l .rdbody { animation: pagel .3s ease both; }
+.card.reader.in-r .rdbody { animation: pager .3s ease both; }
+@keyframes pagel { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
+@keyframes pager { from { opacity: 0; transform: translateX(-24px); } to { opacity: 1; transform: none; } }
+.skel { display: grid; gap: 12px; padding: 4px 0 10px; }
+.skel i { display: block; height: 16px; border-radius: 8px; background: linear-gradient(90deg, var(--surface-2), color-mix(in srgb, var(--fg) 8%, var(--surface-2)), var(--surface-2)); background-size: 200% 100%; animation: shimmer 1.2s linear infinite; }
+@keyframes shimmer { to { background-position: -200% 0; } }
+.rddock { position: sticky; bottom: calc(86px + env(safe-area-inset-bottom, 0px)); z-index: 6; display: flex; gap: 8px; transition: opacity .2s, transform .2s; }
+.rddock .btn.primary { flex: 1; justify-content: center; min-height: 52px; box-shadow: var(--shadow, 0 10px 30px rgba(0,0,0,.3)); }
+.rddock .icon-only { width: 52px; min-height: 52px; justify-content: center; padding: 0; background: var(--bg); box-shadow: var(--shadow, 0 10px 30px rgba(0,0,0,.3)); }
+.rddock .btn:disabled, :root[data-skin] .rddock .btn.primary:disabled { opacity: 1; background: var(--bg); color: var(--muted); border: 1px solid var(--line); box-shadow: none; }
+.rddock.hide { opacity: 0; transform: translateY(10px); pointer-events: none; }
+.selbar { position: fixed; left: 12px; right: 12px; bottom: calc(86px + env(safe-area-inset-bottom, 0px)); z-index: 25; max-width: 596px; margin: 0 auto; display: grid; gap: 10px; padding: 12px 14px; border-radius: 22px; background: var(--bg); border: 1px solid var(--line); box-shadow: 0 16px 40px rgba(0,0,0,.35); animation: foldin .2s ease both; }
+.selbar > .row { justify-content: space-between; flex-wrap: wrap; }
+.hldot { width: 40px; height: 40px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--fg) 15%, transparent); background: var(--c); flex: none; }
+.hldot.off { background: var(--surface-2); display: grid; place-items: center; color: var(--muted); }
+.hldot.off .ic { width: 16px; height: 16px; }
+.hlrow, .noterow { all: unset; box-sizing: border-box; display: grid; gap: 4px; padding: 12px 14px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--line); cursor: pointer; width: 100%; overflow-wrap: anywhere; }
+.hlrow { border-left: 5px solid var(--c); }
+.hlrow .small { font-family: var(--serif); font-size: 16px; line-height: 1.55; }
+.noterow .tiny { display: inline-flex; align-items: center; gap: 4px; }
+.noterow .tiny .ic { width: 12px; height: 12px; }
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
+.bpscroll { display: grid; gap: 8px; }
+.vnbtn { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 56px; border-radius: 16px; border: 1.5px dashed color-mix(in srgb, var(--accent) 60%, transparent); background: var(--accent-soft); color: var(--accent); font: inherit; font-weight: 800; font-size: 16px; cursor: pointer; }
+.vnbtn .ic { width: 22px; height: 22px; }
+.vnbtn.on { background: var(--bad); color: #fff; border-color: transparent; animation: micpulse 1.2s ease-in-out infinite; }
+.vnbtn.busy { opacity: .75; }
+.vnbtn.busy .ic { animation: micspin 1s ease-in-out infinite; }
+.recpill { position: fixed; top: calc(10px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); z-index: 80; display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: 99px; border: 0; background: var(--bad); color: #fff; font: inherit; font-weight: 800; font-size: 14px; box-shadow: 0 8px 24px rgba(0,0,0,.35); font-variant-numeric: tabular-nums; }
+.recpill i { width: 10px; height: 10px; border-radius: 50%; background: #fff; animation: micspin 1s ease-in-out infinite; }
+.recpill.busy { background: var(--surface-2); color: var(--fg); border: 1px solid var(--line); }
+.recpill .ic { width: 16px; height: 16px; }
+.nav a { min-width: 0; }
+.nav a span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+@media (max-width: 400px) { .nav a { font-size: 10.5px; } :root[data-skin] .nav a { font-size: 11px; } .nav a .ic { width: 22px; height: 22px; } }
 </style>
 </head>
 <body>
@@ -500,6 +595,8 @@ const P = {
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
   moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/>',
   back: '<path d="m15 18-6-6 6-6"/>',
+  hl: '<path d="m9 11-6 6v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/>',
+  note: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/>',
   bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>',
   msg: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
   down: '<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>',
@@ -552,9 +649,9 @@ const S = {
   profile: undefined, days: {}, plans: {}, notes: [], myProofs: [], people: {}, groups: {}, rules: { ...DEF_RULES },
   view: "today", sheet: null, sel: null, selData: null, crewProofs: {}, armDel: null, mine: null,
   calMonth: null, calSel: null, gstore: {}, gbusy: false, coachOK: false,
-  cwall: {}, gchat: {}, greads: {}, dms: [], dmMsgs: null, cheers: {}, cOpen: null, gtab: {}, alertTop: 0,
+  hl: {}, bnotes: [], rd: null, vsel: [], cwall: {}, gchat: {}, greads: {}, dms: [], dmMsgs: null, cheers: {}, cOpen: null, gtab: {}, alertTop: 0,
 };
-const views = ["today", "calendar", "plan", "crew", "coach", "me"];
+const views = ["today", "bible", "calendar", "plan", "crew", "coach", "me"];
 const COACH_HASH = "4e072c27f29c879fd3c99e86451be75ebc3eaa13ef7e77d3478dab0a7c47bc7a";
 
 /* ===== stats ===== */
@@ -710,6 +807,8 @@ function listen() {
   on(db.collection("dms").where("u", "array-contains", S.uid).limit(60), s => { S.dms = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (b.last?.ts || 0) - (a.last?.ts || 0)); alertNew(); render(); });
   on(db.doc("config/feature"), s => { S.feature = s.exists ? s.data() : {}; alertNew(); render(); });
   on(db.doc("config/challenge"), s => { S.challenge = s.exists ? s.data() : null; render(); });
+  on(db.doc(`${me}/bible/hl`), s => { if (S.hlBusy) return; S.hl = (s.exists && s.data().m) || {}; render(); });
+  on(db.collection(`${me}/bnotes`), s => { S.bnotes = s.docs.map(d => ({ id: d.id, ...d.data() })).filter(n => n.text).sort((a, b) => b.ts - a.ts); render(); });
   on(db.doc(`${me}/heal/progress`), s => { S.heal = s.exists ? s.data() : {}; render(); if (S.sheet?.heal) renderSheet(); });
   on(db.doc("config/rules"), s => { S.rules = { ...DEF_RULES, ...(s.exists ? s.data() : {}) }; computeMine(); render(); queueStats(); });
 }
@@ -961,9 +1060,9 @@ function render() {
   if (S.status === "loading") body = loadingView();
   else if (S.status === "nodb" || S.status === "noid") body = gateView();
   else if (!S.profile) body = onboardView();
-  else body = ({ today: todayView, calendar: calendarView, plan: planView, crew: crewView, coach: S.isOwner ? (coachOpen() ? coachView : coachLockView) : todayView, me: meView }[S.view] || todayView)();
+  else body = ({ today: todayView, bible: bibleView, calendar: calendarView, plan: planView, crew: crewView, coach: S.isOwner ? (coachOpen() ? coachView : coachLockView) : todayView, me: meView }[S.view] || todayView)();
   patch(root, `<main class="app ${wide ? "wide" : ""}">${brandBar()}${body}</main>${S.profile && S.uid ? navBar() : ""}`);
-  if (S.sheet?.peek || S.sheet?.feed || S.sheet?.dm || S.sheet?.pic || S.sheet?.cat || S.sheet?.logv || S.sheet?.plans || (S.sheet?.bible && !S.sheet.bible.pick)) renderSheet();
+  if (S.sheet?.peek || S.sheet?.feed || S.sheet?.dm || S.sheet?.pic || S.sheet?.cat || S.sheet?.logv || S.sheet?.plans) renderSheet();
   scrollChats();
   if (S.tour != null) renderTour(); else { maybeTour(); maybeNews(); }
 }
@@ -1036,6 +1135,18 @@ function micify(root) {
 function micState() {
   document.querySelectorAll(".micbtn").forEach(b => { const on = b.dataset.id === recFor, busy = b.dataset.id === micBusy;
     b.classList.toggle("on", on); b.classList.toggle("busy", busy); b.setAttribute("aria-label", busy ? "Writing it down" : on ? "Stop voice typing" : "Voice typing"); });
+  document.querySelectorAll(".vnbtn").forEach(b => { const on = b.dataset.id === recFor, busy = b.dataset.id === micBusy;
+    b.classList.toggle("on", on); b.classList.toggle("busy", busy); b.lastElementChild.textContent = busy ? "Writing it down…" : on ? "Recording · tap to stop" : "Record a voice note"; });
+  recPill();
+}
+/* While recording: a pill at the top with the time, so you know it's still listening. */
+function recPill() {
+  let el = document.getElementById("recpill");
+  if (!mic && !micBusy) { el?.remove(); return; }
+  if (!el) { el = document.createElement("button"); el.id = "recpill"; el.type = "button"; el.dataset.act = "micstop"; document.body.appendChild(el); }
+  const sec = mic ? Math.floor((Date.now() - mic.t0) / 1000) : 0;
+  el.className = "recpill" + (mic ? "" : " busy");
+  el.innerHTML = mic ? `<i></i> ${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")} · tap to stop` : `${ic("mic")} Writing it down…`;
 }
 /* Words Whisper should spell right: crew names and the app's own words. */
 function voiceHint() {
@@ -1047,9 +1158,12 @@ function setField(id, text) {
   x.value = x.maxLength > 0 ? text.slice(0, x.maxLength) : text; x.dispatchEvent(new Event("input", { bubbles: true }));
 }
 const joinText = (start, add) => { add = add.trim(); if (!add) return start; if (!start) return add.charAt(0).toUpperCase() + add.slice(1); return start + (/\s$/.test(start) ? "" : " ") + add; };
-/* Tap: record (live preview from the phone's own recognition where it works). Tap again or go quiet: Whisper writes it down. */
+/* Tap: record. Tap again to stop: Whisper writes it down. Long talks are cut into ~45 s pieces at a pause and written
+   down piece by piece, so nothing hits a size limit. Pauses don't stop it; only 60 s of silence (or 15 minutes) does. */
+const MIC_MAX = 15 * 60000, MIC_QUIET = 60000, MIC_IDLE = 25000;
 async function toggleMic(id) {
-  if (micBusy) return;
+  if (mic && mic.id === id) return stopMic();
+  if (micBusy === id) return;
   if (recFor) { const same = recFor === id; if (mic) stopMic(); else { try { rec?.stop(); } catch {} } if (same) return; }
   const el = document.getElementById(id); if (!el) return;
   const canRecord = navigator.mediaDevices?.getUserMedia && window.MediaRecorder && PUSH_URL && S.auth?.currentUser;
@@ -1058,55 +1172,85 @@ async function toggleMic(id) {
   try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); }
   catch { return toast("Allow the microphone to use voice typing (or tap the mic on your keyboard)."); }
   const mime = ["audio/webm;codecs=opus", "audio/mp4", "audio/webm", "audio/ogg;codecs=opus"].find(t => MediaRecorder.isTypeSupported(t)) || "";
-  const mr = new MediaRecorder(stream, mime ? { mimeType: mime, audioBitsPerSecond: 48000 } : undefined), chunks = [];
-  const m = mic = { id, mr, stream, chunks, start: el.value, preview: "", t0: Date.now() };
-  mr.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
-  mr.onstop = () => finishMic(m);
-  mr.start(250); recFor = id; micState(); el.focus({ preventScroll: true });
-  // stop by itself after you go quiet (2 s after talking, 10 s if you never start), max 2 minutes
+  const m = mic = { id, stream, mime, start: el.value, segs: [], live: "", srDone: "", srCut: 0, t0: Date.now(), segT0: Date.now(), queue: Promise.resolve() };
+  if (id === "bn-text" && S.sheet?.bnote) S.sheet.bnote.voice = true;
+  micSeg(m);
+  recFor = id; micState(); el.focus({ preventScroll: true });
+  m.timer = setInterval(() => { if (mic === m) { recPill(); micWatch(m); } }, 250);
   try {
     const ac = actx || (actx = new (window.AudioContext || window.webkitAudioContext)()); if (ac.state === "suspended") await ac.resume();
-    const an = ac.createAnalyser(); an.fftSize = 1024; ac.createMediaStreamSource(stream).connect(an);
-    const buf = new Uint8Array(an.fftSize); let spoke = false, quiet = Date.now();
-    const tick = () => {
-      if (mic !== m || recFor !== id) return;
-      an.getByteTimeDomainData(buf); let sum = 0; for (const v of buf) sum += (v - 128) ** 2;
-      if (Math.sqrt(sum / buf.length) > 6) { spoke = true; quiet = Date.now(); }
-      const now = Date.now();
-      if ((spoke && now - quiet > 2000) || (!spoke && now - m.t0 > 10000) || now - m.t0 > 120000) return stopMic();
-      requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
+    m.an = ac.createAnalyser(); m.an.fftSize = 1024; m.src = ac.createMediaStreamSource(stream); m.src.connect(m.an); m.buf = new Uint8Array(m.an.fftSize);
   } catch {}
-  if (SR) try {   // live words while you talk; Whisper replaces them when you stop
-    const r = new SR(); r.lang = navigator.language || "en-US"; r.continuous = true; r.interimResults = true; let done = "";
-    r.onresult = e => { let live = ""; for (let i = e.resultIndex; i < e.results.length; i++) { const t = e.results[i][0].transcript; if (e.results[i].isFinal) done += t; else live += t; }
-      if (mic === m && recFor === id) { m.preview = done + live; setField(id, joinText(m.start, m.preview)); } };
-    r.onerror = () => {}; r.start(); m.sr = r;
+  m.spoke = false; m.quiet = Date.now(); m.lull = 0;
+  micLive(m);
+}
+/* One recorder per piece: each piece is a complete audio file Whisper can read on its own. */
+function micSeg(m) {
+  const mr = new MediaRecorder(m.stream, m.mime ? { mimeType: m.mime, audioBitsPerSecond: 48000 } : undefined), seg = { chunks: [], text: null, preview: "", mr };
+  mr.ondataavailable = e => { if (e.data.size) seg.chunks.push(e.data); };
+  mr.onstop = () => { m.queue = m.queue.then(() => micSend(m, seg)); if (m.stopped && seg === m.segs[m.segs.length - 1]) m.queue.then(() => micDone(m)); };
+  m.segs.push(seg); m.segT0 = Date.now(); mr.start(1000);
+}
+function micWatch(m) {
+  const now = Date.now(); let loud = false;
+  // Sound meter. A perfectly flat signal means the meter isn't working on this phone: then never stop by itself.
+  if (m.an) { m.an.getByteTimeDomainData(m.buf); let sum = 0, flat = true; for (const v of m.buf) { sum += (v - 128) ** 2; if (v !== 128) flat = false; }
+    if (!flat) m.live1 = true; loud = m.live1 ? Math.sqrt(sum / m.buf.length) > 6 : true; }
+  else loud = true;
+  if (loud) { m.spoke = true; m.quiet = now; m.lull = 0; } else if (!m.lull) m.lull = now;
+  if ((!m.spoke && now - m.t0 > MIC_IDLE) || (m.spoke && now - m.quiet > MIC_QUIET) || now - m.t0 > MIC_MAX) {
+    if (now - m.t0 > MIC_MAX) toast("15 minutes is the max. Tap the mic again to keep going.");
+    return stopMic();
+  }
+  const len = now - m.segT0;   // cut a piece at a short pause after 35 s, or at 55 s no matter what
+  if ((len > 35000 && m.lull && now - m.lull > 350) || len > 55000) {
+    const cur = m.segs[m.segs.length - 1]; cur.preview = m.live; m.srCut = m.srDone.length; m.live = "";
+    micSeg(m); try { cur.mr.stop(); } catch {}
+  }
+}
+/* Live words while you talk (phone's own recognition, where it works). It restarts itself when the phone ends it. */
+function micLive(m) {
+  if (!SR || mic !== m) return;
+  try {
+    const r = new SR(); r.lang = navigator.language || "en-US"; r.continuous = true; r.interimResults = true; let base = m.srDone;
+    r.onresult = e => { let live = "", done = ""; for (let i = 0; i < e.results.length; i++) { const t = e.results[i][0].transcript; if (e.results[i].isFinal) done += t + " "; else live += t; }
+      m.srDone = base + done; m.live = (m.srDone + live).slice(m.srCut); micShow(m); };
+    r.onerror = () => {}; r.onend = () => { if (mic === m && !m.stopped) setTimeout(() => micLive(m), 150); };
+    r.start(); m.sr = r;
   } catch {}
+}
+function micShow(m) {
+  const parts = m.segs.map((g, i) => g.text ?? (i === m.segs.length - 1 && !m.stopped ? m.live : g.preview)).filter(Boolean);
+  setField(m.id, joinText(m.start, parts.join(" ")));
 }
 function stopMic() {
-  const m = mic; if (!m) return;
+  const m = mic; if (!m || m.stopped) return;
+  m.stopped = true; mic = null; clearInterval(m.timer);
+  const last = m.segs[m.segs.length - 1]; if (last) last.preview = m.live;
   recFor = null; micBusy = m.id; micState();
   try { m.sr?.stop(); } catch {}
-  try { if (m.mr.state !== "inactive") m.mr.stop(); else finishMic(m); } catch { finishMic(m); }
-  m.stream?.getTracks().forEach(t => t.stop());
+  try { m.src?.disconnect(); } catch {}
+  try { if (last.mr.state !== "inactive") last.mr.stop(); else m.queue.then(() => micDone(m)); } catch { micDone(m); }
+  setTimeout(() => m.stream?.getTracks().forEach(t => t.stop()), 300);
 }
-async function finishMic(m) {
-  if (m.finished) return; m.finished = true;
-  if (mic === m) mic = null;
-  const blob = new Blob(m.chunks, { type: (m.mr?.mimeType || "audio/webm").split(";")[0] });
-  const miss = () => toast(m.preview ? "Kept what I heard. The sharper voice typing didn't answer." : "Voice typing didn't answer. Try again.");
-  try {
-    if (blob.size < 1500) return;
+async function micSend(m, seg) {
+  const blob = new Blob(seg.chunks, { type: (m.mime || seg.mr.mimeType || "audio/webm").split(";")[0] });
+  if (blob.size < 1500) { seg.text = seg.preview || ""; return micShow(m); }
+  for (let tryN = 0; tryN < 2; tryN++) try {
     const t = await S.auth.currentUser.getIdToken();
     const r = await fetch(`${PUSH_URL}/transcribe?hint=${encodeURIComponent(voiceHint())}`, { method: "POST", headers: { Authorization: "Bearer " + t, "Content-Type": blob.type || "audio/webm" }, body: blob });
     const j = r.ok ? await r.json() : null;
-    if (!j || typeof j.text !== "string") return miss();
-    if (j.text) setField(m.id, joinText(m.start, j.text));
-    else if (!m.preview) toast("Didn't catch that. Tap the mic and try again.");
-  } catch { miss(); }
-  finally { micBusy = null; micState(); }
+    if (j && typeof j.text === "string") { seg.text = j.text || seg.preview; return micShow(m); }
+  } catch {}
+  seg.text = seg.preview; seg.miss = true; micShow(m);
+}
+function micDone(m) {
+  if (m.finished) return; m.finished = true;
+  micShow(m);
+  const all = m.segs.map(g => g.text).join("").trim();
+  if (m.segs.some(g => g.miss)) toast(all ? "Kept what I heard. Part of it couldn't be written down. Check it over." : "Voice typing didn't answer. Try again.");
+  else if (!all) toast("Didn't catch that. Tap the mic and try again.");
+  if (micBusy === m.id) micBusy = null; micState();
 }
 /* Fallback when recording isn't possible: the phone's own recognition only. */
 function liveOnly(id) {
@@ -1122,7 +1266,7 @@ function brandBar() {
   return `<header class="brand"><div class="logo">Execute <b>&gt;</b> <s>Excuses</s></div><div class="row">${S.profile && S.uid ? (n => `<button class="icon-btn bell" data-act="feed" aria-label="Crew activity${n ? `, ${n} new` : ""}">${ic("bell")}${n ? `<span class="dot">${n > 9 ? "9+" : n}</span>` : ""}</button>`)(unread()) : ""}<button class="icon-btn" data-act="looks" aria-label="Change the look">${ic("palette")}</button></div></header>`;
 }
 function navBar() {
-  const items = [["today", "target", "Today"], ["calendar", "cal", "Calendar"], ["plan", "check", "Plan"], ["crew", "users", "Crew"], ...(S.isOwner ? [["coach", "shield", "Coach"]] : []), ["me", "user", "Me"]];
+  const items = [["today", "target", "Today"], ["bible", "book", "Bible"], ["calendar", "cal", "Calendar"], ["plan", "check", "Plan"], ["crew", "users", "Crew"], ...(S.isOwner ? [["coach", "shield", "Coach"]] : []), ["me", "user", "Me"]];
   return `<nav class="nav" aria-label="Sections"><div class="nav-in">${items.map(([v, i, l]) => `<a href="#${v}" data-nav="${v}" class="${S.view === v ? "on" : ""}" ${S.view === v ? 'aria-current="page"' : ""}>${ic(i)}<span>${l}</span></a>`).join("")}</div></nav>`;
 }
 function loadingView() {
@@ -1159,23 +1303,6 @@ function onboardView() {
 function sidePick(pre, cur) {
   return `<div class="pick" role="radiogroup" aria-labelledby="${pre}-side-l">${[["men", "The men's side"], ["women", "The women's side"]].map(([v, l]) => `<label><input type="radio" name="${pre}-side" id="${pre}-side-${v}" value="${v}" ${cur === v ? "checked" : ""}>${l}</label>`).join("")}</div>`;
 }
-function hud() {
-  const m = S.mine, L = m.lvl, p = S.profile;
-  return `<section class="hud">
-    <div class="row">
-      <div class="lvl" aria-label="Level ${L.n}">${L.n}</div>
-      <div class="grow stack" style="gap:2px">
-        <p class="tiny muted">Level ${L.n} · ${esc(L.name)}</p>
-        <h1 style="font-size:30px">${esc(p.name || (women() ? "Sister" : "Brother"))}</h1>
-      </div>
-      <span class="streak" title="Days in a row with time with God">${ic("flame")} ${m.ds.n} day${m.ds.n === 1 ? "" : "s"}</span>
-    </div>
-    ${streakLine(m.ds)}
-    ${climbMeter(L)}
-    <p class="small">${L.trial ? `<b style="color:var(--accent)">Trial week.</b> Finish this week consistent to reach Level ${L.n + 1}. Miss it and you restart.` : L.failed ? `<b style="color:var(--bad)">Trial failed.</b> Back to the start: ${S.rules.levelWeeks} consistent weeks in a row earns a new trial.` : `<b>${L.run}/${S.rules.levelWeeks}</b> consistent weeks. Hit ${S.rules.levelWeeks} in a row to unlock your trial for Level ${L.n + 1}.`}</p>
-    <div class="row spread small"><span class="mono">${m.xp.toLocaleString()} XP</span><span class="muted">Best streak ${m.ds.best} days</span></div>
-  </section>`;
-}
 function climbMeter(L) {
   const R = S.rules;
   return `<div class="lockmeter" role="img" aria-label="${L.run} of ${L.need} weeks toward the next level">${[...Array(L.need)].map((_, i) => `<i class="${i < L.run ? "on" : ""} ${i >= R.levelWeeks ? "trial" : ""}"></i>`).join("")}</div>`;
@@ -1184,20 +1311,27 @@ function ring(n, of) {
   const r = 26, c = 2 * Math.PI * r, off = c * (1 - n / of);
   return `<svg class="ring" viewBox="0 0 64 64" aria-label="${n} of ${of} done"><circle class="bg" cx="32" cy="32" r="${r}"/><circle class="fg" cx="32" cy="32" r="${r}" stroke-dasharray="${c}" stroke-dashoffset="${off}"/><text x="32" y="33">${n}/${of}</text></svg>`;
 }
-function todayView() {
-  const t = today(), day = S.days[t], m = S.mine;
+/* Today's top: level, daily quests and goal of the week are slim bars. Tap one to open it in full (remembered per phone). */
+const FOLD = (() => { try { return JSON.parse(localStorage.getItem("eoe-fold") || "{}"); } catch { return {}; } })();
+function foldToggle(k) { FOLD[k] = !FOLD[k]; try { localStorage.setItem("eoe-fold", JSON.stringify(FOLD)); } catch {} render(); }
+function fold(k, head, body, cls = "", attrs = "", force = false) {
+  const open = force || !!FOLD[k];
+  return `<section class="card fold ${cls} ${open ? "open" : ""}" ${attrs}><button class="foldhead" data-act="fold" data-v="${k}" aria-expanded="${open}" ${force ? "disabled" : ""}>${head}<span class="chev" aria-hidden="true">${ic("back")}</span></button>${open ? `<div class="foldbody">${body}</div>` : ""}</section>`;
+}
+function hudFold() {
+  const m = S.mine, L = m.lvl, p = S.profile;
+  const head = `<span class="lvl">${L.n}</span><span class="grow foldtxt"><b>${esc(p.name || (women() ? "Sister" : "Brother"))}</b><span class="tiny muted">Level ${L.n} · ${esc(L.name)} · ${L.trial ? "trial week" : `${L.run}/${S.rules.levelWeeks} weeks`}</span>${climbMeter(L)}</span><span class="streak" title="Days in a row with time with God">${ic("flame")} ${m.ds.n}</span>`;
+  const body = `${streakLine(m.ds)}
+    <p class="small">${L.trial ? `<b style="color:var(--accent)">Trial week.</b> Finish this week consistent to reach Level ${L.n + 1}. Miss it and you restart.` : L.failed ? `<b style="color:var(--bad)">Trial failed.</b> Back to the start: ${S.rules.levelWeeks} consistent weeks in a row earns a new trial.` : `<b>${L.run}/${S.rules.levelWeeks}</b> consistent weeks. Hit ${S.rules.levelWeeks} in a row to unlock your trial for Level ${L.n + 1}.`}</p>
+    <div class="row spread small"><span class="mono">${m.xp.toLocaleString()} XP</span><span class="muted">${m.ds.n} day streak · best ${m.ds.best}</span></div>`;
+  return fold("hud", head, body, "hud");
+}
+function questFold(t, day) {
   const pr = (day?.logs || []).filter(l => l.kind === "prayer"), wd = (day?.logs || []).filter(l => l.kind === "word"), bd = (day?.logs || []).filter(l => l.kind === "build");
-  const mins = a => a.reduce((s, l) => s + (+l.min || 0), 0);
-  const sDone = pr.length || wd.length, bDone = bd.length;
-  const unseen = S.notes.filter(n => !n.seen);
-  return `${lookNotice()}${hud()}
-  ${annCard()}
-  ${mustWatchCard()}
-  ${goalCard()}
-  ${unseen.map(n => `<section class="note stack"><p class="tiny" style="color:var(--accent)">From your coach · ${short(iso(new Date(n.ts)))}</p><p>${esc(n.text)}</p><div><button class="btn sm" data-act="seen" data-id="${n.id}">${ic("check")} Got it</button></div></section>`).join("")}
-  <section class="card" data-tour="quests">
-    <div class="row spread"><div><p class="tiny muted">Daily quests</p><h2>${nice(t)}</h2></div>${ring((sDone ? 1 : 0) + (bDone ? 1 : 0), 2)}</div>
-    <div class="quest ${sDone ? "done" : ""}">
+  const mins = a => a.reduce((s, l) => s + (+l.min || 0), 0), sDone = pr.length || wd.length, bDone = bd.length, n = (sDone ? 1 : 0) + (bDone ? 1 : 0);
+  const pill = (on, icon, label) => `<span class="qpill ${on ? "on" : ""}">${on ? ic("check") : ic(icon)}${label}</span>`;
+  const head = `<span class="foldico ${n === 2 ? "done" : ""}">${n}/2</span><span class="grow foldtxt"><b>Daily quests</b><span class="row" style="gap:6px;flex-wrap:wrap">${pill(sDone, "sunrise", "Time with God")}${pill(bDone, "brief", "Build")}</span></span>`;
+  const body = `<div class="quest ${sDone ? "done" : ""}">
       <span class="check">${sDone ? ic("check") : ""}</span>
       <div class="grow stack" style="gap:4px"><b>Time with God</b><span class="small muted">Prayer or the Word. We strongly recommend both.</span>
         <div class="row wrap" style="gap:6px"><span class="chip ${pr.length ? "on" : ""}">${ic("sunrise")} Prayer${pr.length ? ` · ${fmtMin(mins(pr))}` : ""}</span><span class="chip ${wd.length ? "on" : ""}">${ic("book")} Word${wd.length ? ` · ${fmtMin(mins(wd))}` : ""}</span>${pr.length && wd.length ? `<span class="chip on">+${BOTH_SPIRIT_XP} both</span>` : ""}</div>
@@ -1207,15 +1341,28 @@ function todayView() {
       <span class="check">${bDone ? ic("check") : ""}</span>
       <div class="grow stack" style="gap:4px"><b>Build your future</b><span class="small muted">Career, money, business or school.</span>
         ${bd.length ? `<div class="row wrap" style="gap:6px"><span class="chip on">${ic("brief")} ${fmtMin(mins(bd))}</span></div>` : ""}</div>
-    </div>
-  </section>
+    </div>`;
+  return fold("quests", head, body, "", `data-tour="quests"`);
+}
+function goalFold() {
+  const g = S.profile.goal, wk = monday(today()), cur = g?.wk === wk && g.text ? g : null, left = 7 - dowIdx(today());
+  const head = `<span class="foldico ${cur?.done ? "done" : ""}">${ic(cur?.done ? "check" : "target")}</span><span class="grow foldtxt"><span class="tiny muted">Goal of the week</span><b class="clip" style="${cur?.done ? "text-decoration:line-through;color:var(--muted)" : ""}">${cur ? esc(cur.text) : "Set one goal for this week"}</b></span>${cur ? (cur.done ? `<span class="status good">Done</span>` : `<span class="status warn">${left}d left</span>`) : `<span class="status warn">Not set</span>`}`;
+  return fold("goal", head, goalCard(true), "", `data-tour="goal"`, !!S.goalEdit);
+}
+function todayView() {
+  const t = today(), day = S.days[t], m = S.mine;
+  const unseen = S.notes.filter(n => !n.seen);
+  return `${lookNotice()}
+  <div class="bars">${hudFold()}${questFold(t, day)}${goalFold()}</div>
+  ${votdCard()}
+  ${annCard()}
+  ${mustWatchCard()}
+  ${unseen.map(n => `<section class="note stack"><p class="tiny" style="color:var(--accent)">From your coach · ${short(iso(new Date(n.ts)))}</p><p>${esc(n.text)}</p><div><button class="btn sm" data-act="seen" data-id="${n.id}">${ic("check")} Got it</button></div></section>`).join("")}
   ${todoCard(t)}
   ${(S.profile.groups || []).filter(g => S.groups[g]).map((g, i, all) => challengeNow() ? `<section class="card">${challengeBox(g, true, all.length > 1)}</section>` : "").join("")}
   ${partnerCard()}
   ${todayCalCard(t)}
   ${mustOn() ? "" : sermonCard()}
-  ${readingCard(true)}
-  ${votdCard()}
   ${spotlight()}
   <section class="pad" aria-label="Log something">
     ${kindsFor().map(([k, d]) => `<button class="act a-${d.area}" data-act="log" data-kind="${k}">${ic(d.icon)}<span>${d.label}</span><small>+${d.xp} XP</small></button>`).join("")}
@@ -1226,12 +1373,13 @@ function todayView() {
   ${healCard()}
   <section class="card"><div class="row spread"><h3>Today's log</h3><span class="mono small muted">+${dayXP(day)} XP</span></div>${logList(day?.logs || [], t, true)}</section>`;
 }
-function goalCard() {
+function goalCard(inner) {
   const g = S.profile.goal, wk = monday(today()), cur = g?.wk === wk && g.text ? g : null;
-  if (!cur || S.goalEdit) return `<section class="card" data-tour="goal"><div><p class="tiny muted">Week of ${short(wk)}</p><h3>Goal of the week</h3></div><p class="small muted">One goal you will hit by Sunday. Your crew and your coach can see it.</p>
-    <form class="row" data-form="goal"><input id="goal-text" class="input grow" maxlength="120" value="${esc(cur?.text || "")}" placeholder="e.g. Apply to 10 jobs, run 15 km, finish my business plan" aria-label="Goal of the week"><button class="btn primary" type="submit">Set</button></form></section>`;
-  return `<section class="card" data-tour="goal"><div class="row spread"><p class="tiny muted">Goal of the week</p>${cur.done ? `<span class="status good">Done</span>` : `<span class="status warn">${7 - dowIdx(today())} day${dowIdx(today()) === 6 ? "" : "s"} left</span>`}</div>
-    <div class="row"><button class="check" style="background:${cur.done ? "var(--good)" : "transparent"};border-color:${cur.done ? "var(--good)" : "var(--line)"};color:var(--bg)" data-act="goaldone" aria-label="${cur.done ? "Mark not done" : "Mark done"}">${cur.done ? ic("check") : ""}</button><h2 class="grow" style="font-size:22px;${cur.done ? "text-decoration:line-through;color:var(--muted)" : ""};overflow-wrap:anywhere">${esc(cur.text)}</h2><button class="linkish" data-act="goaledit" aria-label="Change goal">${ic("pencil")}</button></div></section>`;
+  const wrap = h => inner ? h : `<section class="card" data-tour="goal">${h}</section>`;
+  if (!cur || S.goalEdit) return wrap(`<p class="small muted">One goal you will hit by Sunday (week of ${short(wk)}). Your crew and your coach can see it.</p>
+    <form class="row" data-form="goal"><input id="goal-text" class="input grow" maxlength="120" value="${esc(cur?.text || "")}" placeholder="e.g. Apply to 10 jobs, run 15 km, finish my business plan" aria-label="Goal of the week"><button class="btn primary" type="submit">Set</button></form>`);
+  return wrap(`<div class="row"><button class="check" style="background:${cur.done ? "var(--good)" : "transparent"};border-color:${cur.done ? "var(--good)" : "var(--line)"};color:var(--bg)" data-act="goaldone" aria-label="${cur.done ? "Mark not done" : "Mark done"}">${cur.done ? ic("check") : ""}</button><h2 class="grow" style="font-size:22px;${cur.done ? "text-decoration:line-through;color:var(--muted)" : ""};overflow-wrap:anywhere">${esc(cur.text)}</h2><button class="linkish" data-act="goaledit" aria-label="Change goal">${ic("pencil")}</button></div>
+    <p class="small muted">${cur.done ? "Done. Proud of you." : "Tap the box when you hit it."}</p>`);
 }
 function leaders(n = 3) {
   const cur = monday(today()), side = sideOf(S.profile);
@@ -1449,7 +1597,11 @@ function planOf(k) {
   const [nm, code, chs] = book(p.b), n = p.n || chs;
   return { key: k, b: p.b, book: nm, code, n, name: p.name || `${nm} in ${n} day${n > 1 ? "s" : ""}` };
 }
-function readingCard(compact) {
+function readingCard(compact, inner) {
+  const h = readingCardRaw(compact);
+  return inner ? h.replace(/^<section class="card" id="readplan">/, "").replace(/<\/section>$/, "") : h;
+}
+function readingCardRaw(compact) {
   const r = S.profile?.reading, p = r && planOf(r.plan);
   if (!p) return compact ? "" : `<section class="card" id="readplan"><p class="tiny muted">${ic("book")} Reading plan</p><h3>Read the Word with a plan</h3><p class="small muted">One chapter a day, right here in the app. Miss a day and it waits for you.</p>
     ${S.ro ? "" : `<div class="btns"><button class="btn primary" data-act="plans">${ic("book")} Pick a book</button></div>`}</section>`;
@@ -1500,7 +1652,7 @@ function loadCh(v, b, c) {
   fetch(`https://bolls.life/get-chapter/${v}/${b}/${c}/`).then(r => r.ok ? r.json() : Promise.reject(r.status)).then(a => {
     const vs = (Array.isArray(a) ? a : []).map(x => ({ n: +x.verse, t: cleanVerse(x.text) })).filter(x => x.n && x.t);
     RDC[k] = vs.length ? { st: "ok", vs } : { st: "err", vs: [] };
-  }).catch(() => { RDC[k] = { st: "err", vs: [] }; }).finally(() => { if (S.sheet?.bible) renderSheet(); if (S.view === "today") render(); });
+  }).catch(() => { RDC[k] = { st: "err", vs: [] }; }).finally(() => { if (S.view === "today" || S.view === "bible") render(); });
   return RDC[k];
 }
 
@@ -1511,27 +1663,38 @@ const rdKey = (b, c) => `${b}.${c}`;
 function rdReset() { Object.assign(RD, { ms: 0, out: 0, chap: {}, order: [], start: 0 }); }
 function rdTick() {
   const now = Date.now(), dt = Math.min(5000, now - (RD.lt || now)); RD.lt = now;
-  const s = S.sheet?.bible; if (!s || RD.out || document.hidden || now - RD.act > 180000) return;
+  const s = S.view === "bible" && S.rd; if (!s || RD.out || document.hidden || now - RD.act > 180000) return;
+  if (RD.ms >= 20000) rdLiveLabel();
   const k = rdKey(s.b, s.c); RD.ms += dt; RD.chap[k] = (RD.chap[k] || 0) + dt; if (!RD.order.includes(k)) RD.order.push(k);
 }
 setInterval(rdTick, 1000);
 ["pointerdown", "keydown", "wheel", "touchmove"].forEach(ev => addEventListener(ev, () => { RD.act = Date.now(); }, { passive: true, capture: true }));
 addEventListener("scroll", () => { RD.act = Date.now(); }, { passive: true, capture: true });
+/* Swipe left or right on the text to turn the chapter. */
+let swX = null, swY = 0, swT = 0;
+addEventListener("touchstart", e => { if (!e.target.closest?.("#rdbody") || e.touches.length > 1) { swX = null; return; } const t = e.touches[0]; swX = t.clientX; swY = t.clientY; swT = Date.now(); }, { passive: true });
+addEventListener("touchend", e => {
+  if (swX == null || S.view !== "bible" || !S.rd) return; const t = e.changedTouches[0], dx = t.clientX - swX, dy = t.clientY - swY; swX = null;
+  if (Math.abs(dx) > 70 && Math.abs(dy) < 50 && Date.now() - swT < 700) { const r = S.rd, x = dx < 0 ? rdNext(r.b, r.c) : rdPrev(r.b, r.c); if (x) rdGo(x[0], x[1], dx < 0 ? "l" : "r"); }
+}, { passive: true });
 document.addEventListener("visibilitychange", () => {
   if (document.hidden || !RD.out) return;
-  const add = Math.min(45 * 60000, Date.now() - RD.out), s = S.sheet?.bible; RD.out = 0; RD.act = RD.lt = Date.now();
-  if (s) { const k = rdKey(s.b, s.c); RD.ms += add; RD.chap[k] = (RD.chap[k] || 0) + add; if (!RD.order.includes(k)) RD.order.push(k); renderSheet(); }
+  const add = Math.min(45 * 60000, Date.now() - RD.out), s = S.rd; RD.out = 0; RD.act = RD.lt = Date.now();
+  if (s) { const k = rdKey(s.b, s.c); RD.ms += add; RD.chap[k] = (RD.chap[k] || 0) + add; if (!RD.order.includes(k)) RD.order.push(k); render(); }
 });
 function openBible(b, c) {
   if (RD.ms && Date.now() - RD.act > 2 * 3600e3) rdReset();      // a session left open for hours starts over
   const r = S.profile?.reading, p = r && planOf(r.plan), nx = p && [...Array(p.n)].map((_, i) => i + 1).find(x => !(r.done || []).includes(x));
-  b = +b || S.lastRead?.b || p?.b || 40; c = +c || (b === p?.b && nx) || S.lastRead?.c || 1;
+  const last = rdLast();
+  b = +b || (p && nx ? p.b : 0) || last.b || 40; c = +c || (b === p?.b && nx) || (b === last.b && last.c) || 1;
   RD.act = RD.lt = Date.now(); if (!RD.start) RD.start = Date.now();
-  S.sheet = { bible: { b, c: Math.min(c, book(b)[2]) } }; renderSheet();
+  rdSet(b, c); S.btab = "read";
+  if (S.sheet && !S.sheet.kind) { S.sheet = null; renderSheet(); }
+  go("bible");
 }
 /* Chapters you actually spent time in (15 s+), in the order you read them. */
 function rdRead() {
-  const s = S.sheet?.bible, ks = RD.order.filter(k => RD.chap[k] >= 15000);
+  const s = S.rd, ks = RD.order.filter(k => RD.chap[k] >= 15000);
   if (s && !ks.includes(rdKey(s.b, s.c)) && RD.chap[rdKey(s.b, s.c)]) ks.push(rdKey(s.b, s.c));
   return ks.map(k => k.split(".").map(Number));
 }
@@ -1540,24 +1703,137 @@ function rdLabel(list) {
   return out.map(x => { const cs = [...new Set(x.cs)].sort((a, z) => a - z), run = cs.length > 1 && cs[cs.length - 1] - cs[0] === cs.length - 1;
     return `${book(x.b)[0]} ${run ? `${cs[0]}–${cs[cs.length - 1]}` : cs.join(", ")}`; }).join(", ");
 }
-function bibleSheet(s) {
-  const v = bibleVer(), [nm, , chs] = book(s.b), vd = VERS[v];
-  const head = `<div class="rdhead"><button class="rdpick grow" data-act="rdpick" data-v="${s.pick ? "" : "book"}" aria-label="Pick a book and chapter">${esc(nm)} ${s.c}${ic("back")}</button><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div>
-    <div class="vers" role="group" aria-label="Bible version">${Object.keys(VERS).map(k => `<button class="${k === v ? "on" : ""}" data-act="rdver" data-v="${k}" aria-pressed="${k === v}">${k}</button>`).join("")}</div>`;
-  if (s.pick === "book") return `${head}<p class="tiny muted">Old Testament</p><div class="bookgrid">${BOOKS.slice(0, 39).map((x, i) => `<button class="${s.b === i + 1 ? "on" : ""}" data-act="rdbook" data-v="${i + 1}">${esc(x[0])}</button>`).join("")}</div>
-    <p class="tiny muted">New Testament</p><div class="bookgrid">${BOOKS.slice(39).map((x, i) => `<button class="${s.b === i + 40 ? "on" : ""}" data-act="rdbook" data-v="${i + 40}">${esc(x[0])}</button>`).join("")}</div>`;
-  if (s.pick === "ch") { const r = S.profile?.reading, p = r && planOf(r.plan), done = p?.b === s.pb ? r.done || [] : [];
-    return `${head}<p class="tiny muted">${esc(book(s.pb)[0])} · pick a chapter</p><div class="chgrid">${[...Array(book(s.pb)[2])].map((_, i) => `<button class="${s.b === s.pb && s.c === i + 1 ? "on" : ""} ${done.includes(i + 1) ? "read" : ""}" data-act="rdch" data-v="${i + 1}">${i + 1}</button>`).join("")}</div>`; }
-  const ch = vd.out ? null : loadCh(v, s.b, s.c), mins = Math.max(1, Math.round(RD.ms / 60000)), got = RD.ms >= 20000;
-  const body = vd.out ? `<div class="rdnote"><b>NIV opens in YouVersion</b><span class="small">The NIV's publisher doesn't let other apps show its text. Read ${esc(nm)} ${s.c} there, then come back here and tap <b>Done</b>. Your reading time keeps counting while you're gone.</span><a class="btn primary" href="${yvUrl(s.b, s.c, "NIV")}" target="_blank" rel="noopener" data-act="rdout">${ic("book")} Open ${esc(nm)} ${s.c} (NIV)</a><span class="tiny muted" style="text-transform:none;letter-spacing:0">Or read it right here in NLT, AMP, ESV or NKJV.</span></div>`
-    : ch.st === "ok" ? `<h2>${esc(nm)} ${s.c}</h2>${ch.vs.map(x => `<p><sup>${x.n}</sup>${esc(x.t)}</p>`).join("")}<p class="tiny muted" style="margin-top:14px;font-family:var(--body-font)">${esc(vd.name)} (${v})</p>`
-    : ch.st === "err" ? `<div class="rdnote"><b>Couldn't load this chapter.</b><span class="small">Check your connection, try another version, or open it in YouVersion.</span><a class="btn" href="${yvUrl(s.b, s.c, v)}" target="_blank" rel="noopener" data-act="rdout">${ic("book")} Open in YouVersion</a></div>`
-    : `<p class="muted small" style="font-family:var(--body-font)">Loading ${esc(nm)} ${s.c}…</p>`;
-  const prev = s.c > 1 ? [s.b, s.c - 1] : s.b > 1 ? [s.b - 1, book(s.b - 1)[2]] : null, next = s.c < chs ? [s.b, s.c + 1] : s.b < 66 ? [s.b + 1, 1] : null;
-  return `${head}<div class="rdbody" id="rdbody">${body}</div>
-    <div class="rdfoot"><button class="icon-btn" data-act="rdgo" data-b="${prev?.[0] || ""}" data-c="${prev?.[1] || ""}" aria-label="Previous chapter" ${prev ? "" : "disabled"}>${ic("back")}</button>
-      ${S.ro ? `<span></span>` : `<button class="btn primary" data-act="rdsnap" ${got ? "" : "disabled"}>${ic("camera")} ${got ? `Done · log ${fmtMin(mins)}` : "Done (read a bit first)"}</button>`}
-      <button class="icon-btn" data-act="rdgo" data-b="${next?.[0] || ""}" data-c="${next?.[1] || ""}" aria-label="Next chapter" ${next ? "" : "disabled"}><span style="display:grid;transform:rotate(180deg)">${ic("back")}</span></button></div>`;
+/* ===== Bible tab: read, highlight, take notes (typed or voice). Highlights + notes are private: people/<uid>/bible/hl and people/<uid>/bnotes. ===== */
+const HL = { y: ["Yellow", "#facc15"], g: ["Green", "#4ade80"], b: ["Blue", "#60a5fa"], p: ["Pink", "#f472b6"] };
+const hlKey = (b, c, v) => `${b}.${c}.${v}`;
+function rdLast() { try { const x = JSON.parse(localStorage.getItem("eoe-rd") || "null"); if (x?.b >= 1 && x.b <= 66) return x; } catch {} return {}; }
+function rdSet(b, c) {
+  b = Math.max(1, Math.min(66, +b || 1)); c = Math.max(1, Math.min(book(b)[2], +c || 1));
+  const moved = S.rd && (S.rd.b !== b || S.rd.c !== c);
+  S.rd = { b, c }; S.vsel = []; RD.act = Date.now();
+  try { localStorage.setItem("eoe-rd", JSON.stringify({ b, c })); } catch {}
+  rdPrefetch(b, c);
+  return moved;
+}
+const rdPrev = (b, c) => c > 1 ? [b, c - 1] : b > 1 ? [b - 1, book(b - 1)[2]] : null;
+const rdNext = (b, c) => c < book(b)[2] ? [b, c + 1] : b < 66 ? [b + 1, 1] : null;
+/* Next and previous chapters load in the background, so turning the page is instant. */
+function rdPrefetch(b, c) {
+  const v = bibleVer(); if (VERS[v].out) return;
+  setTimeout(() => { for (const x of [rdNext(b, c), rdPrev(b, c)]) if (x && !RDC[`${v}/${x[0]}/${x[1]}`]) loadCh(v, x[0], x[1]); }, 600);
+}
+function rdSize(d) {
+  let n = 19; try { n = +localStorage.getItem("eoe-rdsize") || 19; } catch {}
+  if (d) { n = Math.max(15, Math.min(26, n + d)); try { localStorage.setItem("eoe-rdsize", n); } catch {} }
+  return n;
+}
+function rdGo(b, c, dir) {
+  if (!rdSet(b, c)) return;
+  S.rdDir = dir || ""; render(); S.rdDir = "";
+  const card = document.getElementById("rdcard"); if (card) { const y = card.getBoundingClientRect().top + scrollY - 8; if (y < scrollY) scrollTo({ top: y }); }
+}
+function rdLiveLabel() {
+  const b = document.getElementById("rddone"); if (!b) return;
+  const t = `Done · log ${fmtMin(Math.max(1, Math.round(RD.ms / 60000)))}`; if (b.dataset.t !== t) { b.dataset.t = t; b.lastChild.textContent = " " + t; b.disabled = false; }
+}
+function bibleView() {
+  if (!S.rd) { const l = rdLast(), r = S.profile?.reading, p = r && planOf(r.plan), nx = p && [...Array(p.n)].map((_, i) => i + 1).find(x => !(r.done || []).includes(x));
+    if (p && nx) rdSet(p.b, nx); else rdSet(l.b || 40, l.c || 1); }
+  const tab = S.btab || "read", nN = S.bnotes.length, hN = Object.keys(S.hl).length;
+  return `${readFold()}
+    <div class="seg tabs bibtabs" role="tablist">${[["read", "book", "Read"], ["hl", "hl", `Highlights${hN ? ` · ${hN}` : ""}`], ["notes", "note", `Notes${nN ? ` · ${nN}` : ""}`]].map(([k, i, l]) => `<button class="${tab === k ? "on" : ""}" role="tab" aria-selected="${tab === k}" data-act="btab" data-v="${k}">${ic(i)} ${l}</button>`).join("")}</div>
+    ${tab === "hl" ? hlList() : tab === "notes" ? notesList() : readerPage()}`;
+}
+function readFold() {
+  const r = S.profile?.reading, p = r && planOf(r.plan);
+  if (!p) return readingCard();
+  const done = r.done || [], next = [...Array(p.n)].map((_, i) => i + 1).find(c => !done.includes(c));
+  const head = `<span class="foldico">${ic("book")}</span><span class="grow foldtxt"><span class="tiny muted">Reading plan · ${done.length}/${p.n}</span><b class="clip">${next ? `Today: ${esc(p.book)} ${next}` : `${esc(p.name)} · finished`}</b><span class="readbar"><i style="width:${Math.round(100 * done.length / p.n)}%"></i></span></span>`;
+  return fold("readplan", head, readingCard(false, true));
+}
+function readerPage() {
+  const s = S.rd, v = bibleVer(), [nm, , chs] = book(s.b), vd = VERS[v], sel = S.vsel || [];
+  const ch = vd.out ? null : loadCh(v, s.b, s.c), prev = rdPrev(s.b, s.c), next = rdNext(s.b, s.c);
+  const notesHere = S.bnotes.filter(n => n.b === s.b && n.c === s.c), noted = new Set(notesHere.flatMap(n => n.vs || []));
+  const got = RD.ms >= 20000, mins = Math.max(1, Math.round(RD.ms / 60000));
+  const bar = `<div class="rdbar" id="rdtop"><button class="rdpick" data-act="rdpick" aria-label="Pick a book and chapter"><span class="clip">${esc(nm)} ${s.c}</span>${ic("back")}</button>
+      <div class="vers" role="group" aria-label="Bible version">${Object.keys(VERS).map(k => `<button class="${k === v ? "on" : ""}" data-act="rdver" data-v="${k}" aria-pressed="${k === v}">${k}</button>`).join("")}</div>
+      <div class="rdsz"><button data-act="rdsize" data-v="-1" aria-label="Smaller text">A</button><button data-act="rdsize" data-v="1" aria-label="Bigger text" style="font-size:19px">A</button></div></div>`;
+  let body;
+  if (vd.out) body = `<div class="rdnote"><b>NIV opens in YouVersion</b><span class="small">The NIV's publisher doesn't let other apps show its text. Read ${esc(nm)} ${s.c} there, then come back here and tap <b>Done</b>. Your reading time keeps counting while you're gone.</span><a class="btn primary" href="${yvUrl(s.b, s.c, "NIV")}" target="_blank" rel="noopener" data-act="rdout">${ic("book")} Open ${esc(nm)} ${s.c} (NIV)</a><span class="tiny muted" style="text-transform:none;letter-spacing:0">Highlights and notes work in NLT, AMP, ESV and NKJV. Your notes still save here.</span></div>`;
+  else if (ch.st === "ok") body = `<h2 class="rdtitle">${esc(nm)} <span>${s.c}</span></h2><div class="rdtext" style="font-size:${rdSize()}px">${ch.vs.map(x => { const h = S.hl[hlKey(s.b, s.c, x.n)]?.c;
+      return `<span class="v ${h ? "hl-" + h : ""} ${sel.includes(x.n) ? "sel" : ""}" data-act="vsel" data-v="${x.n}"><sup>${x.n}</sup>${esc(x.t)}${noted.has(x.n) ? `<i class="vnote" aria-label="has a note">${ic("note")}</i>` : ""}</span> `; }).join("")}</div>
+      <p class="tiny muted rdver">${esc(vd.name)} (${v}) · tap a verse to highlight it or add a note</p>`;
+  else if (ch.st === "err") body = `<div class="rdnote"><b>Couldn't load this chapter.</b><span class="small">Check your connection, try another version, or open it in YouVersion.</span><a class="btn" href="${yvUrl(s.b, s.c, v)}" target="_blank" rel="noopener" data-act="rdout">${ic("book")} Open in YouVersion</a></div>`;
+  else body = `<h2 class="rdtitle">${esc(nm)} <span>${s.c}</span></h2><div class="skel">${[92, 100, 84, 97, 70, 100, 88, 60].map(w => `<i style="width:${w}%"></i>`).join("")}</div>`;
+  const nav = `<div class="rdnav"><button class="btn" data-act="rdgo" data-b="${prev?.[0] || ""}" data-c="${prev?.[1] || ""}" data-dir="r" ${prev ? "" : "disabled"}>${ic("back")} ${prev ? esc(`${book(prev[0])[0]} ${prev[1]}`) : ""}</button>
+      <button class="btn" data-act="rdgo" data-b="${next?.[0] || ""}" data-c="${next?.[1] || ""}" data-dir="l" ${next ? "" : "disabled"}>${next ? esc(`${book(next[0])[0]} ${next[1]}`) : ""} <span style="display:grid;transform:rotate(180deg)">${ic("back")}</span></button></div>`;
+  const mine = notesHere.length ? `<section class="card"><div class="row spread"><h3>Your notes on ${esc(nm)} ${s.c}</h3><button class="btn sm" data-act="bnote">${ic("plus")} Note</button></div>${notesHere.map(noteRow).join("")}</section>` : "";
+  const selBar = sel.length ? `<div class="selbar" role="toolbar" aria-label="Selected verses"><span class="small"><b>${esc(verseRef(s.b, s.c, sel))}</b></span>
+      <div class="row" style="gap:6px">${Object.entries(HL).map(([k, [l, col]]) => `<button class="hldot" style="--c:${col}" data-act="hl" data-v="${k}" aria-label="Highlight ${l}"></button>`).join("")}<button class="hldot off" data-act="hl" data-v="" aria-label="Remove highlight">${ic("x")}</button></div>
+      <div class="row" style="gap:6px"><button class="btn sm" data-act="bnote" data-v="sel">${ic("note")} Note</button><button class="btn sm" data-act="vcopy">${ic("copy")} Copy</button><button class="btn sm ghost" data-act="vclear" aria-label="Done selecting">${ic("check")}</button></div></div>` : "";
+  return `<section class="card reader ${S.rdDir ? "in-" + S.rdDir : ""}" id="rdcard">${bar}<div class="rdbody" id="rdbody">${body}</div>${nav}</section>
+    ${S.ro ? "" : `<div class="rddock ${sel.length ? "hide" : ""}"><button class="btn primary" id="rddone" data-act="rdsnap" ${got ? "" : "disabled"}>${ic("camera")}<span> ${got ? `Done · log ${fmtMin(mins)}` : "Done (read a bit first)"}</span></button><button class="btn icon-only" data-act="bnote" aria-label="New note">${ic("note")}</button></div>`}
+    ${mine}${selBar}`;
+}
+function setHl(c) {
+  const r = S.rd, v = bibleVer(), ver = VERS[v].out ? "NKJV" : v, m = { ...S.hl };
+  for (const n of S.vsel || []) { const k = hlKey(r.b, r.c, n); if (c) m[k] = { c, t: verseText(r.b, r.c, [n]).slice(0, 300), ver, ts: Date.now() }; else delete m[k]; }
+  S.hl = m; S.vsel = []; render();
+  if (c) toast(`Highlighted in ${HL[c][0].toLowerCase()}. Find it in Highlights.`);
+  S.hlBusy = true;
+  q(async () => { try { await S.db.doc(`people/${S.uid}/bible/hl`).set({ m, ts: Date.now() }); } finally { S.hlBusy = false; } });
+}
+function verseRef(b, c, vs) {
+  vs = [...new Set(vs)].sort((a, z) => a - z); const parts = [];
+  for (const n of vs) { const l = parts[parts.length - 1]; if (l && n === l[1] + 1) l[1] = n; else parts.push([n, n]); }
+  return `${book(b)[0]} ${c}${vs.length ? ":" + parts.map(([a, z]) => a === z ? a : `${a}–${z}`).join(", ") : ""}`;
+}
+function verseText(b, c, vs) {
+  const v = bibleVer(), ch = RDC[`${VERS[v].out ? "NKJV" : v}/${b}/${c}`]; if (ch?.st !== "ok") return "";
+  return ch.vs.filter(x => vs.includes(x.n)).map(x => x.t).join(" ");
+}
+function hlList() {
+  const items = Object.entries(S.hl).map(([k, x]) => { const [b, c, v] = k.split(".").map(Number); return { ...x, k, b, ch: c, v, col: x.c }; }).sort((a, z) => (z.ts || 0) - (a.ts || 0));
+  if (!items.length) return `<section class="card"><div class="empty">No highlights yet. In <b>Read</b>, tap any verse and pick a color. It saves here so you can come back to it.</div></section>`;
+  const f = S.hlF || "";
+  return `<div class="seg" role="group" aria-label="Filter by color"><button class="${!f ? "on" : ""}" data-act="hlf" data-v="">All</button>${Object.entries(HL).map(([k, [l, col]]) => `<button class="${f === k ? "on" : ""}" data-act="hlf" data-v="${k}"><i class="dot" style="background:${col}"></i> ${l}</button>`).join("")}</div>
+    <section class="card stack" style="gap:8px">${items.filter(x => !f || x.col === f).map(x => `<button class="hlrow" data-act="bible" data-b="${x.b}" data-c="${x.ch}" style="--c:${HL[x.col]?.[1] || "#facc15"}"><b>${esc(verseRef(x.b, x.ch, [x.v]))}${x.ver ? ` <span class="tiny muted">${esc(x.ver)}</span>` : ""}</b>${x.t ? `<span class="small">${esc(x.t)}</span>` : ""}</button>`).join("") || `<p class="small muted">No ${HL[f][0].toLowerCase()} highlights.</p>`}</section>`;
+}
+function noteRow(n) {
+  const ref = n.b ? verseRef(n.b, n.c, n.vs || []) : "";
+  return `<button class="noterow" data-act="bnote" data-id="${n.id}"><span class="row spread" style="gap:8px"><span class="tiny muted">${ref ? esc(ref) + " · " : ""}${short(iso(new Date(n.ts)))}${n.voice ? ` · ${ic("mic")} voice` : ""}</span></span>${n.title ? `<b>${esc(n.title)}</b>` : ""}<span class="small" style="white-space:pre-wrap">${esc(n.text.length > 260 ? n.text.slice(0, 260) + "…" : n.text)}</span></button>`;
+}
+function notesList() {
+  const q = (S.nq || "").toLowerCase(), list = S.bnotes.filter(n => !q || (n.text + " " + (n.title || "") + " " + (n.b ? verseRef(n.b, n.c, n.vs || []) : "")).toLowerCase().includes(q));
+  return `<section class="card stack"><div class="row spread"><h3>Your notes</h3><button class="btn sm primary" data-act="bnote" data-v="free">${ic("plus")} New note</button></div>
+    <p class="small muted">Type it or tap <b>Record</b> and talk. Your voice turns into text. Only you (and your coach) can see your notes.</p>
+    ${S.bnotes.length > 3 ? `<input id="nq" class="input" type="search" placeholder="Search your notes" value="${esc(S.nq || "")}" aria-label="Search your notes">` : ""}
+    ${list.length ? `<div class="stack" style="gap:8px">${list.map(noteRow).join("")}</div>` : `<div class="empty">${q ? "No note matches that." : "No notes yet. What is God showing you?"}</div>`}</section>`;
+}
+/* Note editor sheet {bnote:{id, b, c, vs}}: text + one big Record button (voice is written down for you). */
+function bnoteSheet(x) {
+  const n = x.id ? S.bnotes.find(z => z.id === x.id) : null, ref = x.b ? verseRef(x.b, x.c, x.vs || []) : "", vt = x.b && x.vs?.length ? verseText(x.b, x.c, x.vs) : "";
+  return `<div class="row spread"><h2>${n ? "Your note" : "New note"}</h2><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div>
+    ${ref ? `<div class="votd" style="padding:12px;border-radius:14px"><b>${esc(ref)}</b>${vt ? `<blockquote style="font-size:16px">${esc(vt.length > 400 ? vt.slice(0, 400) + "…" : vt)}</blockquote>` : ""}</div>` : ""}
+    <form class="stack" data-form="bnote" style="gap:10px">
+      <input id="bn-title" class="input" maxlength="80" placeholder="Title (optional)" value="${esc(n?.title || "")}" aria-label="Title">
+      <textarea id="bn-text" class="input" rows="7" maxlength="6000" placeholder="What stood out? What will you do about it?" aria-label="Note">${esc(n?.text || "")}</textarea>
+      <button type="button" class="vnbtn ${recFor === "bn-text" ? "on" : ""} ${micBusy === "bn-text" ? "busy" : ""}" data-act="mic" data-id="bn-text">${ic("mic")}<span>${micBusy === "bn-text" ? "Writing it down…" : recFor === "bn-text" ? "Recording · tap to stop" : "Record a voice note"}</span></button>
+      <p class="tiny muted" style="text-transform:none;letter-spacing:0">Talk as long as you need (up to 15 minutes). Pauses are fine. It turns into text you can edit.</p>
+      <div class="row spread"><span>${n ? `<button type="button" class="btn sm ${S.armDel === "bn" + n.id ? "danger" : "ghost"}" data-act="bndel" data-id="${n.id}">${S.armDel === "bn" + n.id ? "Tap again to delete" : `${ic("trash")} Delete`}</button>` : ""}</span><button class="btn primary" type="submit">${ic("check")} Save note</button></div>
+    </form>`;
+}
+function bpickSheet(x) {
+  const s = S.rd;
+  const head = `<div class="row spread"><div class="row" style="gap:8px">${x.pick === "ch" ? `<button class="icon-btn" data-act="rdpick" aria-label="Back to books">${ic("back")}</button>` : ""}<h2>${x.pick === "ch" ? esc(book(x.pb)[0]) : "Pick a book"}</h2></div><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div>`;
+  if (x.pick === "ch") { const r = S.profile?.reading, p = r && planOf(r.plan), done = p?.b === x.pb ? r.done || [] : [];
+    return `${head}<div class="chgrid">${[...Array(book(x.pb)[2])].map((_, i) => `<button class="${s.b === x.pb && s.c === i + 1 ? "on" : ""} ${done.includes(i + 1) ? "read" : ""}" data-act="rdch" data-v="${i + 1}">${i + 1}</button>`).join("")}</div>`; }
+  const f = (S.bq || "").toLowerCase(), m = (i, x) => !f || x[0].toLowerCase().includes(f);
+  const grid = (from, to) => BOOKS.slice(from, to).map((x, i) => m(i, x) ? `<button class="${s.b === i + from + 1 ? "on" : ""}" data-act="rdbook" data-v="${i + from + 1}">${esc(x[0])}</button>` : "").join("");
+  const ot = grid(0, 39), nt = grid(39);
+  return `${head}<input id="bq" class="input" type="search" placeholder="Find a book" value="${esc(S.bq || "")}" aria-label="Find a book" autocomplete="off">
+    <div class="bpscroll">${nt ? `<p class="tiny muted">New Testament</p><div class="bookgrid">${nt}</div>` : ""}${ot ? `<p class="tiny muted">Old Testament</p><div class="bookgrid">${ot}</div>` : ""}${!ot && !nt ? `<p class="small muted">No book called that.</p>` : ""}</div>`;
 }
 /* "Done": draw a proof card (what you read, which version, how long) and open the log with everything filled in. */
 function wrapText(g, text, maxW, maxLines) {
@@ -1568,9 +1844,9 @@ function wrapText(g, text, maxW, maxLines) {
   return lines;
 }
 async function rdSnap() {
-  const s = S.sheet?.bible; if (!s) return;
+  const s = S.rd; if (!s) return;
   const list = rdRead().length ? rdRead() : [[s.b, s.c]], label = rdLabel(list), v = bibleVer(), mins = Math.max(1, Math.round(RD.ms / 60000));
-  const first = list[0], ch = VERS[v].out ? null : RDC[`${v}/${first[0]}/${first[1]}`], excerpt = ch?.st === "ok" ? ch.vs.slice(0, 4).map(x => x.t).join(" ") : "";
+  const first = list[0], ch = VERS[v].out ? null : RDC[`${v}/${first[0]}/${first[1]}`], hls = ch?.st === "ok" ? ch.vs.filter(x => S.hl[hlKey(first[0], first[1], x.n)]) : [], excerpt = ch?.st === "ok" ? (hls.length ? hls : ch.vs).slice(0, 4).map(x => x.t).join(" ") : "";
   try { await Promise.all(["800 60px Sora", "700 40px 'Plus Jakarta Sans'", "italic 400 40px 'Source Serif 4'", "400 40px 'Source Serif 4'"].map(f => document.fonts?.load(f))); } catch {}
   const W = 1080, H = 1350, c = document.createElement("canvas"); c.width = W; c.height = H; const g = c.getContext("2d");
   const bg = g.createLinearGradient(0, 0, W, H); bg.addColorStop(0, "#0b0b10"); bg.addColorStop(1, "#1d1307"); g.fillStyle = bg; g.fillRect(0, 0, W, H);
@@ -2256,14 +2532,13 @@ function sendPulse() {
 }
 
 /* ===== What's new: shown once to people coming back after an update (video + list) ===== */
-const NEW_VER = "2026-11-v20", NEWS_VIDEO = "";
+const NEW_VER = "2026-11-v21", NEWS_VIDEO = "";
 const NEWS = [
-  ["book", "The Bible, right in the app", "NLT, AMP, ESV and NKJV inside the app (NIV opens in YouVersion). A quiet timer counts your reading. Tap Done and it makes a proof picture and fills in your log: what you read and for how long."],
-  ["flame", "Must watch this week", "This week's sermon and video are part of staying consistent. Watch them, then write what you'll apply to your real life."],
-  ["chat", "Comment on any log", "Good job and comments now sit right on every log: in someone's week, in the bell, in each must-do. The Wins tab is gone."],
-  ["pencil", "Change your reading plan", "Switch books any time, or pick any book of the Bible. The buttons are real buttons now."],
-  ["palette", "Two new looks", "Onyx (dark) and Daylight (bright). Your old look is one tap away under the palette at the top."],
-  ["sunrise", "Verse of the day", "One verse for everyone each day, in your version."],
+  ["book", "A Bible tab", "The Bible has its own tab now, right after Today. Swipe left or right to turn the chapter. Bigger or smaller text with the A buttons."],
+  ["hl", "Highlight verses", "Tap a verse, pick a color. Your highlights are saved in the Highlights tab, and they go on your proof picture."],
+  ["note", "Notes, typed or spoken", "Add a note to any verse, or a free note. Tap Record and talk: it turns into text you can edit."],
+  ["mic", "The mic doesn't cut you off", "Voice typing keeps listening through pauses, up to 15 minutes. Tap the mic (or the red pill at the top) when you're done."],
+  ["target", "A cleaner Today", "Your level, daily quests and goal of the week are slim bars now. Tap one to open it. The verse of the day sits right under them."],
 ];
 function newsSheet() {
   return `<div class="row spread"><div><p class="tiny" style="color:var(--accent)">Update</p><h2>What's new</h2></div><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div>
@@ -2306,6 +2581,7 @@ const TOUR = [
   { sel: "[data-tour=goal]", title: "Goal of the week", text: "One goal you'll hit by Sunday. Your crew can see it." },
   { sel: "[data-tour=todo]", title: "Today's to-do", text: "Write what you'll get done today and tick it off as you go." },
   { sel: ".bell", title: "Crew activity", text: "See when your crew logs or posts. Turn on notifications to get a ping." },
+  { sel: "[data-nav=bible]", title: "Bible", text: "Read in NLT, AMP, ESV or NKJV, highlight verses and take notes (typed or spoken). Your reading time counts by itself." },
   { sel: "[data-nav=calendar]", title: "Calendar", text: "Your routine and your Google Calendar events in one place." },
   { sel: "[data-nav=plan]", title: "Plan", text: "Write your targets for this week and this month." },
   { sel: "[data-nav=crew]", title: "Crew", text: "Start or join a crew with a code. Pray for each other on your crew's prayer wall, and tap anyone to see their week." },
@@ -2346,7 +2622,8 @@ function renderSheet() {
   if (S.db) watchDm();
   if (!s) return patch(el, "");
   if (s.looks) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Look" data-stop><span class="grab"></span><div class="row spread"><h2>Pick your look</h2><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div><p class="small muted">New: Onyx (dark) and Daylight (bright). The original look is still here as Classic.</p>${lookPicker()}</div></div>`);
-  if (s.bible) { const y = document.getElementById("rdbody")?.scrollTop, k = s.bible, same = el._rd === `${k.b}.${k.c}.${k.pick || ""}`; patch(el, `<div class="scrim" data-act="close"><div class="sheet reader" role="dialog" aria-modal="true" aria-label="Bible" data-stop><span class="grab"></span>${bibleSheet(s.bible)}</div></div>`); el._rd = `${k.b}.${k.c}.${k.pick || ""}`; const b = document.getElementById("rdbody"); if (b) b.scrollTop = same && y ? y : 0; return; }
+  if (s.bpick) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Pick a book" data-stop><span class="grab"></span>${bpickSheet(s.bpick)}</div></div>`);
+  if (s.bnote) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Note" data-stop><span class="grab"></span>${bnoteSheet(s.bnote)}</div></div>`);
   if (s.plans) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Reading plan" data-stop><span class="grab"></span>${plansSheet(s.plans)}</div></div>`);
   if (s.logv) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Log" data-stop><span class="grab"></span>${logSheet(s.logv)}</div></div>`);
   if (s.pic) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Proof photo" data-stop><span class="grab"></span>${photoSheet(s.pic)}</div></div>`);
@@ -2525,18 +2802,35 @@ document.addEventListener("click", e => {
   const a = e.target.closest("[data-act]"); if (!a) return;
   if (a.dataset.act === "close" && e.target.closest("[data-stop]") && !e.target.closest("button[data-act=close]")) return;
   const act = a.dataset.act, id = a.dataset.id, s = S.sheet;
-  if (act !== "del" && act !== "gleave" && act !== "wdel" && !["readstop", "cdel", "chdel"].includes(act) && S.armDel) S.armDel = null;
+  if (act !== "del" && act !== "gleave" && act !== "wdel" && !["readstop", "cdel", "chdel", "bndel"].includes(act) && S.armDel) S.armDel = null;
   switch (act) {
     case "mic": return toggleMic(id);
+    case "micstop": return mic ? stopMic() : null;
     case "looks": S.sheet = { looks: true }; return renderSheet();
     case "lookok": try { localStorage.setItem("eoe-look-note", LOOK_VER); } catch {} return render();
     case "lookback": { const v = a.dataset.v; try { localStorage.setItem("eoe-look", v); localStorage.setItem("eoe-look-note", LOOK_VER); } catch {} applyLook(v); toast(`Back to ${lookName(v)}. Change it any time with the palette at the top.`); return render(); }
     case "bible": return openBible(a.dataset.b, a.dataset.c);
-    case "rdpick": s.bible.pick = a.dataset.v || null; s.bible.pb = s.bible.b; return renderSheet();
-    case "rdbook": s.bible.pb = +a.dataset.v; if (book(s.bible.pb)[2] === 1) { Object.assign(s.bible, { b: s.bible.pb, c: 1, pick: null }); S.lastRead = { b: s.bible.b, c: 1 }; } else s.bible.pick = "ch"; return renderSheet();
-    case "rdch": Object.assign(s.bible, { b: s.bible.pb, c: +a.dataset.v, pick: null }); S.lastRead = { b: s.bible.b, c: s.bible.c }; RD.act = Date.now(); return renderSheet();
-    case "rdgo": if (!a.dataset.b) return; Object.assign(s.bible, { b: +a.dataset.b, c: +a.dataset.c }); S.lastRead = { b: s.bible.b, c: s.bible.c }; RD.act = Date.now(); return renderSheet();
-    case "rdver": bibleVer(a.dataset.v); render(); return renderSheet();
+    case "fold": return foldToggle(a.dataset.v);
+    case "btab": S.btab = a.dataset.v; S.vsel = []; render(); return window.scrollTo({ top: 0 });
+    case "rdpick": S.bq = ""; S.sheet = { bpick: { pick: null } }; return renderSheet();
+    case "rdbook": { const b = +a.dataset.v; if (book(b)[2] === 1) { S.sheet = null; renderSheet(); return rdGo(b, 1); } S.sheet = { bpick: { pick: "ch", pb: b } }; return renderSheet(); }
+    case "rdch": { const b = s.bpick.pb; S.sheet = null; renderSheet(); S.btab = "read"; rdSet(b, +a.dataset.v); S.rdDir = ""; render(); return window.scrollTo({ top: 0 }); }
+    case "rdgo": if (!a.dataset.b) return; return rdGo(+a.dataset.b, +a.dataset.c, a.dataset.dir);
+    case "rdsize": rdSize(+a.dataset.v); return render();
+    case "vsel": { const n = +a.dataset.v, v = S.vsel || []; S.vsel = v.includes(n) ? v.filter(x => x !== n) : [...v, n]; S.rdDir = ""; return render(); }
+    case "vclear": S.vsel = []; return render();
+    case "hl": return setHl(a.dataset.v);
+    case "hlf": S.hlF = a.dataset.v; return render();
+    case "vcopy": { const r = S.rd, t = verseText(r.b, r.c, S.vsel); copy(`"${t}" ${verseRef(r.b, r.c, S.vsel)} (${VERS[bibleVer()].out ? "NKJV" : bibleVer()})`); S.vsel = []; return render(); }
+    case "bnote": {
+      if (id) { const n = S.bnotes.find(z => z.id === id); if (!n) return; S.sheet = { bnote: { id, b: n.b, c: n.c, vs: n.vs || [] } }; return renderSheet(); }
+      const r = S.rd, here = S.view === "bible" && S.btab !== "notes" && S.btab !== "hl" && a.dataset.v !== "free" && r;
+      S.sheet = { bnote: here ? { b: r.b, c: r.c, vs: a.dataset.v === "sel" ? [...S.vsel].sort((x, z) => x - z) : [] } : {} };
+      renderSheet(); return setTimeout(() => document.getElementById("bn-text")?.focus({ preventScroll: true }), 60);
+    }
+    case "bndel": if (S.armDel !== "bn" + id) { S.armDel = "bn" + id; return renderSheet(); }
+      S.armDel = null; S.sheet = null; renderSheet(); return q(async () => { await S.db.doc(`people/${S.uid}/bnotes/${id}`).delete(); toast("Note deleted"); });
+    case "rdver": bibleVer(a.dataset.v); rdPrefetch(S.rd?.b || 40, S.rd?.c || 1); S.rdDir = ""; return render();
     case "rdout": RD.out = Date.now(); return;
     case "rdsnap": return rdSnap();
     case "plans": S.armDel = null; S.sheet = { plans: {} }; return renderSheet();
@@ -2715,6 +3009,8 @@ document.addEventListener("change", e => {
   if (v && v <= t && v >= addD(t, -7)) { S.sheet.date = v; renderSheet(); } else { e.target.value = S.sheet.date; toast("Pick a day from the last 7 days."); }
 });
 document.addEventListener("input", e => {
+  if (e.target.id === "bq" && S.sheet?.bpick) { S.bq = e.target.value; return renderSheet(); }
+  if (e.target.id === "nq") { S.nq = e.target.value; return render(); }
   if (e.target.id !== "lg-min" || !S.sheet) return;
   const v = +e.target.value || 0; S.sheet.min = Math.round(S.sheet.unit === "h" ? v * 60 : v);
   document.querySelectorAll('#sheet [data-act="smin"]').forEach(b => b.classList.toggle("on", +b.dataset.v === S.sheet.min));
@@ -2769,6 +3065,16 @@ document.addEventListener("submit", async e => {
     q(() => S.db.doc(`people/${S.uid}/plans/${pid}`).set({ items }));
     if (time) { queueTodoSync(); if (!gtok() && S.profile?.gcal?.synced) toast("Added. It goes to Google next time you sync on the Calendar tab."); }
     return;
+  }
+  if (kind === "bnote") {
+    const x = S.sheet?.bnote; if (!x) return;
+    if (recFor === "bn-text" || micBusy === "bn-text") return toast("Still listening. Tap the mic to stop first.");
+    const text = document.getElementById("bn-text").value.trim(), title = document.getElementById("bn-title").value.trim();
+    if (!text) return toast("Write or record something first.");
+    const old = x.id ? S.bnotes.find(z => z.id === x.id) : null, nid = x.id || `n${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+    const doc = { text, title, ts: old?.ts || Date.now(), edited: old ? Date.now() : null, voice: !!(old?.voice || x.voice), ...(x.b ? { b: x.b, c: x.c, vs: x.vs || [], ver: bibleVer() } : {}) };
+    S.sheet = null; renderSheet(); S.vsel = []; render();
+    return q(async () => { await S.db.doc(`people/${S.uid}/bnotes/${nid}`).set(doc); toast("Note saved"); });
   }
   if (kind === "goal") {
     const inp = document.getElementById("goal-text"), text = inp.value.trim(); if (!text) return toast("Type your goal for this week.");
