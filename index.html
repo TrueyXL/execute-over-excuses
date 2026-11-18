@@ -1596,41 +1596,68 @@ const READ_PLANS = {
   matthew: { b: 40 }, mark: { b: 41 }, john: { b: 43 }, proverbs: { b: 20 }, acts: { b: 44 },
   psalms: { b: 19, n: 31, name: "Psalms 1–31 in 31 days" }, james: { b: 59 }, romans: { b: 45 }, ephesians: { b: 49 }, genesis: { b: 1 }, luke: { b: 42 },
 };
-function planOf(k) {
+function planOf(k, days) {
   const p = READ_PLANS[k] || (/^b\d+$/.test(k || "") && +k.slice(1) >= 1 && +k.slice(1) <= 66 ? { b: +k.slice(1) } : null); if (!p) return null;
-  const [nm, code, chs] = book(p.b), n = p.n || chs;
-  return { key: k, b: p.b, book: nm, code, n, name: p.name || `${nm} in ${n} day${n > 1 ? "s" : ""}` };
+  const [nm, code, chs] = book(p.b), n = p.n || chs, D = Math.max(1, Math.min(n, Math.round(+days) || n));
+  const what = p.n ? `${nm} 1–${n}` : nm;
+  return { key: k, b: p.b, book: nm, code, n, days: D, name: D === n && p.name ? p.name : `${what} in ${D} day${D > 1 ? "s" : ""}` };
+}
+/* Your plan's chapters spread over the days you picked. Day d reads chapters a..z. */
+const planRange = (n, D, d) => [Math.floor((d - 1) * n / D) + 1, Math.floor(d * n / D)];
+const perDay = (n, D) => { const lo = Math.floor(n / D), hi = Math.ceil(n / D); return lo === hi ? `${lo} chapter${lo > 1 ? "s" : ""} a day` : `${lo}–${hi} chapters a day`; };
+const chLabel = (nm, a, z) => `${nm} ${a}${z > a ? "–" + z : ""}`;
+function planNow(r) {
+  const p = r && planOf(r.plan, r.days); if (!p) return null;
+  const done = r.done || [], D = p.days; let day = 0;
+  for (let d = 1; d <= D && !day; d++) { const [a, z] = planRange(p.n, D, d); for (let c = a; c <= z; c++) if (!done.includes(c)) { day = d; break; } }
+  const [a, z] = day ? planRange(p.n, D, day) : [0, 0], chs = []; for (let c = a; c <= z; c++) if (!done.includes(c)) chs.push(c);
+  const dayN = Math.min(D, Math.round((parse(today()) - parse(r.start)) / 864e5) + 1), behind = day ? dayN - day : 0;
+  return { p, D, done, day, a, z, chs, next: chs[0], dayN, behind, label: day ? chLabel(p.book, a, z) : "" };
 }
 function readingCard(compact, inner) {
   const h = readingCardRaw(compact);
   return inner ? h.replace(/^<section class="card" id="readplan">/, "").replace(/<\/section>$/, "") : h;
 }
 function readingCardRaw(compact) {
-  const r = S.profile?.reading, p = r && planOf(r.plan);
+  const r = S.profile?.reading, p = r && planOf(r.plan, r.days);
   if (!p) return compact ? "" : `<section class="card" id="readplan"><p class="tiny muted">${ic("book")} Reading plan</p><h3>Read the Word with a plan</h3><p class="small muted">One chapter a day, right here in the app. Miss a day and it waits for you.</p>
     ${S.ro ? "" : `<div class="btns"><button class="btn primary" data-act="plans">${ic("book")} Pick a book</button></div>`}</section>`;
-  const done = r.done || [], next = [...Array(p.n)].map((_, i) => i + 1).find(c => !done.includes(c)), dayN = Math.min(p.n, Math.round((parse(today()) - parse(r.start)) / 864e5) + 1);
-  const pace = !next ? "" : done.length >= dayN - 1 ? `<span class="status good">On track</span>` : `<span class="status warn">${dayN - 1 - done.length} behind</span>`;  // behind = chapters missed before today
+  const P = planNow(r), done = P.done, next = P.next;
+  const pace = !next ? "" : P.behind <= 0 ? `<span class="status good">On track</span>` : `<span class="status warn">${P.behind} day${P.behind > 1 ? "s" : ""} behind</span>`;  // behind = plan days missed before today
   const bar = `<div class="readbar" aria-label="${done.length} of ${p.n} chapters read"><i style="width:${Math.round(100 * done.length / p.n)}%"></i></div>`;
-  const change = S.ro ? "" : `<button class="btn sm ghost" data-act="plans">${ic("pencil")} Change book</button>`;
+  const change = S.ro ? "" : `<button class="btn sm ghost" data-act="plans">${ic("pencil")} Change plan</button>`;
   if (!next) return `<section class="card" id="readplan"><p class="tiny muted">${ic("book")} Reading plan</p><h3>${esc(p.name)} · finished</h3>${bar}<p class="small">You read all ${p.n} chapters. Pick your next book.</p><div class="btns">${S.ro ? "" : `<button class="btn primary" data-act="plans">${ic("book")} Pick the next book</button>`}</div></section>`;
+  const left = P.chs.length < P.z - P.a + 1 ? ` <span class="small muted">· ${P.chs.length} left</span>` : "";
   return `<section class="card" id="readplan"><div class="row spread"><p class="tiny muted">${ic("book")} ${esc(p.name)} · ${done.length}/${p.n}</p>${pace}</div>
-    <h2>Today: ${esc(p.book)} ${next}</h2>${bar}
-    ${S.ro ? "" : `<div class="readctl"><div class="btns"><button class="btn sm primary" data-act="bible" data-b="${p.b}" data-c="${next}">${ic("book")} Read it here</button><button class="btn sm" data-act="readlog" data-v="${next}">${ic("check")} I read it elsewhere</button></div>
-      <div class="btns"><button class="btn sm ghost" data-act="readmark" data-v="${next}">${ic("check")} Mark read</button>${change}</div></div>`}</section>`;
+    <h2>Day ${P.day}: ${esc(P.label)}${left}</h2>${bar}<p class="tiny muted" style="text-transform:none;letter-spacing:0;margin-top:6px">${perDay(p.n, P.D)} · day ${P.day} of ${P.D}</p>
+    ${S.ro ? "" : `<div class="readctl"><div class="btns"><button class="btn sm primary" data-act="bible" data-b="${p.b}" data-c="${next}">${ic("book")} Read it here</button><button class="btn sm" data-act="readlog" data-v="${P.chs.join(",")}">${ic("check")} I read it elsewhere</button></div>
+      <div class="btns"><button class="btn sm ghost" data-act="readmark" data-v="${P.chs.join(",")}">${ic("check")} Mark ${P.chs.length > 1 ? "all read" : "read"}</button>${change}</div></div>`}</section>`;
 }
 /* Pick or change your plan: popular books first, then any book of the Bible. */
 function plansSheet(s) {
-  const r = S.profile?.reading, cur = r && planOf(r.plan);
+  const r = S.profile?.reading, cur = r && planOf(r.plan, r.days);
   const head = `<div class="row spread"><div class="row" style="gap:8px">${s.all ? `<button class="icon-btn" data-act="plansall" data-v="" aria-label="Back">${ic("back")}</button>` : ""}<h2>${s.all ? "Any book" : "Your reading plan"}</h2></div><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div>`;
-  if (s.all) return `${head}<p class="small muted">One chapter a day until you finish the book.</p>
+  if (s.pick) return paceStep(s, r, cur);
+  if (s.all) return `${head}<p class="small muted">Pick a book, then how many days you want to finish it in.</p>
     <p class="tiny muted">Old Testament</p><div class="bookgrid">${BOOKS.slice(0, 39).map((x, i) => `<button data-act="readstart" data-v="b${i + 1}">${esc(x[0])}</button>`).join("")}</div>
     <p class="tiny muted">New Testament</p><div class="bookgrid">${BOOKS.slice(39).map((x, i) => `<button data-act="readstart" data-v="b${i + 40}">${esc(x[0])}</button>`).join("")}</div>`;
   return `${head}
-    ${cur ? `<div class="note stack" style="gap:6px"><p class="tiny muted">Reading now</p><b>${esc(cur.name)} · ${(r.done || []).length}/${cur.n}</b><p class="small muted">Pick another book below to switch. The new one starts at chapter 1.</p>
-      <div><button class="btn sm ${S.armDel === "read" ? "danger" : "ghost"}" data-act="readstop">${S.armDel === "read" ? "Tap again to stop the plan" : `${ic("x")} Stop this plan`}</button></div></div>` : ""}
+    ${cur ? `<div class="note stack" style="gap:6px"><p class="tiny muted">Reading now</p><b>${esc(cur.name)} · ${(r.done || []).length}/${cur.n}</b><p class="small muted">${perDay(cur.n, cur.days)}. Pick another book below to switch. The new one starts at chapter 1.</p>
+      <div class="btns"><button class="btn sm primary" data-act="readstart" data-v="${cur.key}">${ic("pencil")} Change how many days</button><button class="btn sm ${S.armDel === "read" ? "danger" : "ghost"}" data-act="readstop">${S.armDel === "read" ? "Tap again to stop the plan" : `${ic("x")} Stop this plan`}</button></div></div>` : ""}
     <div class="stack" style="gap:8px">${Object.keys(READ_PLANS).map(k => { const p = planOf(k), on = cur?.key === k; return `<button class="person" data-act="readstart" data-v="${k}" ${on ? 'aria-current="true" style="border-color:var(--accent)"' : ""}><span class="a-spirit">${ic("book")}</span><div class="grow" style="text-align:left"><b>${esc(p.name)}</b></div><span class="small muted">${on ? "Current" : `${p.n} ch.`}</span></button>`; }).join("")}</div>
     <button class="btn block" data-act="plansall" data-v="1">${ic("book")} Any other book of the Bible</button>`;
+}
+/* Step 2: how many days. Same book as now = keep your progress and just change the pace. */
+function paceStep(s, r, cur) {
+  const p = planOf(s.pick, s.days), same = cur?.key === s.pick, n = p.n, D = p.days;
+  const opts = [...new Set([n, 60, 40, 30, 21, 14, 10, 7, 5, 3].filter(x => x <= n && x >= 1))].sort((a, b) => b - a).slice(0, 8);
+  const end = addD(same ? today() : today(), D - 1 - (same ? Math.max(0, (planNow({ ...r, days: D })?.day || 1) - 1) : 0));
+  return `<div class="row spread"><div class="row" style="gap:8px"><button class="icon-btn" data-act="plansall" data-v="${s.fromAll ? 1 : ""}" aria-label="Back">${ic("back")}</button><h2>${esc(p.book)}${READ_PLANS[s.pick]?.n ? ` 1–${n}` : ""}</h2></div><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div>
+    <p class="small muted">${n} chapter${n > 1 ? "s" : ""}. How many days do you want to finish in?</p>
+    <div class="bookgrid paceopts">${opts.map(x => `<button class="${x === D ? "on" : ""}" data-act="rpdays" data-v="${x}" aria-pressed="${x === D}">${x} day${x > 1 ? "s" : ""}</button>`).join("")}</div>
+    <div class="field"><label for="rp-days">Or type a number (1 to ${n})</label><input id="rp-days" class="input" type="number" inputmode="numeric" min="1" max="${n}" value="${D}"></div>
+    <div class="note"><b>${esc(p.name)}</b><p class="small muted">${perDay(n, D)} · ${same ? `you keep the ${(r.done || []).length} chapter${(r.done || []).length === 1 ? "" : "s"} you've read · ` : ""}done by ${nice(end)}</p></div>
+    <button class="btn primary block" data-act="readgo">${ic("check")} ${same ? "Save new pace" : "Start this plan"}</button>`;
 }
 
 /* Verse of the day: same verse for everyone each day, in your version. */
@@ -1757,7 +1784,7 @@ document.addEventListener("visibilitychange", () => {
 });
 function openBible(b, c) {
   if (RD.ms && Date.now() - RD.act > 2 * 3600e3) rdReset();      // a session left open for hours starts over
-  const r = S.profile?.reading, p = r && planOf(r.plan), nx = p && [...Array(p.n)].map((_, i) => i + 1).find(x => !(r.done || []).includes(x));
+  const r = S.profile?.reading, p = r && planOf(r.plan), nx = planNow(r)?.next;
   const last = rdLast();
   b = +b || (p && nx ? p.b : 0) || last.b || 40; c = +c || (b === p?.b && nx) || (b === last.b && last.c) || 1;
   RD.act = RD.lt = Date.now(); if (!RD.start) RD.start = Date.now();
@@ -1810,7 +1837,7 @@ function rdLiveLabel() {
   const t = `Done · log ${fmtMin(Math.max(1, Math.round(RD.ms / 60000)))}`; if (b.dataset.t !== t) { b.dataset.t = t; b.lastChild.textContent = " " + t; b.disabled = false; }
 }
 function bibleView() {
-  if (!S.rd) { const l = rdLast(), r = S.profile?.reading, p = r && planOf(r.plan), nx = p && [...Array(p.n)].map((_, i) => i + 1).find(x => !(r.done || []).includes(x));
+  if (!S.rd) { const l = rdLast(), r = S.profile?.reading, p = r && planOf(r.plan), nx = planNow(r)?.next;
     if (p && nx) rdSet(p.b, nx); else rdSet(l.b || 40, l.c || 1); }
   const tab = S.btab || "read", nN = S.bnotes.length, hN = Object.keys(S.hl).length;
   return `${readFold()}
@@ -1818,11 +1845,11 @@ function bibleView() {
     ${tab === "hl" ? hlList() : tab === "notes" ? notesList() : readerPage()}`;
 }
 function readFold() {
-  const r = S.profile?.reading, p = r && planOf(r.plan);
+  const r = S.profile?.reading, p = r && planOf(r.plan, r.days);
   if (!p) return readingCard();
-  const done = r.done || [], next = [...Array(p.n)].map((_, i) => i + 1).find(c => !done.includes(c));
-  const head = `<span class="foldico">${ic("book")}</span><span class="grow foldtxt"><span class="tiny muted">Reading plan · ${done.length}/${p.n}</span><b class="clip">${next ? `Today: ${esc(p.book)} ${next}` : `${esc(p.name)} · finished`}</b><span class="readbar"><i style="width:${Math.round(100 * done.length / p.n)}%"></i></span></span>`;
-  return fold("readplan", head, readingCard(false, true));
+  const P = planNow(r), done = P.done, next = P.next;
+  const head = `<span class="foldico">${ic("book")}</span><span class="grow foldtxt"><span class="tiny muted">Reading plan · ${done.length}/${p.n}</span><b class="clip">${next ? `Today: ${esc(P.label)}` : `${esc(p.name)} · finished`}</b><span class="readbar"><i style="width:${Math.round(100 * done.length / p.n)}%"></i></span></span>`;
+  return fold("readplan", head, readingCard(false, true), "", `id="readplan"`);
 }
 function readerPage() {
   const s = S.rd, v = bibleVer(), [nm, , chs] = book(s.b), vd = VERS[v], sel = S.vsel || [];
@@ -3045,10 +3072,19 @@ document.addEventListener("click", e => {
       const t = HEAL.find(x => x.id === id), st = t?.steps[+a.dataset.v]; if (!st) return;
       const back = S.sheet; openLog("heal", `${t.name} · ${st[0]} (${st[1]})\n${st[2]}\n\n`); S.sheet.healStep = { track: id, i: +a.dataset.v }; S.sheet.back = back; return renderSheet();
     }
-    case "readstart": { const p = planOf(a.dataset.v); if (!p) return; S.sheet = null; renderSheet(); return q(async () => { await S.db.doc(`people/${S.uid}`).update({ reading: { plan: a.dataset.v, start: today(), done: [] } }); toast(`Started ${p.name}`); }); }
+    case "readstart": { const p = planOf(a.dataset.v); if (!p) return; const r = S.profile?.reading; S.armDel = null;
+      S.sheet = { plans: { pick: a.dataset.v, days: r?.plan === a.dataset.v ? planOf(r.plan, r.days).days : p.n, fromAll: !!S.sheet?.plans?.all } }; return renderSheet(); }
+    case "rpdays": S.sheet.plans.days = +a.dataset.v; return renderSheet();
+    case "readgo": { const s = S.sheet.plans, p = planOf(s.pick, s.days), r = S.profile?.reading; if (!p) return;
+      const same = r?.plan === s.pick; S.sheet = null; renderSheet();
+      if (same) { const P = planNow({ ...r, days: p.days }), start = addD(today(), -Math.max(0, (P?.day || 1) - 1));   // you're on track from today at the new pace
+        return q(async () => { await S.db.doc(`people/${S.uid}`).update({ "reading.days": p.days, "reading.start": start }); toast(`Now: ${p.name}`); }); }
+      return q(async () => { await S.db.doc(`people/${S.uid}`).update({ reading: { plan: s.pick, start: today(), done: [], days: p.days } }); toast(`Started ${p.name}`); }); }
     case "readstop": if (S.armDel !== "read") { S.armDel = "read"; return renderSheet(); } S.armDel = null; S.sheet = null; renderSheet(); toast("Reading plan stopped"); return q(() => S.db.doc(`people/${S.uid}`).update({ reading: firebase.firestore.FieldValue.delete() }));
-    case "readlog": { const p = planOf(S.profile.reading?.plan); if (!p) return; openLog("word", `${p.book} ${a.dataset.v}. `); S.sheet.readCh = +a.dataset.v; return renderSheet(); }
-    case "readmark": markRead(+a.dataset.v); return toast("Marked as read");
+    case "readlog": { const p = planOf(S.profile.reading?.plan); if (!p) return; const chs = String(a.dataset.v).split(",").map(Number).filter(Boolean);
+      openLog("word", `${chLabel(p.book, chs[0], chs[chs.length - 1])}. `); S.sheet.readChs = chs; return renderSheet(); }
+    case "readmark": { const chs = String(a.dataset.v).split(",").map(Number).filter(Boolean); if (!chs.length || !S.profile?.reading) return;
+      q(() => S.db.doc(`people/${S.uid}`).update({ "reading.done": firebase.firestore.FieldValue.arrayUnion(...chs) })); return toast(chs.length > 1 ? `Marked ${chs.length} chapters read` : "Marked as read"); }
     case "chend": return q(async () => { await S.db.doc("config/challenge").set({ title: "", wk: "", target: 0, ended: Date.now() }); toast("Challenge ended"); });
     case "nudge": { const p = S.people[id]; S.sheet = { dm: id, draft: idleDays(p) >= 3 ? NUDGE_TEXT(p) : "" }; renderSheet(); return setTimeout(() => { const x = document.getElementById("dm-input"); if (x && S.sheet?.draft && !x.value) { x.value = S.sheet.draft; } x?.focus(); }, 60); }
     case "wallans": S.wallAns = !!a.dataset.v; return render();
@@ -3084,6 +3120,7 @@ document.addEventListener("change", e => {
   if (v && v <= t && v >= addD(t, -7)) { S.sheet.date = v; renderSheet(); } else { e.target.value = S.sheet.date; toast("Pick a day from the last 7 days."); }
 });
 document.addEventListener("input", e => {
+  if (e.target.id === "rp-days" && S.sheet?.plans?.pick) { const v = Math.round(+e.target.value); if (v >= 1) { S.sheet.plans.days = v; renderSheet(); } return; }
   if (e.target.id === "bq" && S.sheet?.bpick) { S.bq = e.target.value; return renderSheet(); }
   if (e.target.id === "nq") { S.nq = e.target.value; return render(); }
   if (e.target.id !== "lg-min" || !S.sheet) return;
