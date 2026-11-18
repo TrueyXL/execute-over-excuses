@@ -543,6 +543,10 @@ button.mustbtn:hover { background: var(--surface-2); }
 .nav a { min-width: 0; }
 .nav a span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 @media (max-width: 400px) { .nav a { font-size: 10.5px; } :root[data-skin] .nav a { font-size: 11px; } .nav a .ic { width: 22px; height: 22px; } }
+.rdtext .rdh { font-family: var(--display); font-size: .78em; font-weight: 800; letter-spacing: .01em; line-height: 1.3; margin: 1.1em 0 .35em; color: var(--fg); }
+.rdtext .rdh:first-child { margin-top: 0; }
+.rdtext .rdh + .rdh { margin-top: 0; font-size: .7em; color: var(--muted); }
+.rdtext .wj { color: var(--bad); }
 </style>
 </head>
 <body>
@@ -1653,7 +1657,76 @@ function loadCh(v, b, c) {
     const vs = (Array.isArray(a) ? a : []).map(x => ({ n: +x.verse, t: cleanVerse(x.text) })).filter(x => x.n && x.t);
     RDC[k] = vs.length ? { st: "ok", vs } : { st: "err", vs: [] };
   }).catch(() => { RDC[k] = { st: "err", vs: [] }; }).finally(() => { if (S.view === "today" || S.view === "bible") render(); });
+  loadMeta(b, c);
   return RDC[k];
+}
+
+/* Section headings + words of Jesus, from the Berean Standard Bible (public domain, bible.helloao.org).
+   Headings sit before the same verse in every version. Red letters: verses BSB marks as Jesus speaking;
+   when only part of a verse is His, the quoted part of your version's verse is shown red. */
+const RDM = {};
+function loadMeta(b, c) {
+  const k = `${b}/${c}`; if (RDM[k]) return RDM[k];
+  RDM[k] = { st: "load" };
+  fetch(`https://bible.helloao.org/api/BSB/${book(b)[1]}/${c}.json`).then(r => r.ok ? r.json() : Promise.reject(r.status)).then(d => {
+    const hd = {}, wj = {}; let pend = [];
+    for (const x of d?.chapter?.content || []) {
+      if (x.type === "heading") pend.push((x.content || []).filter(t => typeof t === "string").join(" ").trim());
+      else if (x.type === "verse") {
+        if (pend.length) { hd[x.number] = pend.filter(Boolean); pend = []; }
+        const segs = (x.content || []).map(t => typeof t === "string" ? { t, j: false } : t && typeof t.text === "string" ? { t: t.text, j: !!t.wordsOfJesus } : null).filter(Boolean);
+        if (segs.some(t => t.j)) wj[x.number] = segs.every(t => t.j || !t.t.trim()) ? 1 : segs;
+      }
+    }
+    RDM[k] = { st: "ok", hd, wj };
+  }).catch(() => { RDM[k] = { st: "err" }; }).finally(() => { if (S.view === "bible") render(); });
+  return RDM[k];
+}
+/* Quote marks: curly ones, or straight ones judged by what's around them. */
+const qOpen = (t, i) => t[i] === "“" || (t[i] === '"' && (i === 0 || /[\s(\[—-]/.test(t[i - 1])) && t[i + 1] && !/\s/.test(t[i + 1]));
+const qClose = (t, i) => t[i] === "”" || (t[i] === '"' && !qOpen(t, i));
+const SAYS = /\b(Jesus|He|the Lord)\b[^“”"]{0,40}\b(said|says|asked|told|replied|answered|declared|continued|added|cried|called|warned|commanded)\b|\b(said|asked|told|replied|answered|declared|continued|added)\b[^“”".]{0,25}\b(Jesus|He)\b/;
+/* BSB: for each quote that opens in a verse, is it Jesus? (BSB only marks the verse where He starts.) */
+function bsbOpens(w) {
+  const t = w.map(x => x.t).join(""), j = []; w.forEach(x => { for (const _ of x.t) j.push(x.j); });
+  const opens = []; for (let i = 0; i < t.length; i++) if (qOpen(t, i)) opens.push(i);
+  const fl = opens.map(i => !!(j[i] || j[i + 1]));
+  for (let k = 0; k < fl.length - 1; k++) if (!fl[k] && fl[k + 1]) { const cl = t.indexOf("”", opens[k]), gap = t.slice(cl > 0 ? cl : opens[k], opens[k + 1]); if (SAYS.test(gap)) fl[k] = true; }
+  if (!opens.length && w.some(x => x.j)) fl.push(true);
+  return fl;
+}
+/* Backup for quotes BSB doesn't mark: "Jesus told her, “…”" or "“…” Jesus said." */
+const V_SAY = "said|says|asked|told|replied|answered|declared|continued|added|called|cried|shouted|prayed|commanded|warned|explained";
+const J_BEFORE = new RegExp(`(^|[.,;:!?\\u2014]\\s*|\\b(?:and|but|then|so|And|But|Then|So|Again|Later)\\s+)Jesus\\b(?![\\u2019'])[^\\u201c\\u201d",.;]{0,16}\\b(${V_SAY})\\b[^\\u201c\\u201d".]{0,30}$`);
+const J_AFTER = new RegExp(`^[\\s,]{0,3}(Jesus\\b(?![\\u2019'])[^\\u201c\\u201d".]{0,6}\\b(${V_SAY})|(${V_SAY})\\s+Jesus)\\b`);
+function textOpens(t) {
+  const out = []; let last = 0;
+  for (let i = 0; i < t.length; i++) if (qOpen(t, i)) {
+    let e = i + 1; while (e < t.length && !qClose(t, e)) e++;
+    out.push(J_BEFORE.test(t.slice(last, i)) || J_AFTER.test(t.slice(e + 1, e + 50))); last = e + 1; i = e;
+  }
+  return out;
+}
+/* For one chapter in one version: verse number -> [[text, red], ...]. Jesus' quote stays red until it closes in your version. */
+function wjSegs(ch, meta) {
+  if (ch.wjm === meta) return ch.wjs;
+  const res = {}; let inQ = false, isJ = false;
+  for (const x of ch.vs) {
+    const t = x.t, w = meta.wj[x.n], fl = w === 1 ? null : w ? bsbOpens(w) : [], red = new Array(t.length).fill(false);
+    let nOpen = 0; for (let i = 0; i < t.length; i++) if (qOpen(t, i)) nOpen++;
+    const tx = textOpens(t), flag = k => !!tx[k] || (w === 1 ? true : !w ? false : fl.length === nOpen ? fl[k] : fl.some(Boolean));
+    if (w === 1 && !inQ && !nOpen) red.fill(true);
+    for (let i = 0, k = 0; i < t.length; i++) {
+      if (qOpen(t, i)) { isJ = inQ ? isJ || flag(k) : flag(k); inQ = true; k++; red[i] = isJ; continue; }
+      if (qClose(t, i)) { red[i] = red[i] || (inQ && isJ); inQ = false; isJ = false; continue; }
+      if (inQ && isJ) red[i] = true;
+    }
+    if (!red.some(Boolean)) continue;
+    const segs = []; let cur = "", cr = red[0];
+    for (let i = 0; i < t.length; i++) { if (red[i] !== cr) { segs.push([cur, cr]); cur = ""; cr = red[i]; } cur += t[i]; }
+    segs.push([cur, cr]); res[x.n] = segs.filter(s => s[0]);
+  }
+  ch.wjm = meta; ch.wjs = res; return res;
 }
 
 /* Silent reading timer: counts only while the reader is open, on screen and you've touched or scrolled in the last 3 minutes.
@@ -1761,9 +1834,11 @@ function readerPage() {
       <div class="rdsz"><button data-act="rdsize" data-v="-1" aria-label="Smaller text">A</button><button data-act="rdsize" data-v="1" aria-label="Bigger text" style="font-size:19px">A</button></div></div>`;
   let body;
   if (vd.out) body = `<div class="rdnote"><b>NIV opens in YouVersion</b><span class="small">The NIV's publisher doesn't let other apps show its text. Read ${esc(nm)} ${s.c} there, then come back here and tap <b>Done</b>. Your reading time keeps counting while you're gone.</span><a class="btn primary" href="${yvUrl(s.b, s.c, "NIV")}" target="_blank" rel="noopener" data-act="rdout">${ic("book")} Open ${esc(nm)} ${s.c} (NIV)</a><span class="tiny muted" style="text-transform:none;letter-spacing:0">Highlights and notes work in NLT, AMP, ESV and NKJV. Your notes still save here.</span></div>`;
-  else if (ch.st === "ok") body = `<h2 class="rdtitle">${esc(nm)} <span>${s.c}</span></h2><div class="rdtext" style="font-size:${rdSize()}px">${ch.vs.map(x => { const h = S.hl[hlKey(s.b, s.c, x.n)]?.c;
-      return `<span class="v ${h ? "hl-" + h : ""} ${sel.includes(x.n) ? "sel" : ""}" data-act="vsel" data-v="${x.n}"><sup>${x.n}</sup>${esc(x.t)}${noted.has(x.n) ? `<i class="vnote" aria-label="has a note">${ic("note")}</i>` : ""}</span> `; }).join("")}</div>
-      <p class="tiny muted rdver">${esc(vd.name)} (${v}) · tap a verse to highlight it or add a note</p>`;
+  else if (ch.st === "ok") { const meta = loadMeta(s.b, s.c), ok = meta.st === "ok", wj = ok ? wjSegs(ch, meta) : {};
+    body = `<h2 class="rdtitle">${esc(nm)} <span>${s.c}</span></h2><div class="rdtext" style="font-size:${rdSize()}px">${ch.vs.map(x => { const h = S.hl[hlKey(s.b, s.c, x.n)]?.c;
+      const heads = ok && meta.hd[x.n] ? meta.hd[x.n].map(t => `<h4 class="rdh">${esc(t)}</h4>`).join("") : "", txt = wj[x.n] ? wj[x.n].map(([t, r]) => r ? `<span class="wj">${esc(t)}</span>` : esc(t)).join("") : esc(x.t);
+      return `${heads}<span class="v ${h ? "hl-" + h : ""} ${sel.includes(x.n) ? "sel" : ""}" data-act="vsel" data-v="${x.n}"><sup>${x.n}</sup>${txt}${noted.has(x.n) ? `<i class="vnote" aria-label="has a note">${ic("note")}</i>` : ""}</span> `; }).join("")}</div>
+      <p class="tiny muted rdver">${esc(vd.name)} (${v}) · tap a verse to highlight it or add a note${ok ? `<br>Headings and red letters follow the Berean Standard Bible.` : ""}</p>`; }
   else if (ch.st === "err") body = `<div class="rdnote"><b>Couldn't load this chapter.</b><span class="small">Check your connection, try another version, or open it in YouVersion.</span><a class="btn" href="${yvUrl(s.b, s.c, v)}" target="_blank" rel="noopener" data-act="rdout">${ic("book")} Open in YouVersion</a></div>`;
   else body = `<h2 class="rdtitle">${esc(nm)} <span>${s.c}</span></h2><div class="skel">${[92, 100, 84, 97, 70, 100, 88, 60].map(w => `<i style="width:${w}%"></i>`).join("")}</div>`;
   const nav = `<div class="rdnav"><button class="btn" data-act="rdgo" data-b="${prev?.[0] || ""}" data-c="${prev?.[1] || ""}" data-dir="r" ${prev ? "" : "disabled"}>${ic("back")} ${prev ? esc(`${book(prev[0])[0]} ${prev[1]}`) : ""}</button>
