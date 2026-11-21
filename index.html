@@ -547,6 +547,21 @@ button.mustbtn:hover { background: var(--surface-2); }
 .rdtext .rdh:first-child { margin-top: 0; }
 .rdtext .rdh + .rdh { margin-top: 0; font-size: .7em; color: var(--muted); }
 .rdtext .wj { color: var(--bad); }
+.rdbar { flex-direction: column; align-items: stretch; gap: 8px; padding: 8px 12px 10px; top: env(safe-area-inset-top, 0px); box-shadow: 0 6px 14px -10px rgba(0,0,0,.45); }
+.rdbar .rdrow { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.rdbar .rdpick { max-width: none; flex: 0 1 auto; min-width: 0; }
+.rdbar .rdplan { flex: 0 1 auto; min-width: 0; margin-left: auto; overflow: hidden; text-overflow: ellipsis; cursor: pointer; color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
+.rdbar .rdplan .ic { width: 14px; height: 14px; }
+.rdbar .rdplan + .rdsz { margin-left: 0; }
+.rdbar .rdvers { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; overflow: visible; -webkit-mask-image: none; mask-image: none; padding: 0; }
+.rdbar .rdvers button { min-height: 34px; padding: 4px 0; font-size: 12px; }
+.rdtext .v.flash { animation: vflash 2.2s ease; }
+@keyframes vflash { 0%, 60% { background: color-mix(in srgb, var(--accent) 30%, transparent); } 100% { background: transparent; } }
+.sheet > .grab + .row.spread { position: sticky; top: -10px; z-index: 4; margin: -10px -16px 0; padding: 10px 16px 8px; background: inherit; }
+.hlbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 4; padding: 6px 0; background: var(--bg); }
+.fab { position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(76px + env(safe-area-inset-bottom, 0px)); z-index: 19; display: inline-flex; align-items: center; gap: 6px; height: 50px; padding: 0 18px 0 14px; border: 0; border-radius: 99px; background: var(--accent); color: var(--accent-ink); font-weight: 800; font-size: 15px; box-shadow: 0 10px 24px -8px rgba(0,0,0,.55); }
+.fab .ic { width: 22px; height: 22px; }
+main.app:has(+ .fab) { padding-bottom: calc(150px + env(safe-area-inset-bottom, 0px)); }
 </style>
 </head>
 <body>
@@ -599,6 +614,8 @@ const P = {
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
   moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/>',
   back: '<path d="m15 18-6-6 6-6"/>',
+  refresh: '<path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
   hl: '<path d="m9 11-6 6v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/>',
   note: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/>',
   bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>',
@@ -1065,7 +1082,8 @@ function render() {
   else if (S.status === "nodb" || S.status === "noid") body = gateView();
   else if (!S.profile) body = onboardView();
   else body = ({ today: todayView, bible: bibleView, calendar: calendarView, plan: planView, crew: crewView, coach: S.isOwner ? (coachOpen() ? coachView : coachLockView) : todayView, me: meView }[S.view] || todayView)();
-  patch(root, `<main class="app ${wide ? "wide" : ""}">${brandBar()}${body}</main>${S.profile && S.uid ? navBar() : ""}`);
+  const fab = S.profile && S.uid && S.view === "today" && !S.ro ? `<button class="fab" data-act="quicklog" aria-label="Log something">${ic("plus")}<span>Log</span></button>` : "";
+  patch(root, `<main class="app ${wide ? "wide" : ""}">${brandBar()}${body}</main>${fab}${S.profile && S.uid ? navBar() : ""}`);
   if (S.sheet?.peek || S.sheet?.feed || S.sheet?.dm || S.sheet?.pic || S.sheet?.cat || S.sheet?.logv || S.sheet?.plans) renderSheet();
   scrollChats();
   if (S.tour != null) renderTour(); else { maybeTour(); maybeNews(); }
@@ -1356,7 +1374,7 @@ function goalFold() {
 function todayView() {
   const t = today(), day = S.days[t], m = S.mine;
   const unseen = S.notes.filter(n => !n.seen);
-  return `${lookNotice()}
+  return `
   <div class="bars">${hudFold()}${questFold(t, day)}${goalFold()}</div>
   ${votdCard()}
   ${annCard()}
@@ -1664,11 +1682,11 @@ function paceStep(s, r, cur) {
 const VOTD = [[6,1,9,9],[20,3,5,6],[23,40,31,31],[50,4,13,13],[45,8,28,28],[24,29,11,11],[40,6,33,33],[55,1,7,7],[19,23,1,3],[48,6,9,9],[20,27,17,17],[46,16,13,14],[59,1,22,22],[51,3,23,23],[19,46,10,10],[23,41,10,10],[33,6,8,8],[45,12,2,2],[58,12,1,2],[20,16,3,3],[40,11,28,30],[43,15,5,5],[60,5,6,7],[19,119,105,105],[25,3,22,23],[47,5,17,17],[49,6,10,11],[20,4,23,23],[19,37,5,5],[50,4,6,7],[6,24,15,15]];
 function votdCard() {
   const d = parse(today()), k = Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 864e5), [b, c, v1, v2] = VOTD[k % VOTD.length];
-  const want = bibleVer(), ver = VERS[want].out ? "NKJV" : want, ch = loadCh(ver, b, c), ref = `${book(b)[0]} ${c}:${v1}${v2 > v1 ? "–" + v2 : ""}`;
+  const want = bibleVer(), ver = VERS[want].out ? "NKJV" : want, ch = loadCh(ver, b, c, S.view !== "today"), ref = `${book(b)[0]} ${c}:${v1}${v2 > v1 ? "–" + v2 : ""}`;
   const text = ch.st === "ok" ? ch.vs.filter(x => x.n >= v1 && x.n <= v2).map(x => x.t).join(" ") : "";
   return `<section class="card votd"><div class="row spread"><p class="tiny muted">${ic("sunrise")} Verse of the day</p><span class="tiny muted">${ver}</span></div>
     ${text ? `<blockquote>${esc(text)}</blockquote>` : ch.st === "err" ? "" : `<p class="small muted">Loading…</p>`}<b>${esc(ref)}</b>
-    <div class="btns"><button class="btn sm" data-act="bible" data-b="${b}" data-c="${c}">${ic("book")} Read the whole chapter</button></div></section>`;
+    <div class="btns"><button class="btn sm" data-act="bible" data-b="${b}" data-c="${c}" data-vs="${v1}">${ic("book")} Read the whole chapter</button></div></section>`;
 }
 
 /* Chapter text comes from bolls.life (free, open). Cached per version + chapter. */
@@ -1677,16 +1695,53 @@ function cleanVerse(h) {
   h = String(h || "").replace(/<S>\d+<\/S>/gi, "").replace(/<sup>[\s\S]*?<\/sup>/gi, "").replace(/<br\s*\/?>/gi, " ");
   return (new DOMParser().parseFromString(h, "text/html").body.textContent || "").replace(/\s+/g, " ").trim();
 }
-function loadCh(v, b, c) {
-  const k = `${v}/${b}/${c}`; if (RDC[k]) return RDC[k];
-  RDC[k] = { st: "load", vs: [] };
-  fetch(`https://bolls.life/get-chapter/${v}/${b}/${c}/`).then(r => r.ok ? r.json() : Promise.reject(r.status)).then(a => {
-    const vs = (Array.isArray(a) ? a : []).map(x => ({ n: +x.verse, t: cleanVerse(x.text) })).filter(x => x.n && x.t);
-    RDC[k] = vs.length ? { st: "ok", vs } : { st: "err", vs: [] };
-  }).catch(() => { RDC[k] = { st: "err", vs: [] }; }).finally(() => { if (S.view === "today" || S.view === "bible") render(); });
+/* bolls.life turns away bursts of requests (429), so: one request at a time, the chapter on screen first,
+   a few retries with a pause, chapters kept on the phone (last 150), and a failed chapter tries again later. */
+const CHQ = { list: [], busy: false };
+const chStore = { get(k) { try { const x = localStorage.getItem("eoe-ch:" + k); return x ? JSON.parse(x) : null; } catch { return null; } },
+  put(k, vs) { try { const idx = JSON.parse(localStorage.getItem("eoe-ch-idx") || "[]").filter(x => x !== k); idx.push(k);
+    while (idx.length > 150) localStorage.removeItem("eoe-ch:" + idx.shift());
+    localStorage.setItem("eoe-ch:" + k, JSON.stringify(vs)); localStorage.setItem("eoe-ch-idx", JSON.stringify(idx)); } catch {} } };
+const wait = ms => new Promise(r => setTimeout(r, ms));
+async function chFetch(v, b, c) {
+  for (let i = 0; i < 4; i++) {
+    if (i) await wait([0, 1500, 4000, 9000][i]);
+    try {
+      const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 10000);
+      const r = await fetch(`https://bolls.life/get-chapter/${v}/${b}/${c}/`, { signal: ctl.signal }); clearTimeout(t);
+      if (r.status === 429 || r.status >= 500) continue;
+      if (!r.ok) return null;
+      const a = await r.json(), vs = (Array.isArray(a) ? a : []).map(x => ({ n: +x.verse, t: cleanVerse(x.text) })).filter(x => x.n && x.t);
+      if (vs.length && /has prohibited me from using/.test(vs[0].t)) return null;
+      return vs.length ? vs : null;
+    } catch {}
+  }
+  return null;
+}
+async function chPump() {
+  if (CHQ.busy) return; CHQ.busy = true;
+  while (CHQ.list.length) {
+    const [v, b, c] = CHQ.list.shift(), k = `${v}/${b}/${c}`;
+    if (RDC[k]?.st === "ok") continue;
+    const vs = await chFetch(v, b, c);
+    RDC[k] = vs ? { st: "ok", vs } : { st: "err", vs: [], at: Date.now() };
+    if (vs) chStore.put(k, vs);
+    else setTimeout(() => { if (S.view === "bible" || S.view === "today") render(); }, 16000);   // try again by itself
+    if (S.view === "today" || S.view === "bible") render();
+    await wait(250);
+  }
+  CHQ.busy = false;
+}
+function loadCh(v, b, c, low) {
+  const k = `${v}/${b}/${c}`, cur = RDC[k];
+  if (cur && !(cur.st === "err" && Date.now() - cur.at > 15000)) return cur;
   loadMeta(b, c);
+  const kept = chStore.get(k); if (kept?.length) return RDC[k] = { st: "ok", vs: kept };
+  RDC[k] = { st: "load", vs: [] };
+  CHQ.list = CHQ.list.filter(x => x.join("/") !== k); CHQ.list[low ? "push" : "unshift"]([v, b, c]); chPump();
   return RDC[k];
 }
+function chRetry() { const s = S.rd, v = bibleVer(); if (!s) return; delete RDC[`${VERS[v].out ? "NKJV" : v}/${s.b}/${s.c}`]; render(); }
 
 /* Section headings + words of Jesus, from the Berean Standard Bible (public domain, bible.helloao.org).
    Headings sit before the same verse in every version. Red letters: verses BSB marks as Jesus speaking;
@@ -1782,7 +1837,15 @@ document.addEventListener("visibilitychange", () => {
   const add = Math.min(45 * 60000, Date.now() - RD.out), s = S.rd; RD.out = 0; RD.act = RD.lt = Date.now();
   if (s) { const k = rdKey(s.b, s.c); RD.ms += add; RD.chap[k] = (RD.chap[k] || 0) + add; if (!RD.order.includes(k)) RD.order.push(k); render(); }
 });
-function openBible(b, c) {
+/* Jump to a verse: scroll it under the bar and make it glow for a moment (waits for the chapter to load). */
+function rdFocus(n) {
+  let tries = 0; const go1 = () => { const el = document.querySelector(`#rdbody .v[data-v="${n}"]`);
+    if (!el) { if (++tries < 40) setTimeout(go1, 150); return; }
+    const bar = document.querySelector(".rdbar")?.offsetHeight || 0; scrollTo({ top: el.getBoundingClientRect().top + scrollY - bar - 24, behavior: "smooth" });
+    S.rdFlash = { n, until: Date.now() + 2200 }; el.classList.add("flash"); setTimeout(() => { S.rdFlash = null; document.querySelector(".v.flash")?.classList.remove("flash"); }, 2200); };
+  setTimeout(go1, 60);
+}
+function openBible(b, c, vs) {
   if (RD.ms && Date.now() - RD.act > 2 * 3600e3) rdReset();      // a session left open for hours starts over
   const r = S.profile?.reading, p = r && planOf(r.plan), nx = planNow(r)?.next;
   const last = rdLast();
@@ -1791,6 +1854,7 @@ function openBible(b, c) {
   rdSet(b, c); S.btab = "read";
   if (S.sheet && !S.sheet.kind) { S.sheet = null; renderSheet(); }
   go("bible");
+  if (+vs) rdFocus(+vs); else scrollTo({ top: 0 });
 }
 /* Chapters you actually spent time in (15 s+), in the order you read them. */
 function rdRead() {
@@ -1820,7 +1884,7 @@ const rdNext = (b, c) => c < book(b)[2] ? [b, c + 1] : b < 66 ? [b + 1, 1] : nul
 /* Next and previous chapters load in the background, so turning the page is instant. */
 function rdPrefetch(b, c) {
   const v = bibleVer(); if (VERS[v].out) return;
-  setTimeout(() => { for (const x of [rdNext(b, c), rdPrev(b, c)]) if (x && !RDC[`${v}/${x[0]}/${x[1]}`]) loadCh(v, x[0], x[1]); }, 600);
+  setTimeout(() => { for (const x of [rdNext(b, c), rdPrev(b, c)]) if (x && !RDC[`${v}/${x[0]}/${x[1]}`]) loadCh(v, x[0], x[1], true); }, 900);
 }
 function rdSize(d) {
   let n = 19; try { n = +localStorage.getItem("eoe-rdsize") || 19; } catch {}
@@ -1856,17 +1920,19 @@ function readerPage() {
   const ch = vd.out ? null : loadCh(v, s.b, s.c), prev = rdPrev(s.b, s.c), next = rdNext(s.b, s.c);
   const notesHere = S.bnotes.filter(n => n.b === s.b && n.c === s.c), noted = new Set(notesHere.flatMap(n => n.vs || []));
   const got = RD.ms >= 20000, mins = Math.max(1, Math.round(RD.ms / 60000));
-  const bar = `<div class="rdbar" id="rdtop"><button class="rdpick" data-act="rdpick" aria-label="Pick a book and chapter"><span class="clip">${esc(nm)} ${s.c}</span>${ic("back")}</button>
-      <div class="vers" role="group" aria-label="Bible version">${Object.keys(VERS).map(k => `<button class="${k === v ? "on" : ""}" data-act="rdver" data-v="${k}" aria-pressed="${k === v}">${k}</button>`).join("")}</div>
-      <div class="rdsz"><button data-act="rdsize" data-v="-1" aria-label="Smaller text">A</button><button data-act="rdsize" data-v="1" aria-label="Bigger text" style="font-size:19px">A</button></div></div>`;
+  const P = planNow(S.profile?.reading), offPlan = P?.next && !(P.p.b === s.b && P.chs.includes(s.c));
+  const bar = `<div class="rdbar" id="rdtop"><div class="rdrow"><button class="rdpick" data-act="rdpick" aria-label="Pick a book and chapter"><span class="clip">${esc(nm)} ${s.c}</span>${ic("back")}</button>
+      ${offPlan && !S.ro ? `<button class="chip rdplan" data-act="bible" data-b="${P.p.b}" data-c="${P.next}" title="Back to today's reading: ${esc(P.p.book)} ${P.next}" aria-label="Back to today's reading: ${esc(P.p.book)} ${P.next}">${ic("book")} Today</button>` : `<span class="grow"></span>`}
+      <div class="rdsz"><button data-act="rdsize" data-v="-1" aria-label="Smaller text">A</button><button data-act="rdsize" data-v="1" aria-label="Bigger text" style="font-size:19px">A</button></div></div>
+      <div class="vers rdvers" role="group" aria-label="Bible version">${Object.keys(VERS).map(k => `<button class="${k === v ? "on" : ""}" data-act="rdver" data-v="${k}" aria-pressed="${k === v}">${k}</button>`).join("")}</div></div>`;
   let body;
   if (vd.out) body = `<div class="rdnote"><b>NIV opens in YouVersion</b><span class="small">The NIV's publisher doesn't let other apps show its text. Read ${esc(nm)} ${s.c} there, then come back here and tap <b>Done</b>. Your reading time keeps counting while you're gone.</span><a class="btn primary" href="${yvUrl(s.b, s.c, "NIV")}" target="_blank" rel="noopener" data-act="rdout">${ic("book")} Open ${esc(nm)} ${s.c} (NIV)</a><span class="tiny muted" style="text-transform:none;letter-spacing:0">Highlights and notes work in NLT, AMP, ESV and NKJV. Your notes still save here.</span></div>`;
   else if (ch.st === "ok") { const meta = loadMeta(s.b, s.c), ok = meta.st === "ok", wj = ok ? wjSegs(ch, meta) : {};
     body = `<h2 class="rdtitle">${esc(nm)} <span>${s.c}</span></h2><div class="rdtext" style="font-size:${rdSize()}px">${ch.vs.map(x => { const h = S.hl[hlKey(s.b, s.c, x.n)]?.c;
       const heads = ok && meta.hd[x.n] ? meta.hd[x.n].map(t => `<h4 class="rdh">${esc(t)}</h4>`).join("") : "", txt = wj[x.n] ? wj[x.n].map(([t, r]) => r ? `<span class="wj">${esc(t)}</span>` : esc(t)).join("") : esc(x.t);
-      return `${heads}<span class="v ${h ? "hl-" + h : ""} ${sel.includes(x.n) ? "sel" : ""}" data-act="vsel" data-v="${x.n}"><sup>${x.n}</sup>${txt}${noted.has(x.n) ? `<i class="vnote" aria-label="has a note">${ic("note")}</i>` : ""}</span> `; }).join("")}</div>
+      return `${heads}<span class="v ${h ? "hl-" + h : ""} ${sel.includes(x.n) ? "sel" : ""} ${S.rdFlash?.n === x.n && S.rdFlash.until > Date.now() ? "flash" : ""}" data-act="vsel" data-v="${x.n}"><sup>${x.n}</sup>${txt}${noted.has(x.n) ? `<i class="vnote" aria-label="has a note">${ic("note")}</i>` : ""}</span> `; }).join("")}</div>
       <p class="tiny muted rdver">${esc(vd.name)} (${v}) · tap a verse to highlight it or add a note${ok ? `<br>Headings and red letters follow the Berean Standard Bible.` : ""}</p>`; }
-  else if (ch.st === "err") body = `<div class="rdnote"><b>Couldn't load this chapter.</b><span class="small">Check your connection, try another version, or open it in YouVersion.</span><a class="btn" href="${yvUrl(s.b, s.c, v)}" target="_blank" rel="noopener" data-act="rdout">${ic("book")} Open in YouVersion</a></div>`;
+  else if (ch.st === "err") body = `<div class="rdnote"><b>Couldn't load this chapter.</b><span class="small">The free Bible service is busy or you're offline. It tries again by itself, or tap below.</span><button class="btn primary" data-act="chretry">${ic("refresh")} Try again</button><a class="btn" href="${yvUrl(s.b, s.c, v)}" target="_blank" rel="noopener" data-act="rdout">${ic("book")} Open in YouVersion</a></div>`;
   else body = `<h2 class="rdtitle">${esc(nm)} <span>${s.c}</span></h2><div class="skel">${[92, 100, 84, 97, 70, 100, 88, 60].map(w => `<i style="width:${w}%"></i>`).join("")}</div>`;
   const nav = `<div class="rdnav"><button class="btn" data-act="rdgo" data-b="${prev?.[0] || ""}" data-c="${prev?.[1] || ""}" data-dir="r" ${prev ? "" : "disabled"}>${ic("back")} ${prev ? esc(`${book(prev[0])[0]} ${prev[1]}`) : ""}</button>
       <button class="btn" data-act="rdgo" data-b="${next?.[0] || ""}" data-c="${next?.[1] || ""}" data-dir="l" ${next ? "" : "disabled"}>${next ? esc(`${book(next[0])[0]} ${next[1]}`) : ""} <span style="display:grid;transform:rotate(180deg)">${ic("back")}</span></button></div>`;
@@ -1899,8 +1965,8 @@ function hlList() {
   const items = Object.entries(S.hl).map(([k, x]) => { const [b, c, v] = k.split(".").map(Number); return { ...x, k, b, ch: c, v, col: x.c }; }).sort((a, z) => (z.ts || 0) - (a.ts || 0));
   if (!items.length) return `<section class="card"><div class="empty">No highlights yet. In <b>Read</b>, tap any verse and pick a color. It saves here so you can come back to it.</div></section>`;
   const f = S.hlF || "";
-  return `<div class="seg" role="group" aria-label="Filter by color"><button class="${!f ? "on" : ""}" data-act="hlf" data-v="">All</button>${Object.entries(HL).map(([k, [l, col]]) => `<button class="${f === k ? "on" : ""}" data-act="hlf" data-v="${k}"><i class="dot" style="background:${col}"></i> ${l}</button>`).join("")}</div>
-    <section class="card stack" style="gap:8px">${items.filter(x => !f || x.col === f).map(x => `<button class="hlrow" data-act="bible" data-b="${x.b}" data-c="${x.ch}" style="--c:${HL[x.col]?.[1] || "#facc15"}"><b>${esc(verseRef(x.b, x.ch, [x.v]))}${x.ver ? ` <span class="tiny muted">${esc(x.ver)}</span>` : ""}</b>${x.t ? `<span class="small">${esc(x.t)}</span>` : ""}</button>`).join("") || `<p class="small muted">No ${HL[f][0].toLowerCase()} highlights.</p>`}</section>`;
+  return `<div class="hlbar"><div class="seg" role="group" aria-label="Filter by color"><button class="${!f ? "on" : ""}" data-act="hlf" data-v="">All</button>${Object.entries(HL).map(([k, [l, col]]) => `<button class="${f === k ? "on" : ""}" data-act="hlf" data-v="${k}"><i class="dot" style="background:${col}"></i> ${l}</button>`).join("")}</div></div>
+    <section class="card stack" style="gap:8px">${items.filter(x => !f || x.col === f).map(x => `<button class="hlrow" data-act="bible" data-b="${x.b}" data-c="${x.ch}" data-vs="${x.v}" style="--c:${HL[x.col]?.[1] || "#facc15"}"><b>${esc(verseRef(x.b, x.ch, [x.v]))}${x.ver ? ` <span class="tiny muted">${esc(x.ver)}</span>` : ""}</b>${x.t ? `<span class="small">${esc(x.t)}</span>` : ""}</button>`).join("") || `<p class="small muted">No ${HL[f][0].toLowerCase()} highlights.</p>`}</section>`;
 }
 function noteRow(n) {
   const ref = n.b ? verseRef(n.b, n.c, n.vs || []) : "";
@@ -1926,16 +1992,27 @@ function bnoteSheet(x) {
       <div class="row spread"><span>${n ? `<button type="button" class="btn sm ${S.armDel === "bn" + n.id ? "danger" : "ghost"}" data-act="bndel" data-id="${n.id}">${S.armDel === "bn" + n.id ? "Tap again to delete" : `${ic("trash")} Delete`}</button>` : ""}</span><button class="btn primary" type="submit">${ic("check")} Save note</button></div>
     </form>`;
 }
+/* "John 3:16", "jn 3", "1 cor 13 4", "ps 23" -> [book, chapter, verse] */
+const BK_ALIAS = { jn: 43, jhn: 43, mt: 40, mat: 40, mk: 41, mrk: 41, lk: 42, luk: 42, ps: 19, psa: 19, psalm: 19, pr: 20, prov: 20, sos: 22, song: 22, php: 50, phil: 50, jas: 59, rev: 66, gn: 1, ex: 2, dt: 5, jdg: 7, rom: 45 };
+function parseRef(q) {
+  const m = String(q || "").trim().toLowerCase().replace(/\./g, " ").match(/^([1-3]?\s*[a-z][a-z ]*?)\s*(\d+)?(?:\s*[: ]\s*(\d+))?$/); if (!m) return null;
+  const key = m[1].replace(/\s+/g, ""); let b = BK_ALIAS[key] || 0;
+  if (!b) { const i = BOOKS.findIndex(x => x[0].toLowerCase().replace(/\s+/g, "").startsWith(key)); b = i + 1; }
+  if (!b || !m[2]) return b && key.length >= 2 ? [b, 0, 0] : null;
+  const c = Math.min(+m[2], book(b)[2]), v = +m[3] || 0;
+  return c >= 1 ? [b, c, v] : null;
+}
 function bpickSheet(x) {
   const s = S.rd;
   const head = `<div class="row spread"><div class="row" style="gap:8px">${x.pick === "ch" ? `<button class="icon-btn" data-act="rdpick" aria-label="Back to books">${ic("back")}</button>` : ""}<h2>${x.pick === "ch" ? esc(book(x.pb)[0]) : "Pick a book"}</h2></div><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div>`;
   if (x.pick === "ch") { const r = S.profile?.reading, p = r && planOf(r.plan), done = p?.b === x.pb ? r.done || [] : [];
     return `${head}<div class="chgrid">${[...Array(book(x.pb)[2])].map((_, i) => `<button class="${s.b === x.pb && s.c === i + 1 ? "on" : ""} ${done.includes(i + 1) ? "read" : ""}" data-act="rdch" data-v="${i + 1}">${i + 1}</button>`).join("")}</div>`; }
-  const f = (S.bq || "").toLowerCase(), m = (i, x) => !f || x[0].toLowerCase().includes(f);
+  const ref = parseRef(S.bq), f = ref?.[1] ? "" : (S.bq || "").toLowerCase(), m = (i, x) => ref?.[1] ? ref[0] === BOOKS.indexOf(x) + 1 : !f || x[0].toLowerCase().includes(f) || ref?.[0] === BOOKS.indexOf(x) + 1;
+  const jump = ref?.[1] ? `<button class="btn primary block" data-act="rdref" data-b="${ref[0]}" data-c="${ref[1]}" data-vs="${ref[2] || ""}">${ic("book")} Go to ${esc(book(ref[0])[0])} ${ref[1]}${ref[2] ? ":" + ref[2] : ""}</button>` : "";
   const grid = (from, to) => BOOKS.slice(from, to).map((x, i) => m(i, x) ? `<button class="${s.b === i + from + 1 ? "on" : ""}" data-act="rdbook" data-v="${i + from + 1}">${esc(x[0])}</button>` : "").join("");
   const ot = grid(0, 39), nt = grid(39);
-  return `${head}<input id="bq" class="input" type="search" placeholder="Find a book" value="${esc(S.bq || "")}" aria-label="Find a book" autocomplete="off">
-    <div class="bpscroll">${nt ? `<p class="tiny muted">New Testament</p><div class="bookgrid">${nt}</div>` : ""}${ot ? `<p class="tiny muted">Old Testament</p><div class="bookgrid">${ot}</div>` : ""}${!ot && !nt ? `<p class="small muted">No book called that.</p>` : ""}</div>`;
+  return `${head}<input id="bq" class="input" type="search" placeholder="Find a book, or type John 3:16" value="${esc(S.bq || "")}" aria-label="Find a book or type a verse" autocomplete="off" enterkeyhint="go">
+    ${jump}<div class="bpscroll">${nt ? `<p class="tiny muted">New Testament</p><div class="bookgrid">${nt}</div>` : ""}${ot ? `<p class="tiny muted">Old Testament</p><div class="bookgrid">${ot}</div>` : ""}${!ot && !nt ? `<p class="small muted">No book called that.</p>` : ""}</div>`;
 }
 /* "Done": draw a proof card (what you read, which version, how long) and open the log with everything filled in. */
 function wrapText(g, text, maxW, maxLines) {
@@ -2606,8 +2683,8 @@ function meView() {
     <div class="stack small"><p><b>iPhone:</b> open the link in Safari, tap Share, then <b>Add to Home Screen</b>.</p><p><b>Samsung / Android:</b> open the link in Chrome or Samsung Internet, tap the menu (⋮ or ☰), then <b>Add to Home screen</b>.</p>
     <div class="row"><input class="input grow mono small" value="${SHORT_LINK}" readonly aria-label="App link" id="me-link"><button class="btn" data-act="copy" data-text="${SHORT_LINK}">${ic("copy")}</button></div></div></section>
   ${S.isOwner ? `<section class="card"><h3>Invite people</h3><p class="small">Send anyone the link above. They sign in with Google or email, pick the men's or women's side, and show up in your Coach tab right away.</p></section>` : ""}
-  <section class="card"><div class="row spread"><span class="small muted" style="overflow-wrap:anywhere">Signed in as ${esc(S.auth?.currentUser?.email || "")}</span><button class="btn sm" data-act="signout">Sign out</button></div></section>
-  <section class="card"><h3>Your proof photos</h3>${S.myProofs.length ? `<div class="wall">${S.myProofs.map(s => shotTile(s, S.uid, `${esc(KINDS[s.kind]?.label || "")} · ${short(s.date)}`)).join("")}</div>` : `<div class="empty">Your gym and Word photos will show here.</div>`}</section>`;
+  <section class="card"><h3>Your proof photos</h3>${S.myProofs.length ? `<div class="wall">${S.myProofs.map(s => shotTile(s, S.uid, `${esc(KINDS[s.kind]?.label || "")} · ${short(s.date)}`)).join("")}</div>` : `<div class="empty">Your gym and Word photos will show here.</div>`}</section>
+  <section class="card"><div class="row spread"><span class="small muted" style="overflow-wrap:anywhere">Signed in as ${esc(S.auth?.currentUser?.email || "")}</span><button class="btn sm" data-act="signout">Sign out</button></div></section>`;
 }
 
 /* ===== saving progress for reading plans and Healing ===== */
@@ -2726,6 +2803,8 @@ function renderSheet() {
   if (s.looks) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Look" data-stop><span class="grab"></span><div class="row spread"><h2>Pick your look</h2><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div><p class="small muted">New: Onyx (dark) and Daylight (bright). The original look is still here as Classic.</p>${lookPicker()}</div></div>`);
   if (s.bpick) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Pick a book" data-stop><span class="grab"></span>${bpickSheet(s.bpick)}</div></div>`);
   if (s.bnote) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Note" data-stop><span class="grab"></span>${bnoteSheet(s.bnote)}</div></div>`);
+  if (s.quick) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Log something" data-stop><span class="grab"></span><div class="row spread"><h2>Log something</h2><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div>
+    <section class="pad">${kindsFor().map(([k, d]) => `<button class="act a-${d.area}" data-act="log" data-kind="${k}">${ic(d.icon)}<span>${d.label}</span><small>+${d.xp} XP</small></button>`).join("")}</section></div></div>`);
   if (s.plans) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Reading plan" data-stop><span class="grab"></span>${plansSheet(s.plans)}</div></div>`);
   if (s.logv) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Log" data-stop><span class="grab"></span>${logSheet(s.logv)}</div></div>`);
   if (s.pic) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Proof photo" data-stop><span class="grab"></span>${photoSheet(s.pic)}</div></div>`);
@@ -2911,7 +2990,10 @@ document.addEventListener("click", e => {
     case "looks": S.sheet = { looks: true }; return renderSheet();
     case "lookok": try { localStorage.setItem("eoe-look-note", LOOK_VER); } catch {} return render();
     case "lookback": { const v = a.dataset.v; try { localStorage.setItem("eoe-look", v); localStorage.setItem("eoe-look-note", LOOK_VER); } catch {} applyLook(v); toast(`Back to ${lookName(v)}. Change it any time with the palette at the top.`); return render(); }
-    case "bible": return openBible(a.dataset.b, a.dataset.c);
+    case "bible": return openBible(a.dataset.b, a.dataset.c, a.dataset.vs);
+    case "chretry": return chRetry();
+    case "quicklog": S.sheet = { quick: 1 }; return renderSheet();
+    case "rdref": { S.sheet = null; renderSheet(); S.bq = ""; return openBible(a.dataset.b, a.dataset.c, a.dataset.vs); }
     case "fold": return foldToggle(a.dataset.v);
     case "btab": S.btab = a.dataset.v; S.vsel = []; render(); return window.scrollTo({ top: 0 });
     case "rdpick": S.bq = ""; S.sheet = { bpick: { pick: null } }; return renderSheet();
@@ -3302,6 +3384,7 @@ function openDeep() {
   if (d.kind === "dm") { go("crew"); S.sheet = { dm: d.id }; renderSheet(); return setTimeout(() => document.getElementById("dm-input")?.focus({ preventScroll: true }), 80); }
 }
 document.addEventListener("keydown", e => { if (e.key === "Escape" && S.tour != null) return endTour(); if (e.key === "Escape" && S.sheet) { S.sheet = null; renderSheet(); } });
+document.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.id === "bq") { const r = parseRef(e.target.value); if (r?.[1]) { e.preventDefault(); S.sheet = null; renderSheet(); S.bq = ""; openBible(r[0], r[1], r[2]); } } });
 document.addEventListener("visibilitychange", () => { if (!document.hidden) { beat(); render(); } });
 setInterval(() => { beat(); if (S.profile) render(); }, 60000);
 boot();
