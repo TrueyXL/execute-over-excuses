@@ -1106,18 +1106,15 @@ function patch(el, html) {
 const LOOKS = [
   ["onyx", "Onyx", "New · dark", "dark", ["#060709", "#ff8a3d", "#ffc94d"]],
   ["daylight", "Daylight", "New · bright", "light", ["#f4f6fb", "#2563eb", "#06b6d4"]],
-  ["midnight", "Midnight", "Dark", "dark", ["#0b0c18", "#8b7bff", "#22d3ee"]],
-  ["sunset", "Sunset", "Light", "light", ["#fff4ee", "#f0574a", "#ff9f43"]],
-  ["classic-dark", "Classic dark", "The original", "dark", ["#0f1114", "#f2a93b", "#1f232a"]],
-  ["classic-light", "Classic light", "The original", "light", ["#eceef1", "#b46f0c", "#ffffff"]],
 ];
+const OLD_LIGHT = ["sunset", "classic-light"];   // retired looks: light ones become Daylight, dark ones Onyx
 const LOOK_VER = "v20", lookName = v => LOOKS.find(l => l[0] === v)?.[1] || "Onyx";
-function currentLook() { try { const v = localStorage.getItem("eoe-look"); if (LOOKS.some(l => l[0] === v)) return v; } catch {} return "onyx"; }
+function currentLook() { try { const v = localStorage.getItem("eoe-look"); if (LOOKS.some(l => l[0] === v)) return v; if (OLD_LIGHT.includes(v)) return "daylight"; } catch {} return "onyx"; }
 /* One time per phone: dark looks move to Onyx, light looks to Daylight. The old one is saved so "Go back" restores it. */
 function migrateLook() {
   try {
     if (localStorage.getItem("eoe-look-ver") === LOOK_VER) return;
-    const prev = localStorage.getItem("eoe-look") || "midnight", light = LOOKS.find(l => l[0] === prev)?.[3] === "light";
+    const prev = localStorage.getItem("eoe-look") || "midnight", light = LOOKS.find(l => l[0] === prev)?.[3] === "light" || OLD_LIGHT.includes(prev);
     localStorage.setItem("eoe-look-prev", prev); localStorage.setItem("eoe-look", light ? "daylight" : "onyx"); localStorage.setItem("eoe-look-ver", LOOK_VER);
   } catch {}
 }
@@ -1386,13 +1383,8 @@ function todayView() {
   ${todayCalCard(t)}
   ${mustOn() ? "" : sermonCard()}
   ${spotlight()}
-  <section class="pad" aria-label="Log something">
-    ${kindsFor().map(([k, d]) => `<button class="act a-${d.area}" data-act="log" data-kind="${k}">${ic(d.icon)}<span>${d.label}</span><small>+${d.xp} XP</small></button>`).join("")}
-  </section>
   ${weekCard(m.thisW, true)}
-  ${timeCard()}
   ${m.thisW.train < S.rules.train ? gymCard(true) : ""}
-  ${healCard()}
   <section class="card"><div class="row spread"><h3>Today's log</h3><span class="mono small muted">+${dayXP(day)} XP</span></div>${logList(day?.logs || [], t, true)}</section>`;
 }
 function goalCard(inner) {
@@ -2149,7 +2141,7 @@ function shotTile(x, owner, caption) {
 }
 function proofSrc(p) { return p?.asset ? `/_blob/${p.asset}` : p?.data || ""; }
 function logList(logs, date, mine) {
-  if (!logs.length) return `<div class="empty">Nothing logged yet. Tap a button above to log your first win.</div>`;
+  if (!logs.length) return `<div class="empty">Nothing logged yet. Tap <b>+ Log</b> at the bottom right to log your first win.</div>`;
   const owner = mine ? S.uid : S.sel || "";
   return `<div class="list">${logs.slice().reverse().map(l => logRow(owner, { ...l, date }, { tail: mine && !S.ro ? `<span class="row" style="gap:0;flex:none"><button class="linkish" data-act="edit" data-date="${date}" data-id="${l.id}" aria-label="Edit">${ic("pencil")}</button><button class="linkish" data-act="del" data-date="${date}" data-id="${l.id}" aria-label="Delete">${S.armDel === l.id ? "Tap to delete" : ic("trash")}</button></span>` : "" })).join("")}</div>`;
 }
@@ -2157,10 +2149,8 @@ function logList(logs, date, mine) {
 /* ----- Plan ----- */
 function planView() {
   const t = today(), wk = "w" + monday(t), mo = "m" + t.slice(0, 7), m = S.mine;
-  return `<section class="card"><p class="tiny muted">Execution plan</p><h1>Plan the work.<br>Work the plan.</h1><p class="small muted">Write what you will execute this week and this month. Your coach can see it.</p></section>
-  ${planCard(wk, `This week · ${short(monday(t))}–${short(addD(monday(t), 6))}`, "e.g. Send 20 proposals, finish chapter 4, meal prep Sunday")}
+  return `${planCard(wk, `This week · ${short(monday(t))}–${short(addD(monday(t), 6))}`, "e.g. Send 20 proposals, finish chapter 4, meal prep Sunday")}
   ${planCard(mo, `This month · ${MON[+t.slice(5, 7) - 1]}`, "e.g. Save 500 $, launch the website, read Proverbs")}
-  ${readingCard()}
   ${gymCard()}
   ${healCard()}
   <section class="card"><h3>Your weeks</h3>${historyList(m.weeks.slice(-8).reverse().map(w => ({ mon: w.mon, done: w.mustsDone })))}</section>`;
@@ -2653,9 +2643,13 @@ function rulesEditor() {
 }
 
 /* ----- Me ----- */
-function rulesCard() {
-  const R = S.rules;
-  return `<section class="card"><h3>How the game works</h3><ul class="rules">
+function rulesCard(folded) {
+  const R = S.rules, list = rulesList(R);
+  return folded ? fold("rules", `<span class="foldico">${ic("target")}</span><span class="grow foldtxt"><span class="tiny muted">Rules</span><b class="clip">How the game works</b></span>`, list)
+    : `<section class="card"><h3>How the game works</h3>${list}</section>`;
+}
+function rulesList(R) {
+  return `<ul class="rules">
     <li><span class="a-spirit">${ic("sunrise")}</span><span><b>Every day:</b> time with God in prayer or the Word. Do both for bonus XP.</span></li>
     <li><span class="a-build">${ic("brief")}</span><span><b>Every day:</b> invest in your career, money, business or school${R.buildDays < 7 ? ` (${R.buildDays} of 7 days)` : ""}.</span></li>
     <li><span class="a-body">${ic("dumb")}</span><span><b>Each week:</b> gym or sport ${R.train} times. Snap a photo as proof.</span></li>
@@ -2664,7 +2658,7 @@ function rulesCard() {
     <li><span style="color:var(--accent)">${ic("shield")}</span><span><b>Levels:</b> hit all five for ${R.levelWeeks} weeks in a row to earn a ${R.trialWeeks === 1 ? "one-week" : R.trialWeeks + "-week"} trial. Pass the trial to level up. Miss a week and you restart the climb.</span></li>
     <li><span style="color:var(--accent)">${ic("flame")}</span><span><b>Day streak:</b> every day in a row with time with God. You get <b>one grace day every 2 weeks</b>: miss one day and the streak survives.</span></li>
     <li><span style="color:var(--good)">${ic("heart")}</span><span>Hit all five for <b>${R.healWeeks} weeks in a row</b> to unlock Healing: six private guided tracks (father wound, forgiveness, anger, grief, shame, anxiety).</span></li>
-    <li><span class="a-learn">${ic("pencil")}</span><span>Every log needs a short note. Say what you actually did.</span></li></ul></section>`;
+    <li><span class="a-learn">${ic("pencil")}</span><span>Every log needs a short note. Say what you actually did.</span></li></ul>`;
 }
 function meView() {
   const p = S.profile;
@@ -2677,7 +2671,7 @@ function meView() {
     </form></section>
   <section class="card"><h3>Look</h3>${lookPicker()}</section>
   <section class="card"><h3>How to use the app</h3><p class="small muted">A 2-minute video and a quick tour of the Today screen.</p><div class="row wrap" style="gap:8px"><button class="btn primary" data-act="tutvideo">${ic("send")} Watch the video</button><button class="btn" data-act="tourreplay">Replay the tour</button><button class="btn" data-act="news">What's new</button></div></section>
-  ${rulesCard()}
+  ${rulesCard(true)}
   ${canNotify() ? `<section class="card"><h3>Crew notifications</h3>${Notification.permission === "granted" ? `<p class="small">On. You get a ping when someone in your crew logs, posts on the prayer wall, or your coach makes an announcement.</p>` : Notification.permission === "denied" ? `<p class="small muted">Blocked for this site. Turn them on in your browser's site settings.</p>` : `<p class="small">Get a ping when someone in your crew logs or posts.</p><div><button class="btn sm primary" data-act="notifyon">${ic("bell")} Turn on notifications</button></div>`}<p class="tiny muted">Works while the app is open or in the background. On iPhone, add it to your home screen first.</p></section>` : ""}
   <section class="card"><h3>Put it on your home screen</h3>
     <div class="stack small"><p><b>iPhone:</b> open the link in Safari, tap Share, then <b>Add to Home Screen</b>.</p><p><b>Samsung / Android:</b> open the link in Chrome or Samsung Internet, tap the menu (⋮ or ☰), then <b>Add to Home screen</b>.</p>
@@ -2755,7 +2749,7 @@ const TOUR = [
   { title: "Welcome to Execute > Excuses", text: "Quick tour, about 30 seconds. You can skip it any time." },
   { sel: ".hud", title: "Your level and streak", text: "The flame counts days in a row with time with God. Miss a day and your grace day (one every 2 weeks) saves it. Hit 3 consistent weeks in a row to earn a trial week; pass it to level up." },
   { sel: "[data-tour=quests]", title: "Every day", text: "Time with God: prayer or the Word. Do both for bonus XP. And build your future (career, money, business or school) 5 days out of 7." },
-  { sel: ".pad", title: "Log it", text: "Tap what you did. Add a short note and a proof photo. Learn only needs the note." },
+  { sel: ".fab", title: "Log it", text: "Tap + Log, then what you did. Add a short note and a proof photo. Learn only needs the note." },
   { sel: "[data-tour=week]", title: "Every week", text: "Gym or sport 3 times, stretch once, learn something new once. Do it all and the week counts as consistent." },
   { sel: "[data-tour=goal]", title: "Goal of the week", text: "One goal you'll hit by Sunday. Your crew can see it." },
   { sel: "[data-tour=todo]", title: "Today's to-do", text: "Write what you'll get done today and tick it off as you go." },
