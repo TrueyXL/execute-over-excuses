@@ -73,6 +73,22 @@
   --glow: radial-gradient(60% 35% at 0% 0%, rgba(37,99,235,.12), transparent 70%), radial-gradient(50% 30% at 100% 20%, rgba(6,182,212,.10), transparent 70%);
   color-scheme: light;
 }
+:root[data-skin="emerald"] {
+  --bg: #04100c; --surface: rgba(255,255,255,.045); --surface-2: rgba(255,255,255,.07); --line: rgba(255,255,255,.085); --fg: #eefaf4; --muted: #92a89e;
+  --accent: #2ee59d; --accent-2: #b4f34a; --accent-ink: #022014; --accent-soft: rgba(46,229,157,.15);
+  --spirit: #fcd34d; --build: #60a5fa; --body: #fb7185; --stretch: #2ee59d; --learn: #c4b5fd; --good: #2ee59d; --bad: #ff6b6b;
+  --shadow: 0 20px 50px rgba(0,0,0,.55); --solid: #0b1914;
+  --glow: radial-gradient(55% 35% at 0% 0%, rgba(46,229,157,.20), transparent 70%), radial-gradient(45% 30% at 100% 25%, rgba(180,243,74,.10), transparent 70%);
+  color-scheme: dark;
+}
+:root[data-skin="bloom"] {
+  --bg: #fff7fb; --surface: rgba(255,255,255,.9); --surface-2: #fdeef6; --line: rgba(90,20,60,.10); --fg: #1f1027; --muted: #6f5a6a;
+  --accent: #e8338f; --accent-2: #ff8a1f; --accent-ink: #ffffff; --accent-soft: rgba(232,51,143,.10);
+  --spirit: #c27c00; --build: #2563eb; --body: #e11d48; --stretch: #059669; --learn: #8b3dff; --good: #059669; --bad: #dc2626;
+  --shadow: 0 14px 34px rgba(150,30,90,.10); --solid: #ffffff;
+  --glow: radial-gradient(60% 35% at 0% 0%, rgba(232,51,143,.16), transparent 70%), radial-gradient(50% 30% at 100% 20%, rgba(255,138,31,.16), transparent 70%);
+  color-scheme: light;
+}
 :root[data-skin] { --display: "Sora", "Plus Jakarta Sans", system-ui, sans-serif; --body-font: "Plus Jakarta Sans", "Segoe UI", Roboto, sans-serif; }
 :root[data-skin] body { background: var(--glow), var(--bg); background-attachment: fixed; }
 :root[data-skin] h1, :root[data-skin] h2, :root[data-skin] h3, :root[data-skin] .logo { text-transform: none; letter-spacing: -.02em; }
@@ -240,6 +256,13 @@ textarea.input { min-height: 84px; resize: vertical; }
 .daybars div { display: grid; grid-template-rows: 1fr auto; height: 100%; justify-items: center; gap: 4px; }
 .daybars i { align-self: end; width: 70%; min-height: 3px; border-radius: 6px 6px 3px 3px; background: linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 45%, transparent)); }
 .daybars span { font-size: 11px; color: var(--muted); font-weight: 600; }
+.wkbars span { font-size: 10px; white-space: nowrap; }
+.stiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (min-width: 560px) { .stiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.stile { display: grid; gap: 2px; padding: 12px; border-radius: 16px; background: var(--surface-2); border: 1px solid var(--line); min-width: 0; }
+.stile .ic { color: var(--accent); width: 18px; height: 18px; }
+.stile b { font-family: var(--display); font-size: 26px; font-weight: 800; line-height: 1.1; overflow-wrap: anywhere; }
+.stile span { font-size: 13px; font-weight: 600; } .stile small { font-size: 12px; color: var(--muted); }
 .seg.mini { gap: 4px; } .seg.mini button { min-height: 32px; padding: 4px 11px; font-size: 13px; }
 .seg button.on { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
 
@@ -588,6 +611,7 @@ const ADMIN_EMAIL = "noriodeobaro@gmail.com";
 <script>
 /* ===== icons ===== */
 const P = {
+  chart: '<path d="M3 3v18h18"/><path d="M7 16v-4M12 16V8M17 16v-7"/>',
   sunrise: '<path d="M12 2v7M4.9 10.9l1.4 1.4M2 18h2M20 18h2M17.7 12.3l1.4-1.4M22 22H2M8 6l4-4 4 4M16 18a4 4 0 0 0-8 0"/>',
   book: '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
   brief: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>',
@@ -672,7 +696,7 @@ const S = {
   calMonth: null, calSel: null, gstore: {}, gbusy: false, coachOK: false,
   hl: {}, bnotes: [], rd: null, vsel: [], cwall: {}, gchat: {}, greads: {}, dms: [], dmMsgs: null, cheers: {}, cOpen: null, gtab: {}, alertTop: 0,
 };
-const views = ["today", "bible", "calendar", "plan", "crew", "coach", "me"];
+const views = ["today", "bible", "plan", "stats", "crew", "coach", "me", "calendar"];
 const COACH_HASH = "4e072c27f29c879fd3c99e86451be75ebc3eaa13ef7e77d3478dab0a7c47bc7a";
 
 /* ===== stats ===== */
@@ -683,7 +707,7 @@ function weekOf(days, mon, R, grace) {
   const dates = [...Array(7)].map((_, i) => addD(mon, i));
   const w = { mon, spiritDays: 0, bothDays: 0, buildDays: 0, train: 0, stretch: 0, learn: 0, xp: 0, strip: {} };
   for (const d of dates) {
-    const day = days[d], s = hasArea(day, "spirit") || !!grace?.has(d), b = hasArea(day, "build");
+    const day = days[d], s = hasArea(day, "spirit") || !!grace?.has(d), b = hasArea(day, "build") || (d >= GRACE_MANUAL && !!grace?.has(d));
     if (s) w.spiritDays++; if (b) w.buildDays++;
     if (hasKind(day, "prayer") && hasKind(day, "word")) w.bothDays++;
     if (hasArea(day, "body")) w.train++;
@@ -724,7 +748,7 @@ function computeMine() {
   const dates = Object.keys(S.days).filter(d => S.days[d]?.logs?.length).sort();
   const first = dates.length ? monday(dates[0]) : cur;
   const weeks = [];
-  const ds = dayStreak(S.days, t), grace = new Set(ds.used);
+  const ds = dayStreak(S.days, t, myGraces()), grace = new Set(ds.used);
   for (let m = first; m <= cur; m = addD(m, 7)) weeks.push(weekOf(S.days, m, R, grace));
   let xp = 0; for (const w of weeks) xp += w.xp;
   const thisW = weeks[weeks.length - 1];
@@ -800,7 +824,7 @@ let unsubs = [];
 async function boot() {
   try { navigator.serviceWorker?.register("sw.js"); } catch {}
   migrateLook(); applyLook(currentLook());
-  const h = location.hash.slice(1); if (views.includes(h)) S.view = h; else readDeep(h);
+  const h = location.hash.slice(1); if (h === "calendar") { S.view = "plan"; S.ptab = "cal"; } else if (views.includes(h)) S.view = h; else readDeep(h);
   render();
   if (!FIREBASE_CONFIG || !window.firebase) { S.status = "nodb"; return render(); }
   firebase.initializeApp(FIREBASE_CONFIG);
@@ -1081,7 +1105,7 @@ function render() {
   if (S.status === "loading") body = loadingView();
   else if (S.status === "nodb" || S.status === "noid") body = gateView();
   else if (!S.profile) body = onboardView();
-  else body = ({ today: todayView, bible: bibleView, calendar: calendarView, plan: planView, crew: crewView, coach: S.isOwner ? (coachOpen() ? coachView : coachLockView) : todayView, me: meView }[S.view] || todayView)();
+  else body = ({ today: todayView, bible: bibleView, calendar: planView, plan: planView, stats: statsView, crew: crewView, coach: S.isOwner ? (coachOpen() ? coachView : coachLockView) : todayView, me: meView }[S.view] || todayView)();
   const fab = S.profile && S.uid && S.view === "today" && !S.ro ? `<button class="fab" data-act="quicklog" aria-label="Log something">${ic("plus")}<span>Log</span></button>` : "";
   patch(root, `<main class="app ${wide ? "wide" : ""}">${brandBar()}${body}</main>${fab}${S.profile && S.uid ? navBar() : ""}`);
   if (S.sheet?.peek || S.sheet?.feed || S.sheet?.dm || S.sheet?.pic || S.sheet?.cat || S.sheet?.logv || S.sheet?.plans) renderSheet();
@@ -1104,8 +1128,10 @@ function patch(el, html) {
 }
 /* Looks: v20 adds Onyx (dark) and Daylight (bright) and moves everyone onto them once; every older look stays one tap away. */
 const LOOKS = [
-  ["onyx", "Onyx", "New · dark", "dark", ["#060709", "#ff8a3d", "#ffc94d"]],
-  ["daylight", "Daylight", "New · bright", "light", ["#f4f6fb", "#2563eb", "#06b6d4"]],
+  ["onyx", "Onyx", "Dark", "dark", ["#060709", "#ff8a3d", "#ffc94d"]],
+  ["daylight", "Daylight", "Bright", "light", ["#f4f6fb", "#2563eb", "#06b6d4"]],
+  ["emerald", "Emerald", "New · dark", "dark", ["#04100c", "#2ee59d", "#b4f34a"]],
+  ["bloom", "Bloom", "New · bright", "light", ["#fff7fb", "#e8338f", "#ff8a1f"]],
 ];
 const OLD_LIGHT = ["sunset", "classic-light"];   // retired looks: light ones become Daylight, dark ones Onyx
 const LOOK_VER = "v20", lookName = v => LOOKS.find(l => l[0] === v)?.[1] || "Onyx";
@@ -1285,7 +1311,7 @@ function brandBar() {
   return `<header class="brand"><div class="logo">Execute <b>&gt;</b> <s>Excuses</s></div><div class="row">${S.profile && S.uid ? (n => `<button class="icon-btn bell" data-act="feed" aria-label="Crew activity${n ? `, ${n} new` : ""}">${ic("bell")}${n ? `<span class="dot">${n > 9 ? "9+" : n}</span>` : ""}</button>`)(unread()) : ""}<button class="icon-btn" data-act="looks" aria-label="Change the look">${ic("palette")}</button></div></header>`;
 }
 function navBar() {
-  const items = [["today", "target", "Today"], ["bible", "book", "Bible"], ["calendar", "cal", "Calendar"], ["plan", "check", "Plan"], ["crew", "users", "Crew"], ...(S.isOwner ? [["coach", "shield", "Coach"]] : []), ["me", "user", "Me"]];
+  const items = [["today", "target", "Today"], ["bible", "book", "Bible"], ["plan", "cal", "Plan"], ["stats", "chart", "Stats"], ["crew", "users", "Crew"], ...(S.isOwner ? [["coach", "shield", "Coach"]] : []), ["me", "user", "Me"]];
   return `<nav class="nav" aria-label="Sections"><div class="nav-in">${items.map(([v, i, l]) => `<a href="#${v}" data-nav="${v}" class="${S.view === v ? "on" : ""}" ${S.view === v ? 'aria-current="page"' : ""}>${ic(i)}<span>${l}</span></a>`).join("")}</div></nav>`;
 }
 function loadingView() {
@@ -1516,26 +1542,44 @@ function gymCard(compact) {
     <div>${planPdf()}</div></section>`;
 }
 /* ===== day streak: days in a row with time with God. One grace day every 2 weeks covers a missed day. ===== */
-const GRACE_EPOCH = "2026-01-05";  // grace periods are fixed 2-week blocks starting on this Monday
+const GRACE_EPOCH = "2026-01-05", GRACE_MANUAL = "2026-11-23";  // before GRACE_MANUAL grace was automatic; from then on you tap "Use grace day"
+const myGraces = () => S.profile?.graces || [];  // grace periods are fixed 2-week blocks starting on this Monday
 const graceBlock = d => Math.floor(Math.round((parse(d) - parse(GRACE_EPOCH)) / 864e5) / 14);
 const blockStart = b => addD(GRACE_EPOCH, b * 14);
-function dayStreak(days, t) {
-  const has = d => hasArea(days[d], "spirit"), first = Object.keys(days).filter(has).sort()[0];
-  if (!first) return { n: 0, today: false, grace: true, used: [], best: 0, nextGrace: blockStart(graceBlock(t) + 1) };
+function dayStreak(days, t, graces = []) {
+  const has = d => hasArea(days[d], "spirit"), G = new Set(graces), first = [...Object.keys(days).filter(has), ...graces].sort()[0];
+  const nextGrace = blockStart(graceBlock(t) + 1);
+  if (!first) return { n: 0, today: false, graceToday: false, grace: true, used: [], best: 0, nextGrace };
   const usedBlocks = new Set(); let n = 0, best = 0, used = [];
   for (let d = first; d < t; d = addD(d, 1)) {
     if (has(d)) { n++; best = Math.max(best, n); continue; }
-    const b = graceBlock(d);
-    if (n > 0 && !usedBlocks.has(b)) { usedBlocks.add(b); used.push(d); continue; }   // grace keeps the streak alive (doesn't add a day)
+    const b = graceBlock(d), ok = d < GRACE_MANUAL ? n > 0 : G.has(d);
+    if (ok && !usedBlocks.has(b)) { usedBlocks.add(b); used.push(d); continue; }   // grace keeps the streak alive (doesn't add a day)
     n = 0;
   }
   const done = has(t); if (done) { n++; best = Math.max(best, n); }
-  return { n, today: done, grace: !usedBlocks.has(graceBlock(t)), used, best, nextGrace: blockStart(graceBlock(t) + 1) };
+  const graceToday = !done && G.has(t) && !usedBlocks.has(graceBlock(t)); if (graceToday) { usedBlocks.add(graceBlock(t)); used.push(t); }
+  return { n, today: done, graceToday, grace: !usedBlocks.has(graceBlock(t)), used, best, nextGrace };
+}
+/* Grace day: one every 2 weeks, for today or a missed yesterday. Covers time with God and Build for that day. */
+function graceBtns(ds) {
+  if (S.ro) return "";
+  const t = today(), y = addD(t, -1);
+  if (ds.graceToday) return `<button class="btn sm" data-act="ungrace" data-v="${t}">${ic("x")} Undo today's grace day</button>`;
+  if (!ds.grace) return "";
+  const yMiss = !hasArea(S.days[y], "spirit") && !ds.used.includes(y) && graceBlock(y) === graceBlock(t) && (S.mine?.ds?.best || 0) > 0;
+  return `<div class="btns">${ds.today ? "" : `<button class="btn sm primary" data-act="grace" data-v="${t}">${ic("shield")} Use grace day today</button>`}${yMiss ? `<button class="btn sm" data-act="grace" data-v="${y}">${ic("shield")} Use it for yesterday</button>` : ""}</div>`;
+}
+/* Late logs: only yesterday, and only one late log a week (a log is late when its day is before the day it was written). */
+const isLate = (l, date) => l.late || date < iso(new Date(l.ts || 0));
+function lateUsed() {
+  const wk = monday(today());
+  return Object.values(S.days).some(d => (d.logs || []).some(l => isLate(l, d.date) && monday(iso(new Date(l.ts || 0))) === wk));
 }
 function streakLine(ds) {
-  const g = ds.grace ? `<span class="chip on">${ic("shield")} Grace day ready</span>` : `<span class="chip">${ic("shield")} Grace used · new one ${short(ds.nextGrace)}</span>`;
-  const msg = ds.today ? "Time with God logged today. Streak safe." : ds.n ? "Log time with God today to keep it going." : "Log time with God today to start a streak.";
-  return `<div class="row wrap" style="gap:6px;align-items:center">${g}<span class="small muted">${msg}</span></div>`;
+  const g = ds.graceToday ? `<span class="chip on">${ic("shield")} Grace day today</span>` : ds.grace ? `<span class="chip on">${ic("shield")} Grace day ready</span>` : `<span class="chip">${ic("shield")} Grace used · new one ${short(ds.nextGrace)}</span>`;
+  const msg = ds.graceToday ? "Today is your grace day. Streak safe, and it counts for Build too." : ds.today ? "Time with God logged today. Streak safe." : ds.n ? "Log time with God today to keep it going." : "Log time with God today to start a streak.";
+  return `<div class="row wrap" style="gap:6px;align-items:center">${g}<span class="small muted">${msg}</span></div>${graceBtns(ds)}`;
 }
 
 /* ===== Healing (unlocked after healWeeks consistent weeks): guided tracks, private logs only you and your coach see ===== */
@@ -2147,13 +2191,49 @@ function logList(logs, date, mine) {
 }
 
 /* ----- Plan ----- */
+/* Plan tab = Calendar + Targets (week, month, gym) behind one switch. */
 function planView() {
-  const t = today(), wk = "w" + monday(t), mo = "m" + t.slice(0, 7), m = S.mine;
+  const tab = S.ptab || "cal";
+  const seg = `<div class="seg tabs" role="tablist">${[["cal", "cal", "Calendar"], ["goals", "check", "Targets"]].map(([k, i, l]) => `<button class="${tab === k ? "on" : ""}" role="tab" aria-selected="${tab === k}" data-act="ptab" data-v="${k}">${ic(i)} ${l}</button>`).join("")}</div>`;
+  return seg + (tab === "cal" ? calendarView() : targetsView());
+}
+function targetsView() {
+  const t = today(), wk = "w" + monday(t), mo = "m" + t.slice(0, 7);
   return `${planCard(wk, `This week · ${short(monday(t))}–${short(addD(monday(t), 6))}`, "e.g. Send 20 proposals, finish chapter 4, meal prep Sunday")}
   ${planCard(mo, `This month · ${MON[+t.slice(5, 7) - 1]}`, "e.g. Save 500 $, launch the website, read Proverbs")}
   ${gymCard()}
-  ${healCard()}
-  <section class="card"><h3>Your weeks</h3>${historyList(m.weeks.slice(-8).reverse().map(w => ({ mon: w.mon, done: w.mustsDone })))}</section>`;
+  ${healCard()}`;
+}
+/* Stats tab: your numbers (all time + any week) and your crew's week. */
+function statsView() {
+  const m = S.mine, L = m.lvl, cur = monday(today());
+  const logs = Object.values(S.days).flatMap(d => (d.logs || []).filter(l => l.kind !== "heal"));
+  const by = Object.fromEntries(TIME_KINDS.map(k => [k, { min: 0, n: 0 }]));
+  for (const l of logs) { const b = by[l.kind]; if (b) { b.n++; b.min += +l.min || 0; } }
+  const totalMin = logs.reduce((a, l) => a + (+l.min || 0), 0), activeDays = Object.values(S.days).filter(d => (d.logs || []).some(l => l.kind !== "heal")).length;
+  const done = m.weeks.filter(w => w.consistent).length, top = Math.max(1, ...TIME_KINDS.map(k => by[k].min));
+  const tile = (icon, val, label, sub = "") => `<div class="stile">${ic(icon)}<b>${val}</b><span>${label}</span>${sub ? `<small>${sub}</small>` : ""}</div>`;
+  const hero = `<section class="card"><div><p class="tiny muted">Your stats</p><h2>Level ${L.n} · ${esc(L.name)}</h2></div>
+    <div class="stiles">
+      ${tile("flame", m.ds.n, "Day streak", `Best ${m.ds.best}`)}
+      ${tile("target", m.streak, "Week streak", `Best ${m.best}`)}
+      ${tile("check", `${done}/${m.weeks.length}`, "Consistent weeks")}
+      ${tile("bulb", m.xp.toLocaleString(), "Total XP", `+${m.thisW.xp} this week`)}
+      ${tile("cal", activeDays, "Days logged")}
+      ${tile("pulse", totalMin ? fmtMin(totalMin) : "0 min", "Total time", `${logs.length} logs`)}
+    </div>${streakLine(m.ds)}</section>`;
+  const allTime = `<section class="card"><h3>All time</h3><div class="stack" style="gap:4px">${TIME_KINDS.map(k => { const d = KINDS[k], b = by[k];
+    return `<div class="timerow a-${d.area}" style="cursor:default">${ic(d.icon)}<span class="tl">${d.label}</span><span class="tbar"><i style="width:${k === "learn" ? (b.n ? 100 : 0) : Math.round(100 * b.min / top)}%"></i></span><span class="tv mono">${k === "learn" ? `${b.n} logged` : `${b.min ? fmtMin(b.min) : "—"}<small>${b.n} log${b.n === 1 ? "" : "s"}</small>`}</span></div>`; }).join("")}</div></section>`;
+  const last = m.weeks.slice(-8), wkMin = last.map(w => weekMinutes(w.mon).total), wTop = Math.max(1, ...wkMin);
+  const weeks = `<section class="card"><h3>Your weeks</h3>
+    ${last.length > 1 ? `<div class="daybars wkbars">${last.map((w, i) => `<div><i style="height:${Math.round(100 * wkMin[i] / wTop)}%;${w.consistent ? "background:var(--good)" : ""}" title="${fmtMin(wkMin[i])}"></i><span>${short(w.mon)}</span></div>`).join("")}</div><p class="tiny muted" style="text-transform:none;letter-spacing:0">Time logged per week. Green = consistent week.</p>` : ""}
+    ${historyList(last.slice().reverse().map(w => ({ mon: w.mon, done: w.mustsDone })))}</section>`;
+  const crews = (S.profile.groups || []).filter(g => S.groups[g]).map(g => {
+    const rows = crewMembers(g).map(([id, p]) => ({ id, p, w: personWeek(p) })).sort((a, b) => (b.w.xp || 0) - (a.w.xp || 0) || (b.w.mustsDone || 0) - (a.w.mustsDone || 0));
+    return `<section class="card"><div class="row spread"><div><p class="tiny muted">This week · ${short(cur)}</p><h3>${esc(S.groups[g].name || "Your crew")}</h3></div><span class="mono small muted">${rows.length}</span></div>
+      <div class="stack">${rows.map((r, i) => `<button class="person" data-act="peek" data-id="${r.id}" aria-label="See ${esc(r.p.name || "this person")}'s week"><span class="rank">${i + 1}</span>${av(r.p)}<div class="grow stack" style="gap:4px"><b>${esc(r.p.name || "Someone")}${r.id === S.uid ? " (you)" : ""}</b><span class="small muted">${r.w.xp || 0} XP · ${r.w.mustsDone || 0}/5 musts · ${flameTxt(r.p)}</span>${miniMusts(r.w)}</div></button>`).join("")}</div></section>`;
+  }).join("");
+  return `${hero}${timeCard()}${allTime}${weeks}${crews || `<section class="card"><h3>Your crew</h3><div class="empty">Join a crew on the Crew tab to see everyone's week here.</div></section>`}`;
 }
 /* Time spent per activity, any week (arrows go back week by week). Learn has no minutes, so it shows a count. */
 const TIME_KINDS = ["prayer", "word", "build", "train", "stretch", "learn"];
@@ -2393,7 +2473,7 @@ function syncCard() {
   const google = (S.auth?.currentUser?.providerData || []).some(p => p.providerId === "google.com"), live = !!gtok();
   return `<section class="card"><h3>Sync with your phone calendar</h3>
     <div class="rt"><div class="row"><span>${ic("cal")}</span><b class="grow">Google Calendar</b>${S.profile?.gcal?.synced ? `<span class="status ${live ? "good" : "warn"}">${live ? "Connected" : "Synced " + short(iso(new Date(S.profile.gcal.synced)))}</span>` : ""}</div>
-      <p class="small muted">Brings all your Google Calendar events into this calendar and keeps them here, even on another phone. Puts your routine on Google, with reminders. It updates by itself each time you open the Calendar tab while connected. Samsung phones signed in to Google get it automatically.${google ? "" : " You'll pick a Google account to connect."}</p>
+      <p class="small muted">Brings all your Google Calendar events into this calendar and keeps them here, even on another phone. Puts your routine on Google, with reminders. It updates by itself each time you open the Plan tab calendar while connected. Samsung phones signed in to Google get it automatically.${google ? "" : " You'll pick a Google account to connect."}</p>
       <button class="btn primary" data-act="gcal" ${S.gbusy ? "disabled" : ""}>${S.gbusy ? "Syncing…" : S.profile?.gcal?.synced ? "Sync now" : "Connect Google Calendar"}</button>
       <p class="small muted">If Google says the app isn't verified yet, tap <b>Advanced</b>, then <b>Go to Execute Over Excuses</b>.</p></div>
     <div class="rt"><div class="row"><span>${ic("cal")}</span><b class="grow">iPhone or Samsung calendar</b></div>
@@ -2656,7 +2736,7 @@ function rulesList(R) {
     <li><span class="a-stretch">${ic("pulse")}</span><span><b>Each week:</b> stretch at least ${R.stretch === 1 ? "once" : R.stretch + " times"}.</span></li>
     <li><span class="a-learn">${ic("bulb")}</span><span><b>Each week:</b> learn something new. A skill, a better way to work, how to post content better.</span></li>
     <li><span style="color:var(--accent)">${ic("shield")}</span><span><b>Levels:</b> hit all five for ${R.levelWeeks} weeks in a row to earn a ${R.trialWeeks === 1 ? "one-week" : R.trialWeeks + "-week"} trial. Pass the trial to level up. Miss a week and you restart the climb.</span></li>
-    <li><span style="color:var(--accent)">${ic("flame")}</span><span><b>Day streak:</b> every day in a row with time with God. You get <b>one grace day every 2 weeks</b>: miss one day and the streak survives.</span></li>
+    <li><span style="color:var(--accent)">${ic("flame")}</span><span><b>Day streak:</b> every day in a row with time with God. You get <b>one grace day every 2 weeks</b>: tap <b>Use grace day</b> (today, or a missed yesterday) and the streak survives. It counts for Build that day too.</span></li>
     <li><span style="color:var(--good)">${ic("heart")}</span><span>Hit all five for <b>${R.healWeeks} weeks in a row</b> to unlock Healing: six private guided tracks (father wound, forgiveness, anger, grief, shame, anxiety).</span></li>
     <li><span class="a-learn">${ic("pencil")}</span><span>Every log needs a short note. Say what you actually did.</span></li></ul>`;
 }
@@ -2705,13 +2785,13 @@ function sendPulse() {
 }
 
 /* ===== What's new: shown once to people coming back after an update (video + list) ===== */
-const NEW_VER = "2026-11-v21", NEWS_VIDEO = "";
+const NEW_VER = "2026-11-v22", NEWS_VIDEO = "";
 const NEWS = [
-  ["book", "A Bible tab", "The Bible has its own tab now, right after Today. Swipe left or right to turn the chapter. Bigger or smaller text with the A buttons."],
-  ["hl", "Highlight verses", "Tap a verse, pick a color. Your highlights are saved in the Highlights tab, and they go on your proof picture."],
-  ["note", "Notes, typed or spoken", "Add a note to any verse, or a free note. Tap Record and talk: it turns into text you can edit."],
-  ["mic", "The mic doesn't cut you off", "Voice typing keeps listening through pauses, up to 15 minutes. Tap the mic (or the red pill at the top) when you're done."],
-  ["target", "A cleaner Today", "Your level, daily quests and goal of the week are slim bars now. Tap one to open it. The verse of the day sits right under them."],
+  ["cal", "Plan + Calendar together", "Your calendar and your targets now live in one tab: Plan. Switch between Calendar and Targets at the top."],
+  ["chart", "A Stats tab", "See your streaks, XP, time spent on each activity, your weeks, and how your crew is doing this week."],
+  ["shield", "Grace day button", "Need a day off? Tap Use grace day (one every 2 weeks). Your streak is safe and it counts for Build that day too. Find it in your level bar on Today and in Stats."],
+  ["back", "Late logs", "You can log yesterday once a week. Nothing further back."],
+  ["palette", "2 new looks", "Emerald (dark) and Bloom (bright). Tap the palette at the top to try them."],
 ];
 function newsSheet() {
   return `<div class="row spread"><div><p class="tiny" style="color:var(--accent)">Update</p><h2>What's new</h2></div><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div>
@@ -2747,7 +2827,7 @@ async function openEdit(date, id) {
 /* ===== first-run tour (skippable; done once per account, replay from Me) ===== */
 const TOUR = [
   { title: "Welcome to Execute > Excuses", text: "Quick tour, about 30 seconds. You can skip it any time." },
-  { sel: ".hud", title: "Your level and streak", text: "The flame counts days in a row with time with God. Miss a day and your grace day (one every 2 weeks) saves it. Hit 3 consistent weeks in a row to earn a trial week; pass it to level up." },
+  { sel: ".hud", title: "Your level and streak", text: "The flame counts days in a row with time with God. Need a day off? Tap Use grace day (one every 2 weeks) and your streak is safe. Hit 3 consistent weeks in a row to earn a trial week; pass it to level up." },
   { sel: "[data-tour=quests]", title: "Every day", text: "Time with God: prayer or the Word. Do both for bonus XP. And build your future (career, money, business or school) 5 days out of 7." },
   { sel: ".fab", title: "Log it", text: "Tap + Log, then what you did. Add a short note and a proof photo. Learn only needs the note." },
   { sel: "[data-tour=week]", title: "Every week", text: "Gym or sport 3 times, stretch once, learn something new once. Do it all and the week counts as consistent." },
@@ -2755,8 +2835,8 @@ const TOUR = [
   { sel: "[data-tour=todo]", title: "Today's to-do", text: "Write what you'll get done today and tick it off as you go." },
   { sel: ".bell", title: "Crew activity", text: "See when your crew logs or posts. Turn on notifications to get a ping." },
   { sel: "[data-nav=bible]", title: "Bible", text: "Read in NLT, AMP, ESV or NKJV, highlight verses and take notes (typed or spoken). Your reading time counts by itself." },
-  { sel: "[data-nav=calendar]", title: "Calendar", text: "Your routine and your Google Calendar events in one place." },
-  { sel: "[data-nav=plan]", title: "Plan", text: "Write your targets for this week and this month." },
+  { sel: "[data-nav=plan]", title: "Plan", text: "Your calendar (routine + Google Calendar events) and your targets for this week and this month, in one tab." },
+  { sel: "[data-nav=stats]", title: "Stats", text: "Your streaks, XP, time spent on each activity, your weeks, and how your crew is doing this week." },
   { sel: "[data-nav=crew]", title: "Crew", text: "Start or join a crew with a code. Pray for each other on your crew's prayer wall, and tap anyone to see their week." },
   { sel: "[data-nav=me]", title: "Me", text: "Your profile, how to put the app on your home screen, and this tour and the video if you need them again." },
   { title: "You're set", text: "Watch the 2-minute video, or get started now.", end: true },
@@ -2794,7 +2874,7 @@ function renderSheet() {
   const el = document.getElementById("sheet"), s = S.sheet;
   if (S.db) watchDm();
   if (!s) return patch(el, "");
-  if (s.looks) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Look" data-stop><span class="grab"></span><div class="row spread"><h2>Pick your look</h2><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div><p class="small muted">New: Onyx (dark) and Daylight (bright). The original look is still here as Classic.</p>${lookPicker()}</div></div>`);
+  if (s.looks) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Look" data-stop><span class="grab"></span><div class="row spread"><h2>Pick your look</h2><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div><p class="small muted">New: Emerald (dark) and Bloom (bright). Onyx and Daylight are still here too.</p>${lookPicker()}</div></div>`);
   if (s.bpick) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Pick a book" data-stop><span class="grab"></span>${bpickSheet(s.bpick)}</div></div>`);
   if (s.bnote) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Note" data-stop><span class="grab"></span>${bnoteSheet(s.bnote)}</div></div>`);
   if (s.quick) return patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="Log something" data-stop><span class="grab"></span><div class="row spread"><h2>Log something</h2><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div>
@@ -2815,8 +2895,8 @@ function renderSheet() {
   patch(el, `<div class="scrim" data-act="close"><div class="sheet" role="dialog" aria-modal="true" aria-label="${s.edit ? "Edit" : "Log"} ${esc(d.label)}" data-stop>
     <span class="grab"></span>
     <div class="row spread"><div class="row"><span class="a-${d.area}">${ic(d.icon)}</span><h2>${s.edit ? "Edit · " : ""}${esc(d.label)}</h2></div><button class="icon-btn" data-act="close" aria-label="Close">${ic("x")}</button></div>
-    ${s.edit ? `<p class="small muted">Logged ${nice(s.date)}</p><div class="field"><label>Category</label><div class="seg">${kindsFor().map(([k, x]) => `<button class="${s.kind === k ? "on" : ""}" data-act="skind" data-v="${k}">${x.label}</button>`).join("")}</div></div>` : `<div class="seg" role="group" aria-label="Day"><button class="${s.date === t ? "on" : ""}" data-act="sdate" data-v="${t}">Today</button><button class="${s.date === y ? "on" : ""}" data-act="sdate" data-v="${y}">Yesterday</button><button class="${s.date !== t && s.date !== y ? "on" : ""}" data-act="sdate" data-v="pick">Earlier</button></div>
-      ${s.date !== t && s.date !== y || s.pickDay ? `<div class="field"><label for="lg-date">Which day? (up to 7 days back)</label><input id="lg-date" class="input" type="date" min="${addD(t, -7)}" max="${t}" value="${s.date}"></div>` : ""}`}
+    ${s.edit ? `<p class="small muted">Logged ${nice(s.date)}</p><div class="field"><label>Category</label><div class="seg">${kindsFor().map(([k, x]) => `<button class="${s.kind === k ? "on" : ""}" data-act="skind" data-v="${k}">${x.label}</button>`).join("")}</div></div>` : `<div class="seg" role="group" aria-label="Day"><button class="${s.date === t ? "on" : ""}" data-act="sdate" data-v="${t}">Today</button>${lateUsed() ? `<button disabled title="One late log a week">Yesterday</button>` : `<button class="${s.date === y ? "on" : ""}" data-act="sdate" data-v="${y}">Yesterday</button>`}</div>
+      <p class="tiny muted" style="text-transform:none;letter-spacing:0;margin-top:-4px">${lateUsed() ? "You've used your one late log this week. New one Monday." : "You can log yesterday once a week."}</p>`}
     ${d.types ? `<div class="field"><label>Type</label><div class="seg">${d.types.map(x => `<button class="${s.type === x ? "on" : ""}" data-act="stype" data-v="${x}">${x}</button>`).join("")}</div></div>` : ""}
     ${d.min ? (() => { const h = s.unit === "h", opts = h ? [60, 90, 120, 180, 240, 360] : [10, 15, 30, 45, 60, 90];
       return `<div class="field"><div class="row spread"><label for="lg-min">${h ? "Hours" : "Minutes"}</label><div class="seg mini" role="group" aria-label="Unit"><button class="${h ? "" : "on"}" data-act="sunit" data-v="min">Minutes</button><button class="${h ? "on" : ""}" data-act="sunit" data-v="h">Hours</button></div></div>
@@ -2904,11 +2984,15 @@ async function saveLog() {
   if (note.length < 3) { document.getElementById("lg-note")?.focus(); return toast("Add a short note first. Say what you did."); }
   if (!s.edit && d.photo && needPic(s.kind) && !s.file && !s.watch) return toast("Add a proof photo or video first.");
   if (s.watch && note.length < 12) { document.getElementById("lg-note")?.focus(); return toast("Say a bit more: what will you actually do?"); }
+  if (!s.edit && s.date !== today()) {
+    if (s.date !== addD(today(), -1) || lateUsed()) { s.date = today(); renderSheet(); return toast("You can only log yesterday, once a week. Switched to today."); }
+  }
   s.busy = true; renderSheet();
   const prev = s.edit ? S.days[s.date]?.logs?.find(x => x.id === s.edit) : null;
   if (s.edit && !prev) { S.sheet = null; renderSheet(); return toast("That entry was removed."); }
   const log = { id: prev?.id || rid(8), kind: s.kind, ts: prev?.ts || Date.now() };
-  if (prev) log.edited = Date.now();
+  if (prev) log.edited = Date.now(); else if (s.date !== today()) log.late = 1;
+  if (prev?.late) log.late = 1;
   if (min) log.min = min; if (note) log.note = note; if (s.type) log.type = s.type;
   try {
     if (s.file) {
@@ -2960,12 +3044,13 @@ function toast(msg, kind = "") {
   clearTimeout(toastT); toastT = setTimeout(() => el.innerHTML = "", kind === "xp" ? 1800 : 3200);
 }
 function go(v) {
+  if (v === "calendar") { v = "plan"; S.ptab = "cal"; }
   S.view = v; S.armDel = null;
   try { history.replaceState(null, "", "#" + v); } catch {}
   render(); window.scrollTo({ top: 0 });
   if (v === "crew") loadCrewProofs();
   beat();
-  if (v === "calendar") autoGcal();
+  if (v === "plan" && (S.ptab || "cal") === "cal") autoGcal();
 }
 async function copy(text) {
   try { await navigator.clipboard.writeText(text); toast("Copied"); }
@@ -3022,7 +3107,16 @@ document.addEventListener("click", e => {
     case "log": return openLog(a.dataset.kind);
     case "close": if (s?.news || s?.back?.news) newsSeen(); if (s?.url) URL.revokeObjectURL(s.url); document.querySelector("#sheet video")?.pause(); S.sheet = s?.back || null; return renderSheet();
     case "timewk": S.timeWk = a.dataset.v; return render();
-    case "sdate": if (a.dataset.v === "pick") { s.pickDay = true; if (s.date === today()) s.date = addD(today(), -2); } else { s.pickDay = false; s.date = a.dataset.v; } return renderSheet();
+    case "grace": case "ungrace": {
+      const d = a.dataset.v, cur = myGraces().filter(x => x >= addD(today(), -60));
+      if (act === "grace" && !S.mine.ds.grace) return toast(`Grace day already used. Next one ${short(S.mine.ds.nextGrace)}.`);
+      const next = act === "grace" ? [...new Set([...cur, d])] : cur.filter(x => x !== d);
+      S.profile = { ...S.profile, graces: next }; computeMine(); render(); queueStats();
+      q(() => S.db.doc(`people/${S.uid}`).update({ graces: next }));
+      return toast(act === "grace" ? (d === today() ? "Grace day today. Rest up, your streak is safe." : "Grace day used for yesterday. Streak saved.") : "Grace day undone.");
+    }
+    case "ptab": S.ptab = a.dataset.v; render(); window.scrollTo({ top: 0 }); if (S.ptab === "cal") autoGcal(); return;
+    case "sdate": { const v = a.dataset.v; if (v !== today() && (v !== addD(today(), -1) || lateUsed())) return toast("You can only log yesterday, once a week."); s.date = v; return renderSheet(); }
     case "stype": s.type = a.dataset.v; return renderSheet();
     case "smin": { s.min = +a.dataset.v; const mi = document.getElementById("lg-min"); if (mi) mi.value = s.unit === "h" ? s.min / 60 : s.min; return renderSheet(); }
     case "sunit": {
@@ -3075,7 +3169,7 @@ document.addEventListener("click", e => {
     case "sel": return loadPerson(id);
     case "peek": S.sheet = { peek: id }; loadCrewProofs(); return renderSheet();
     case "gymday": S.gymDay = a.dataset.v; return render();
-    case "gymplan": go("plan"); return setTimeout(() => document.getElementById("gymplan")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+    case "gymplan": S.ptab = "goals"; go("plan"); return setTimeout(() => document.getElementById("gymplan")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
     case "soundtoggle": soundOn(!soundOn()); if (soundOn()) chime(); return renderSheet();
     case "gtab": S.gtab[id] = a.dataset.v; if (a.dataset.v === "proof") loadCrewProofs(); return render();
     case "wallkind": S.wallKind = a.dataset.v; return render();
@@ -3193,7 +3287,7 @@ document.addEventListener("click", e => {
 document.addEventListener("change", e => {
   if (e.target.id !== "lg-date" || !S.sheet) return;
   const v = e.target.value, t = today();
-  if (v && v <= t && v >= addD(t, -7)) { S.sheet.date = v; renderSheet(); } else { e.target.value = S.sheet.date; toast("Pick a day from the last 7 days."); }
+  if (v === t || (v === addD(t, -1) && !lateUsed())) { S.sheet.date = v; renderSheet(); } else { e.target.value = S.sheet.date; toast("You can only log yesterday, once a week."); }
 });
 document.addEventListener("input", e => {
   if (e.target.id === "rp-days" && S.sheet?.plans?.pick) { const v = Math.round(+e.target.value); if (v >= 1) { S.sheet.plans.days = v; renderSheet(); } return; }
@@ -3251,7 +3345,7 @@ document.addEventListener("submit", async e => {
     inp.value = ""; if (tin) tin.value = "";
     const items = [...(S.plans[pid]?.items || []), { id: rid(6), text, done: false, ...(time ? { time } : {}) }];
     q(() => S.db.doc(`people/${S.uid}/plans/${pid}`).set({ items }));
-    if (time) { queueTodoSync(); if (!gtok() && S.profile?.gcal?.synced) toast("Added. It goes to Google next time you sync on the Calendar tab."); }
+    if (time) { queueTodoSync(); if (!gtok() && S.profile?.gcal?.synced) toast("Added. It goes to Google next time you sync on the Plan tab."); }
     return;
   }
   if (kind === "bnote") {
