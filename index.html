@@ -1801,7 +1801,11 @@ function loadMeta(b, c) {
   return RDM[k];
 }
 /* Quote marks: curly ones, or straight ones judged by what's around them. */
-const qOpen = (t, i) => t[i] === "“" || (t[i] === '"' && (i === 0 || /[\s(\[—-]/.test(t[i - 1])) && t[i + 1] && !/\s/.test(t[i + 1]));
+/* (AMP writes an opening quote with a space after it: `said, " I am`, so a space after is allowed.) */
+const qOpen = (t, i) => t[i] === "“" || (t[i] === '"' && (i === 0 || /[\s(\[—-]/.test(t[i - 1])) && i + 1 < t.length);
+/* Quotes inside quotes: ‘…’ (or '…' in AMP). An apostrophe (don’t, Lord's) has a letter on both sides, so it isn't one. */
+const sOpen = (t, i) => t[i] === "‘" || (t[i] === "'" && (i === 0 || /[\s(\[—“"-]/.test(t[i - 1])) && /[A-Za-z0-9\[“"]/.test(t[i + 1] || ""));
+const sClose = (t, i) => (t[i] === "’" || (t[i] === "'" && i > 0 && !/\s/.test(t[i - 1]))) && !/[A-Za-z]/.test(t[i + 1] || "");   // NLT sometimes writes "unclean. ’"
 const qClose = (t, i) => t[i] === "”" || (t[i] === '"' && !qOpen(t, i));
 const SAYS = /\b(Jesus|He|the Lord)\b[^“”"]{0,40}\b(said|says|asked|told|replied|answered|declared|continued|added|cried|called|warned|commanded)\b|\b(said|asked|told|replied|answered|declared|continued|added)\b[^“”".]{0,25}\b(Jesus|He)\b/;
 /* BSB: for each quote that opens in a verse, is it Jesus? (BSB only marks the verse where He starts.) */
@@ -1809,10 +1813,27 @@ function bsbOpens(w) {
   const t = w.map(x => x.t).join(""), j = []; w.forEach(x => { for (const _ of x.t) j.push(x.j); });
   const opens = []; for (let i = 0; i < t.length; i++) if (qOpen(t, i)) opens.push(i);
   const fl = opens.map(i => !!(j[i] || j[i + 1]));
-  for (let k = 0; k < fl.length - 1; k++) if (!fl[k] && fl[k + 1]) { const cl = t.indexOf("”", opens[k]), gap = t.slice(cl > 0 ? cl : opens[k], opens[k + 1]); if (SAYS.test(gap)) fl[k] = true; }
+  /* "“But what about you?” Jesus asked. “…”" or "“Go,” Jesus said, “…”": the attribution after a quote is His.
+     Not "“Are You the Son of God?” He replied, “…”": there "He replied," introduces the NEXT quote. */
+  for (let k = 0; k < fl.length - 1; k++) if (!fl[k] && fl[k + 1]) {
+    const cl = t.indexOf("”", opens[k]), raw = t.slice(cl > 0 ? cl + 1 : opens[k], opens[k + 1]), gap = raw.split(/[.;]/)[0];
+    const split = cl > 0 && /,\s*$/.test(t.slice(opens[k], cl)), introNext = !/[.;]/.test(raw) && /[,:]\s*$/.test(raw);
+    if (SAYS.test(gap) && (split || !introNext)) fl[k] = true;
+  }
   if (!opens.length && w.some(x => x.j)) fl.push(true);
+  fl.txt = opens.map(i => { const e = t.indexOf("”", i); return t.slice(i + 1, e > i ? e : undefined); });
   return fl;
 }
+/* Your version may split a verse into a different number of quotes than BSB. Match each of your quotes to the
+   BSB quote with the most words in common ("So you are a king?" -> "Then You are a king!"), else by position. */
+const qWords = s => new Set((s.toLowerCase().match(/[a-z]{3,}/g) || []).filter(x => !/^(the|and|that|you|for|with|this|have|are|was|not|but|his|him|her|they|them|who|what|will|your|from|said)$/.test(x)));
+function matchFlag(fl, mine, k, n) {
+  const a = qWords(mine[k] || ""); let best = -1, bi = -1;
+  fl.txt.forEach((s, i) => { const b = qWords(s); let c = 0; for (const x of a) if (b.has(x)) c++; if (c > best) { best = c; bi = i; } });
+  if (best > 0) return fl[bi];
+  return fl[n > 1 ? Math.round(k * (fl.length - 1) / (n - 1)) : 0] ?? fl.some(Boolean);
+}
+const quoteTexts = t => { const out = []; for (let i = 0; i < t.length; i++) if (qOpen(t, i)) { let e = i + 1; while (e < t.length && !qClose(t, e)) e++; out.push(t.slice(i + 1, e)); i = e; } return out; };
 /* Backup for quotes BSB doesn't mark: "Jesus told her, “…”" or "“…” Jesus said." */
 const V_SAY = "said|says|asked|told|replied|answered|declared|continued|added|called|cried|shouted|prayed|commanded|warned|explained";
 const J_BEFORE = new RegExp(`(^|[.,;:!?\\u2014]\\s*|\\b(?:and|but|then|so|And|But|Then|So|Again|Later)\\s+)Jesus\\b(?![\\u2019'])[^\\u201c\\u201d",.;]{0,16}\\b(${V_SAY})\\b[^\\u201c\\u201d".]{0,30}$`);
@@ -1821,29 +1842,71 @@ function textOpens(t) {
   const out = []; let last = 0;
   for (let i = 0; i < t.length; i++) if (qOpen(t, i)) {
     let e = i + 1; while (e < t.length && !qClose(t, e)) e++;
-    out.push(J_BEFORE.test(t.slice(last, i)) || J_AFTER.test(t.slice(e + 1, e + 50))); last = e + 1; i = e;
+    /* "“…,” Jesus said" = His quote. But "“I have no husband.” Jesus said to her, “…”" (John 4:17) or "“…?” Jesus answered, “…”"
+       is someone else speaking, then Jesus starting a new sentence. */
+    const end = t.slice(0, e).trimEnd().slice(-1), after = t.slice(e + 1, e + 50), reply = /^[^“”"]{0,40}[,:]\s*[“"]/.test(after);
+    out.push(J_BEFORE.test(t.slice(last, i)) || (J_AFTER.test(after) && end !== "." && !(end === "?" && reply))); last = e + 1; i = e;
   }
   return out;
 }
-/* For one chapter in one version: verse number -> [[text, red], ...]. Jesus' quote stays red until it closes in your version. */
+/* BSB: for each inner quote ‘…’ that opens in a verse, is it Jesus? (e.g. Paul retelling "‘I am Jesus,’ He replied.") */
+function bsbInner(w) {
+  const t = w.map(x => x.t).join(""), j = []; w.forEach(x => { for (const _ of x.t) j.push(x.j); });
+  const fl = []; for (let i = 0; i < t.length; i++) if (sOpen(t, i)) fl.push(!!(j[i] || j[i + 1]));
+  return fl;
+}
+/* For one chapter in one version: verse number -> [[text, red], ...].
+   Each quote in your version is followed from where it opens to where it closes, even across verses.
+   A quote is Jesus' if BSB says so where it opens, OR if BSB marks a whole verse inside it as Jesus
+   (BSB often marks only part of a long talk or parable, e.g. Mark 4:5 but not 4:3-4), so the whole quote goes red.
+   Quotes inside quotes are red when inside Jesus' words, or when BSB marks that inner quote as Jesus. */
 function wjSegs(ch, meta) {
   if (ch.wjm === meta) return ch.wjs;
-  const res = {}; let inQ = false, isJ = false;
-  for (const x of ch.vs) {
-    const t = x.t, w = meta.wj[x.n], fl = w === 1 ? null : w ? bsbOpens(w) : [], red = new Array(t.length).fill(false);
-    let nOpen = 0; for (let i = 0; i < t.length; i++) if (qOpen(t, i)) nOpen++;
-    const tx = textOpens(t), flag = k => !!tx[k] || (w === 1 ? true : !w ? false : fl.length === nOpen ? fl[k] : fl.some(Boolean));
-    if (w === 1 && !inQ && !nOpen) red.fill(true);
-    for (let i = 0, k = 0; i < t.length; i++) {
-      if (qOpen(t, i)) { isJ = inQ ? isJ || flag(k) : flag(k); inQ = true; k++; red[i] = isJ; continue; }
-      if (qClose(t, i)) { red[i] = red[i] || (inQ && isJ); inQ = false; isJ = false; continue; }
-      if (inQ && isJ) red[i] = true;
+  const at = [], full = new Set(); let top = null, inner = null, deep = null;
+  ch.vs.forEach((x, vi) => {
+    const t = x.t, w = meta.wj[x.n], part = w && w !== 1, fl = part ? bsbOpens(w) : [], fi = part ? bsbInner(w) : [], tx = textOpens(t), row = new Array(t.length);
+    const bt = part ? w.map(s => s.t).join("") : ""; let bsbN = 0; for (let i = 0; i < bt.length; i++) if (qOpen(bt, i)) bsbN++;
+    let nOpen = 0, nIn = 0; for (let i = 0; i < t.length; i++) { if (qOpen(t, i)) nOpen++; else if (sOpen(t, i)) nIn++; }
+    const mine = part && fl.length !== nOpen && fl.txt.length ? quoteTexts(t) : null;
+    const flag = k => !!tx[k] || (w === 1 ? true : !w ? false : fl.length === nOpen ? fl[k] : mine ? matchFlag(fl, mine, k, mine.length) : fl.some(Boolean));
+    const iflag = k => !!fi.length && (fi.length === nIn ? fi[k] : fi.some(Boolean));
+    if ((inner || top) && (w === 1 || (part && w.find(s => s.t.trim())?.j))) (inner || top).j = true;   // verse starts inside a quote and BSB says Jesus is talking
+    const o1 = [...t].findIndex((_, i) => qOpen(t, i)), c1 = [...t].findIndex((_, i) => qClose(t, i));
+    /* Whole verse is Jesus in BSB and we're not inside anyone's quote: all red, unless your version adds "He said," before His quote
+       (AMP Revelation letters have no outer quote marks, only the people He quotes). */
+    if (w === 1 && !top && (o1 < 0 || (o1 > 0 && !/\b(said|says|asked|replied|answered|told|declared|cried|called|spoke)\b/i.test(t.slice(0, o1))))) full.add(vi);
+    /* Verse starts with Jesus still talking but your version already closed the quote (ESV Mark 12:36-37 after a Psalm quote). */
+    if (!top && part && w.find(s => s.t.trim())?.j && c1 >= 0 && (o1 < 0 || c1 < o1)) top = { j: true };
+    let lastC = -1, lastJ = null;   // last quote that closed in this verse, and whether it was His
+    for (let i = 0, k = 0, ki = 0; i < t.length; i++) {
+      /* "…" inside '…' inside "…" (AMP Revelation 3:17): a third level, unless it's a new paragraph at the start of the verse */
+      if (qOpen(t, i) && inner && !deep && t.slice(0, i).trim()) { deep = { j: false }; row[i] = [top, inner, deep]; continue; }
+      if (deep && qClose(t, i)) { row[i] = [top, inner, deep]; deep = null; continue; }
+      if (deep) { row[i] = [top, inner, deep]; continue; }
+      if (qOpen(t, i)) {
+        inner = null;
+        /* A quote mark at a new paragraph inside an open quote = the same person still talking (Paul retelling his
+           conversion, Acts 22/26). Only start Jesus here if the text or BSB really shows Him starting to speak. */
+        /* "“Oh yes,” they replied, “we are able!”": the second half of a split quote has the same speaker as the first */
+        const cont = lastC >= 0 && /,\s*$/.test(t.slice(0, lastC)) && /^[^.!?;“”"]{0,40},\s*$/.test(t.slice(lastC + 1, i));
+        if (!top) top = { j: cont ? lastJ : flag(k) }; else if (!top.j && (tx[k] || (bsbN && flag(k)))) top = { j: true };
+        k++; row[i] = [top, null]; continue;
+      }
+      if (qClose(t, i)) { row[i] = [top, null]; lastC = i; lastJ = !!top?.j; top = null; inner = null; continue; }
+      if (sOpen(t, i)) { inner = { j: iflag(ki) }; ki++; row[i] = [top, inner]; continue; }
+      if (inner && sClose(t, i)) { row[i] = [top, inner]; inner = null; continue; }
+      row[i] = [top, inner];
     }
-    if (!red.some(Boolean)) continue;
+    at.push(row);
+  });
+  const res = {};
+  ch.vs.forEach((x, vi) => {
+    const t = x.t, red = full.has(vi) ? new Array(t.length).fill(true) : at[vi].map(([a, b]) => !!(a?.j || b?.j));
+    if (!red.some(Boolean)) return;
     const segs = []; let cur = "", cr = red[0];
     for (let i = 0; i < t.length; i++) { if (red[i] !== cr) { segs.push([cur, cr]); cur = ""; cr = red[i]; } cur += t[i]; }
     segs.push([cur, cr]); res[x.n] = segs.filter(s => s[0]);
-  }
+  });
   ch.wjm = meta; ch.wjs = res; return res;
 }
 
